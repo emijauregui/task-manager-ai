@@ -1,7 +1,7 @@
 // Configuration
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3000'
-    : 'https://your-backend-url.onrender.com'; // Cambiar por tu URL de Render
+    : 'https://task-manager-ai-bayn.onrender.com';
 
 // State
 let tasks = [];

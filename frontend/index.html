@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager AI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 Task Manager AI</h1>
+            <p class="subtitle">Gestiona tus tareas con inteligencia artificial</p>
+        </header>
+
+        <!-- Task Form -->
+        <div class="task-form-container">
+            <h2 id="form-title">Nueva Tarea</h2>
+            <form id="task-form">
+                <input type="hidden" id="task-id">
+                <div class="form-group">
+                    <label for="task-title">Título *</label>
+                    <input type="text" id="task-title" placeholder="Ej: Completar informe mensual" required>
+                </div>
+                <div class="form-group">
+                    <label for="task-description">Descripción</label>
+                    <textarea id="task-description" rows="3" placeholder="Detalles adicionales sobre la tarea..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="task-priority">Prioridad</label>
+                    <select id="task-priority">
+                        <option value="low">Baja</option>
+                        <option value="medium" selected>Media</option>
+                        <option value="high">Alta</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="submit-btn">
+                        <span id="submit-text">Agregar Tarea</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="cancel-btn" style="display: none;">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-ai" id="suggest-priority-btn" title="Sugerir prioridad con IA">
+                        🤖 Sugerir Prioridad
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <button class="filter-btn active" data-filter="all">Todas</button>
+            <button class="filter-btn" data-filter="pending">Pendientes</button>
+            <button class="filter-btn" data-filter="completed">Completadas</button>
+        </div>
+
+        <!-- Tasks List -->
+        <div class="tasks-container">
+            <div id="tasks-list"></div>
+            <div id="empty-state" class="empty-state">
+                <p>📝 No hay tareas todavía</p>
+                <p class="empty-subtitle">Crea tu primera tarea para comenzar</p>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loading-spinner" class="spinner" style="display: none;">
+            <div class="spinner-circle"></div>
+            <p>Procesando...</p>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast-container"></div>
+    </div>
+
+    <!-- Modal for Subtasks -->
+    <div id="subtasks-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✂️ Subtareas Sugeridas</h2>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="subtasks-reasoning"></div>
+                <div id="subtasks-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modal-cancel">Cerrar</button>
+                <button class="btn btn-primary" id="modal-create-all">Crear Todas</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

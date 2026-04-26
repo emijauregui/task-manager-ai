@@ -1,0 +1,23 @@
+{
+  "name": "task-manager-ai",
+  "version": "1.0.0",
+  "description": "Task Manager con inteligencia artificial usando Claude de Anthropic",
+  "scripts": {
+    "install-backend": "cd backend && npm install",
+    "start-backend": "cd backend && npm start",
+    "dev-backend": "cd backend && npm run dev",
+    "serve-frontend": "npx serve frontend"
+  },
+  "keywords": [
+    "task-manager",
+    "ai",
+    "anthropic",
+    "claude"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/task-manager-ai.git"
+  }
+}

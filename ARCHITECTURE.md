@@ -1,0 +1,425 @@
+# Architecture Overview
+
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         USER BROWSER                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │              FRONTEND (Vanilla JS)                  │    │
+│  │                                                      │    │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────┐ │    │
+│  │  │ index.html   │  │  styles.css  │  │  app.js  │ │    │
+│  │  │              │  │              │  │          │ │    │
+│  │  │ • Task Form  │  │ • Variables  │  │ • State  │ │    │
+│  │  │ • Task List  │  │ • Layout     │  │ • API    │ │    │
+│  │  │ • Filters    │  │ • Components │  │ • Events │ │    │
+│  │  │ • Modal      │  │ • Animations │  │ • Render │ │    │
+│  │  └──────────────┘  └──────────────┘  └──────────┘ │    │
+│  └────────────────────────────────────────────────────┘    │
+│                             │                                │
+│                             │ HTTP/REST                      │
+│                             ▼                                │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              │
+┌─────────────────────────────┼─────────────────────────────┐
+│                             │                               │
+│  ┌──────────────────────────▼──────────────────────────┐  │
+│  │         BACKEND API (Node.js + Express)             │  │
+│  │                                                      │  │
+│  │  ┌─────────────────────────────────────────────┐   │  │
+│  │  │            ROUTES & ENDPOINTS                │   │  │
+│  │  │                                              │   │  │
+│  │  │  CRUD Operations:                           │   │  │
+│  │  │  • GET    /api/tasks                        │   │  │
+│  │  │  • GET    /api/tasks/:id                    │   │  │
+│  │  │  • POST   /api/tasks                        │   │  │
+│  │  │  • PUT    /api/tasks/:id                    │   │  │
+│  │  │  • DELETE /api/tasks/:id                    │   │  │
+│  │  │                                              │   │  │
+│  │  │  AI Operations:                             │   │  │
+│  │  │  • POST /api/ai/suggest-priority            │   │  │
+│  │  │  • POST /api/ai/break-down-task             │   │  │
+│  │  │                                              │   │  │
+│  │  │  Health:                                     │   │  │
+│  │  │  • GET  /health                             │   │  │
+│  │  └─────────────────────────────────────────────┘   │  │
+│  │                                                      │  │
+│  │  ┌─────────────────────────────────────────────┐   │  │
+│  │  │         IN-MEMORY STORAGE                   │   │  │
+│  │  │                                              │   │  │
+│  │  │  tasks = [                                  │   │  │
+│  │  │    {                                        │   │  │
+│  │  │      id: 1,                                 │   │  │
+│  │  │      title: "...",                          │   │  │
+│  │  │      description: "...",                    │   │  │
+│  │  │      priority: "high|medium|low",          │   │  │
+│  │  │      completed: false,                      │   │  │
+│  │  │      createdAt: "...",                      │   │  │
+│  │  │      updatedAt: "..."                       │   │  │
+│  │  │    }                                        │   │  │
+│  │  │  ]                                          │   │  │
+│  │  └─────────────────────────────────────────────┘   │  │
+│  │                             │                        │  │
+│  │                             │ AI Requests            │  │
+│  │                             ▼                        │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                              │                              │
+└──────────────────────────────┼──────────────────────────────┘
+                               │
+                               │
+┌──────────────────────────────▼──────────────────────────────┐
+│                    ANTHROPIC API                             │
+│                                                               │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │              Claude Sonnet 4.6                      │    │
+│  │                                                      │    │
+│  │  • Analyze task urgency and importance             │    │
+│  │  • Suggest priority level (high/medium/low)        │    │
+│  │  • Break down complex tasks into subtasks          │    │
+│  │  • Return structured JSON responses                │    │
+│  └────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Data Flow
+
+### 1. Create Task Flow
+
+```
+User Input (form)
+    │
+    ▼
+Frontend: handleSubmit()
+    │
+    ▼
+API Call: POST /api/tasks
+    │
+    ▼
+Backend: Create task object
+    │
+    ▼
+In-Memory Storage: tasks.push(newTask)
+    │
+    ▼
+Response: return task JSON
+    │
+    ▼
+Frontend: Add to tasks array
+    │
+    ▼
+Frontend: renderTasks()
+    │
+    ▼
+UI Updated
+```
+
+### 2. AI Priority Suggestion Flow
+
+```
+User clicks "🤖 Sugerir Prioridad"
+    │
+    ▼
+Frontend: handleSuggestPriority()
+    │
+    ▼
+API Call: POST /api/ai/suggest-priority
+    │
+    ▼
+Backend: Format prompt with task details
+    │
+    ▼
+Anthropic API: Send to Claude Sonnet 4.6
+    │
+    ▼
+Claude: Analyze task and generate JSON
+    {
+      "priority": "high",
+      "reasoning": "..."
+    }
+    │
+    ▼
+Backend: Parse JSON response
+    │
+    ▼
+Frontend: Update priority select value
+    │
+    ▼
+Toast: Show reasoning to user
+```
+
+### 3. Break Down Task Flow
+
+```
+User clicks "✂️" on task card
+    │
+    ▼
+Frontend: handleBreakDownTask(taskId)
+    │
+    ▼
+API Call: POST /api/ai/break-down-task
+    │
+    ▼
+Backend: Format prompt with task details
+    │
+    ▼
+Anthropic API: Send to Claude Sonnet 4.6
+    │
+    ▼
+Claude: Generate subtasks as JSON
+    {
+      "subtasks": [...],
+      "reasoning": "..."
+    }
+    │
+    ▼
+Backend: Parse JSON response
+    │
+    ▼
+Frontend: Store in currentSubtasks
+    │
+    ▼
+Frontend: showSubtasksModal()
+    │
+    ▼
+Modal: Display subtasks with "Crear Todas" button
+    │
+    ▼
+User clicks "Crear Todas"
+    │
+    ▼
+Frontend: Loop through subtasks
+    │
+    ▼
+API Call: POST /api/tasks (for each subtask)
+    │
+    ▼
+Backend: Create each task
+    │
+    ▼
+Frontend: Refresh task list
+```
+
+## Component Interaction
+
+### Frontend Components
+
+```
+┌────────────────────────────────────────┐
+│          app.js (Main Logic)           │
+│                                        │
+│  ┌──────────────────────────────────┐ │
+│  │       State Management           │ │
+│  │  • tasks[]                       │ │
+│  │  • currentFilter                 │ │
+│  │  • editingTaskId                 │ │
+│  │  • currentSubtasks[]             │ │
+│  └──────────────────────────────────┘ │
+│                                        │
+│  ┌──────────────────────────────────┐ │
+│  │       API Layer                  │ │
+│  │  • apiCall(endpoint, options)    │ │
+│  │  • loadTasks()                   │ │
+│  │  • createTask()                  │ │
+│  │  • updateTask()                  │ │
+│  │  • deleteTask()                  │ │
+│  └──────────────────────────────────┘ │
+│                                        │
+│  ┌──────────────────────────────────┐ │
+│  │       Event Handlers             │ │
+│  │  • handleSubmit()                │ │
+│  │  • handleSuggestPriority()       │ │
+│  │  • handleBreakDownTask()         │ │
+│  │  • editTask()                    │ │
+│  │  • toggleTaskComplete()          │ │
+│  └──────────────────────────────────┘ │
+│                                        │
+│  ┌──────────────────────────────────┐ │
+│  │       Rendering                  │ │
+│  │  • renderTasks()                 │ │
+│  │  • getFilteredTasks()            │ │
+│  │  • showSubtasksModal()           │ │
+│  │  • showToast()                   │ │
+│  │  • showLoading()                 │ │
+│  └──────────────────────────────────┘ │
+│                                        │
+│  ┌──────────────────────────────────┐ │
+│  │       Utilities                  │ │
+│  │  • formatDate()                  │ │
+│  │  • escapeHtml()                  │ │
+│  │  • getPriorityLabel()            │ │
+│  └──────────────────────────────────┘ │
+└────────────────────────────────────────┘
+```
+
+### Backend Components
+
+```
+┌────────────────────────────────────────┐
+│       server.js (Express App)          │
+│                                        │
+│  ┌──────────────────────────────────┐ │
+│  │       Middleware                 │ │
+│  │  • cors()                        │ │
+│  │  • express.json()                │ │
+│  └──────────────────────────────────┘ │
+│                                        │
+│  ┌──────────────────────────────────┐ │
+│  │       Storage                    │ │
+│  │  • tasks[] array                 │ │
+│  │  • nextId counter                │ │
+│  └──────────────────────────────────┘ │
+│                                        │
+│  ┌──────────────────────────────────┐ │
+│  │       CRUD Routes                │ │
+│  │  • GET /api/tasks                │ │
+│  │  • GET /api/tasks/:id            │ │
+│  │  • POST /api/tasks               │ │
+│  │  • PUT /api/tasks/:id            │ │
+│  │  • DELETE /api/tasks/:id         │ │
+│  └──────────────────────────────────┘ │
+│                                        │
+│  ┌──────────────────────────────────┐ │
+│  │       AI Routes                  │ │
+│  │  • POST /ai/suggest-priority     │ │
+│  │  • POST /ai/break-down-task      │ │
+│  └──────────────────────────────────┘ │
+│                                        │
+│  ┌──────────────────────────────────┐ │
+│  │       Anthropic Integration      │ │
+│  │  • Initialize SDK client         │ │
+│  │  • Format prompts                │ │
+│  │  • Parse JSON responses          │ │
+│  │  • Error handling                │ │
+│  └──────────────────────────────────┘ │
+└────────────────────────────────────────┘
+```
+
+## Deployment Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      GITHUB REPO                         │
+│                                                          │
+│  ┌──────────────┐                  ┌──────────────┐    │
+│  │   frontend/  │                  │   backend/   │    │
+│  └──────────────┘                  └──────────────┘    │
+└─────────────────────────────────────────────────────────┘
+         │                                     │
+         │ Auto-deploy                         │ Auto-deploy
+         ▼                                     ▼
+┌──────────────────┐              ┌──────────────────────┐
+│     NETLIFY      │              │       RENDER         │
+│                  │              │                      │
+│ • Static hosting │◄─────────────│ • Node.js runtime   │
+│ • CDN            │   CORS       │ • Environment vars  │
+│ • HTTPS          │              │ • HTTPS             │
+│ • Custom domain  │              │ • Auto-sleep (free) │
+└──────────────────┘              └──────────────────────┘
+         │                                     │
+         │                                     │
+         │                                     ▼
+         │                        ┌─────────────────────┐
+         │                        │   ANTHROPIC API     │
+         │                        │                     │
+         │                        │ • Claude Sonnet 4.6 │
+         │                        │ • Pay-as-you-go     │
+         │                        └─────────────────────┘
+         │
+         ▼
+┌──────────────────┐
+│   END USERS      │
+└──────────────────┘
+```
+
+## Security Considerations
+
+### Current Implementation
+
+```
+✅ HTTPS enforced (Netlify + Render)
+✅ CORS enabled (controlled origins)
+✅ Environment variables for secrets
+✅ Input validation on backend
+✅ HTML escaping in frontend
+✅ .gitignore for sensitive files
+
+⚠️  In-memory storage (no persistence)
+⚠️  No rate limiting
+⚠️  No authentication/authorization
+⚠️  No input sanitization (XSS vulnerable)
+⚠️  API key visible in backend logs
+```
+
+### Production Recommendations
+
+```
+🔒 Add rate limiting middleware
+🔒 Implement user authentication
+🔒 Add input sanitization (DOMPurify)
+🔒 Use database with encryption
+🔒 Add request validation (express-validator)
+🔒 Implement API key rotation
+🔒 Add logging and monitoring
+🔒 Set up WAF (Web Application Firewall)
+```
+
+## Scalability Path
+
+### Current (MVP)
+- In-memory storage
+- Single server instance
+- No caching
+- Direct API calls
+
+### Short-term (Production)
+- Add PostgreSQL/MongoDB
+- Add Redis caching
+- Implement connection pooling
+- Add request queuing
+
+### Long-term (Scale)
+- Horizontal scaling (multiple instances)
+- Load balancer
+- Separate AI service
+- Background job processing (Bull/Celery)
+- CDN for static assets
+- Database read replicas
+- Monitoring and alerts (Datadog, Sentry)
+
+## Technology Choices
+
+### Why Vanilla JavaScript?
+- ✅ No build step required
+- ✅ Faster initial load
+- ✅ Easier to understand
+- ✅ No framework lock-in
+- ❌ More boilerplate code
+- ❌ Manual DOM manipulation
+
+### Why Express?
+- ✅ Minimal and flexible
+- ✅ Large ecosystem
+- ✅ Easy to learn
+- ✅ Great for REST APIs
+- ❌ No built-in structure
+- ❌ Middleware can be confusing
+
+### Why Claude (Anthropic)?
+- ✅ Best-in-class reasoning
+- ✅ Structured output support
+- ✅ Excellent at breaking down tasks
+- ✅ Automatic prompt caching
+- ❌ Pay-as-you-go (no free tier)
+- ❌ Rate limits on free account
+
+### Why In-Memory Storage?
+- ✅ Simple to implement
+- ✅ Fast for prototyping
+- ✅ No database setup needed
+- ❌ Data lost on restart
+- ❌ Not scalable
+- ❌ Not production-ready

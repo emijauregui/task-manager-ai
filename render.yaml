@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: task-manager-ai-backend
+    runtime: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ANTHROPIC_API_KEY
+        sync: false
+    healthCheckPath: /health

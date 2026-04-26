@@ -14,7 +14,7 @@ Task Manager AI is a full-stack web application that uses Anthropic's Claude API
 
 ### Backend
 - **Node.js + Express**: RESTful API server
-- **Anthropic SDK**: Claude API integration for AI features
+- **AWS Bedrock**: Claude API integration via AWS SDK for AI features
 - **Deployment**: Render (free tier with auto-sleep)
 
 ## Project Structure
@@ -68,12 +68,14 @@ npx serve frontend
 
 Create `backend/.env` file:
 ```
-ANTHROPIC_API_KEY=your_api_key_here
+AWS_ACCESS_KEY_ID=your_access_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_REGION=us-east-1
 PORT=3000
 NODE_ENV=development
 ```
 
-Get your API key from [console.anthropic.com](https://console.anthropic.com)
+Configure AWS Bedrock access from [console.aws.amazon.com](https://console.aws.amazon.com)
 
 ## Architecture
 
@@ -111,10 +113,11 @@ Get your API key from [console.anthropic.com](https://console.anthropic.com)
 - Development: `http://localhost:3000`
 - Production: Update to your Render backend URL
 
-**backend/server.js** - Anthropic client initialization:
-- Uses `@anthropic-ai/sdk` package
-- Model: `claude-sonnet-4-6` for balance of speed and quality
-- Prompt caching is automatically enabled by the SDK
+**backend/server.js** - AWS Bedrock client initialization:
+- Uses `@aws-sdk/client-bedrock-runtime` package
+- Model: `anthropic.claude-sonnet-4-5-20250929-v1:0` (Claude Sonnet 4.5)
+- Credentials from environment variables
+- Helper function `invokeBedrockModel()` for API calls
 
 ## AI Features Implementation
 
@@ -125,9 +128,10 @@ The AI analyzes the task title and description to suggest one of three priority 
 For complex tasks, the AI generates a list of actionable subtasks with individual priorities and descriptions. The response includes reasoning for how the task was divided.
 
 ### Error Handling
-- Missing API key: Returns 500 with clear error message
+- Missing AWS credentials: Returns 500 with clear error message
 - Invalid responses: JSON parsing with fallback error handling
 - Network errors: Frontend shows toast notifications
+- AWS SDK errors: Logged and returned with appropriate status codes
 
 ## Deployment
 
@@ -135,11 +139,12 @@ For complex tasks, the AI generates a list of actionable subtasks with individua
 1. GitHub account and repository
 2. Netlify account (free)
 3. Render account (free)
-4. Anthropic API key
+4. AWS account with Bedrock access
+5. IAM user with AmazonBedrockFullAccess policy
 
 ### Deployment Flow
 1. Push code to GitHub
-2. Deploy backend to Render (configure ANTHROPIC_API_KEY env var)
+2. Deploy backend to Render (configure AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION env vars)
 3. Update frontend/app.js with production backend URL
 4. Deploy frontend to Netlify
 
@@ -155,8 +160,9 @@ See `DEPLOYMENT.md` for detailed step-by-step instructions.
 
 ### Modifying AI prompts
 Edit the prompt strings in:
-- `backend/server.js:89` - Priority suggestion prompt
-- `backend/server.js:125` - Task breakdown prompt
+- `backend/server.js` - Look for `invokeBedrockModel()` calls in AI endpoints
+- Priority suggestion: `/api/ai/suggest-priority` endpoint
+- Task breakdown: `/api/ai/break-down-task` endpoint
 
 ### Styling changes
 All styles are in `frontend/styles.css` with CSS variables in `:root` for easy theming.
@@ -166,20 +172,26 @@ All styles are in `frontend/styles.css` with CSS variables in `:root` for easy t
 - **No database**: Tasks are stored in-memory. Restarting the backend clears all data. For persistence, integrate a database like MongoDB or PostgreSQL.
 - **CORS**: Backend has CORS enabled for all origins. Restrict in production if needed.
 - **Free tier limits**: Render free tier sleeps after 15 minutes of inactivity. First request after sleep takes 30-60 seconds.
-- **API costs**: Anthropic API is pay-as-you-go. Monitor usage at console.anthropic.com.
-- **Prompt caching**: The Anthropic SDK automatically uses prompt caching when beneficial, reducing costs for repeated prompts.
+- **API costs**: AWS Bedrock charges per token. Monitor usage in AWS Cost Explorer and CloudWatch.
+- **AWS Bedrock**: Requires model access enabled in AWS console. Check Bedrock service in your region.
+- **Security**: AWS credentials are sensitive. Never commit .env file. Use IAM roles in production.
 
 ## Testing AI Features Locally
 
-1. Start backend with valid ANTHROPIC_API_KEY
-2. Open frontend
-3. Create a task like "Implement user authentication system with OAuth, JWT tokens, and password reset"
-4. Click "🤖 Sugerir Prioridad" - should suggest "high" priority
-5. After creating, click "✂️" button - should generate 4-6 subtasks
+1. Start backend with valid AWS credentials in .env
+2. Ensure Bedrock model access is enabled in AWS console
+3. Open frontend
+4. Create a task like "Implement user authentication system with OAuth, JWT tokens, and password reset"
+5. Click "🤖 Sugerir Prioridad" - should suggest "high" priority
+6. After creating, click "✂️" button - should generate 4-6 subtasks
+7. Check backend logs for Bedrock API calls and responses
 
 ## Security Considerations
 
-- **API Key**: Never commit `.env` file. Use environment variables in production.
+- **AWS Credentials**: Never commit `.env` file. Use environment variables in production.
+- **IAM Policies**: Use least-privilege policies. Only grant Bedrock invoke permissions.
 - **Input validation**: Basic validation exists. For production, add sanitization for XSS prevention.
 - **Rate limiting**: Consider adding rate limiting middleware for production.
 - **HTTPS**: Both Netlify and Render provide HTTPS by default.
+- **Credential Rotation**: Rotate AWS access keys regularly (every 90 days recommended).
+- **CloudTrail**: Enable CloudTrail logging to audit Bedrock API calls.

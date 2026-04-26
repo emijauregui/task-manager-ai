@@ -40,9 +40,11 @@ task-manager-ai/
    npm install
    ```
 
-3. Crea un archivo `.env` con tu API key de Anthropic:
+3. Crea un archivo `.env` con tus credenciales de AWS:
    ```
-   ANTHROPIC_API_KEY=tu_api_key_aquí
+   AWS_ACCESS_KEY_ID=tu_access_key_aquí
+   AWS_SECRET_ACCESS_KEY=tu_secret_key_aquí
+   AWS_REGION=us-east-1
    PORT=3000
    ```
 
@@ -86,14 +88,19 @@ task-manager-ai/
 3. Configura:
    - Build command: `cd backend && npm install`
    - Start command: `cd backend && npm start`
-4. Añade la variable de entorno `ANTHROPIC_API_KEY`
+4. Añade las variables de entorno:
+   - `AWS_ACCESS_KEY_ID`
+   - `AWS_SECRET_ACCESS_KEY`
+   - `AWS_REGION`
 
-## Obtener API Key de Anthropic
+## Configurar AWS Bedrock
 
-1. Visita [console.anthropic.com](https://console.anthropic.com/)
+1. Visita [console.aws.amazon.com](https://console.aws.amazon.com/)
 2. Crea una cuenta o inicia sesión
-3. Ve a "API Keys" y genera una nueva clave
-4. Copia la clave y agrégala a tu archivo `.env`
+3. Ve a IAM y crea un nuevo usuario con acceso programático
+4. Asigna la política `AmazonBedrockFullAccess`
+5. Habilita el modelo Claude en Bedrock (región us-east-1)
+6. Copia las credenciales y agrégalas a tu archivo `.env`
 
 ## Uso
 

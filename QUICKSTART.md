@@ -2,13 +2,15 @@
 
 ## 🚀 Inicio Rápido (5 minutos)
 
-### 1. Obtener API Key de Anthropic
+### 1. Configurar AWS Bedrock
 
-1. Ve a [console.anthropic.com](https://console.anthropic.com)
-2. Crea una cuenta (si no tienes)
-3. Ve a "API Keys"
-4. Genera una nueva clave
-5. Copia la clave (la necesitarás en el paso 3)
+1. Ve a [console.aws.amazon.com](https://console.aws.amazon.com)
+2. Crea una cuenta (si no tienes) o inicia sesión
+3. Ve a IAM → Users → Create user
+4. Habilita "Programmatic access"
+5. Asigna la política "AmazonBedrockFullAccess"
+6. Ve a Bedrock y habilita el modelo Claude en tu región
+7. Guarda las credenciales de forma segura
 
 ### 2. Instalar Backend
 
@@ -24,14 +26,18 @@ Crea el archivo `backend/.env`:
 ```bash
 # En Windows (PowerShell)
 cd backend
-echo ANTHROPIC_API_KEY=tu_api_key_aqui > .env
+echo AWS_ACCESS_KEY_ID=tu_access_key > .env
+echo AWS_SECRET_ACCESS_KEY=tu_secret_key >> .env
+echo AWS_REGION=us-east-1 >> .env
 echo PORT=3000 >> .env
 echo NODE_ENV=development >> .env
 
 # En Mac/Linux
 cd backend
 cat > .env << EOF
-ANTHROPIC_API_KEY=tu_api_key_aqui
+AWS_ACCESS_KEY_ID=tu_access_key
+AWS_SECRET_ACCESS_KEY=tu_secret_key
+AWS_REGION=us-east-1
 PORT=3000
 NODE_ENV=development
 EOF

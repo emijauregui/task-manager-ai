@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const Anthropic = require('@anthropic-ai/sdk');
+const { BedrockRuntimeClient, InvokeModelCommand } = require('@aws-sdk/client-bedrock-runtime');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,10 +10,39 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Initialize Anthropic client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+// Initialize AWS Bedrock client
+const bedrockClient = new BedrockRuntimeClient({
+  region: process.env.AWS_REGION || 'us-east-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
 });
+
+const MODEL_ID = 'anthropic.claude-sonnet-4-5-20250929-v1:0';
+
+// Helper function to invoke Bedrock model
+async function invokeBedrockModel(prompt, maxTokens = 2048) {
+  const payload = {
+    anthropic_version: 'bedrock-2023-05-31',
+    max_tokens: maxTokens,
+    messages: [{
+      role: 'user',
+      content: prompt
+    }]
+  };
+
+  const command = new InvokeModelCommand({
+    modelId: MODEL_ID,
+    contentType: 'application/json',
+    accept: 'application/json',
+    body: JSON.stringify(payload),
+  });
+
+  const response = await bedrockClient.send(command);
+  const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+  return responseBody.content[0].text;
+}
 
 // In-memory storage (en producción usarías una base de datos)
 let tasks = [];
@@ -102,17 +131,12 @@ app.post('/api/ai/suggest-priority', async (req, res) => {
     return res.status(400).json({ error: 'Title is required' });
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    return res.status(500).json({ error: 'AWS credentials not configured' });
   }
 
   try {
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      messages: [{
-        role: 'user',
-        content: `Analiza esta tarea y sugiere un nivel de prioridad (high, medium, o low) basándote en su urgencia, importancia e impacto.
+    const prompt = `Analiza esta tarea y sugiere un nivel de prioridad (high, medium, o low) basándote en su urgencia, importancia e impacto.
 
 Título: ${title}
 Descripción: ${description || 'Sin descripción'}
@@ -121,11 +145,9 @@ Responde SOLO con un objeto JSON en este formato exacto:
 {
   "priority": "high|medium|low",
   "reasoning": "breve explicación de por qué elegiste esta prioridad"
-}`
-      }]
-    });
+}`;
 
-    const responseText = message.content[0].text;
+    const responseText = await invokeBedrockModel(prompt, 1024);
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
 
     if (jsonMatch) {
@@ -151,17 +173,12 @@ app.post('/api/ai/break-down-task', async (req, res) => {
     return res.status(400).json({ error: 'Title is required' });
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    return res.status(500).json({ error: 'AWS credentials not configured' });
   }
 
   try {
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
-      messages: [{
-        role: 'user',
-        content: `Analiza esta tarea y divídela en subtareas más pequeñas y manejables. Cada subtarea debe ser específica y accionable.
+    const prompt = `Analiza esta tarea y divídela en subtareas más pequeñas y manejables. Cada subtarea debe ser específica y accionable.
 
 Título: ${title}
 Descripción: ${description || 'Sin descripción'}
@@ -176,11 +193,9 @@ Responde SOLO con un objeto JSON en este formato exacto:
     }
   ],
   "reasoning": "breve explicación de cómo dividiste la tarea"
-}`
-      }]
-    });
+}`;
 
-    const responseText = message.content[0].text;
+    const responseText = await invokeBedrockModel(prompt, 2048);
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
 
     if (jsonMatch) {
@@ -202,5 +217,10 @@ Responde SOLO con un objeto JSON en este formato exacto:
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📝 API available at http://localhost:${PORT}/api`);
-  console.log(`🤖 AI features ${process.env.ANTHROPIC_API_KEY ? 'enabled' : 'disabled (no API key)'}`);
+  const awsConfigured = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY;
+  console.log(`🤖 AI features (AWS Bedrock) ${awsConfigured ? 'enabled' : 'disabled (no AWS credentials)'}`);
+  if (awsConfigured) {
+    console.log(`📍 AWS Region: ${process.env.AWS_REGION || 'us-east-1'}`);
+    console.log(`🧠 Model: ${MODEL_ID}`);
+  }
 });

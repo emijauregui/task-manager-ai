@@ -12,14 +12,15 @@ app.use(express.json());
 
 // Initialize AWS Bedrock client
 const bedrockClient = new BedrockRuntimeClient({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.AWS_REGION || 'us-east-2',
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
 });
 
-const MODEL_ID = 'anthropic.claude-sonnet-4-5-20250929-v1:0';
+// Use inference profile for Claude Sonnet 4.5 (cross-region availability)
+const MODEL_ID = 'us.anthropic.claude-sonnet-4-5-20250929-v1:0';
 
 // Helper function to invoke Bedrock model
 async function invokeBedrockModel(prompt, maxTokens = 2048) {
@@ -28,7 +29,10 @@ async function invokeBedrockModel(prompt, maxTokens = 2048) {
     max_tokens: maxTokens,
     messages: [{
       role: 'user',
-      content: prompt
+      content: [{
+        type: 'text',
+        text: prompt
+      }]
     }]
   };
 
@@ -39,9 +43,20 @@ async function invokeBedrockModel(prompt, maxTokens = 2048) {
     body: JSON.stringify(payload),
   });
 
-  const response = await bedrockClient.send(command);
-  const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-  return responseBody.content[0].text;
+  try {
+    const response = await bedrockClient.send(command);
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+
+    // Extract text from the response
+    if (responseBody.content && responseBody.content[0] && responseBody.content[0].text) {
+      return responseBody.content[0].text;
+    }
+
+    throw new Error('Invalid response structure from Bedrock');
+  } catch (error) {
+    console.error('Bedrock invocation error:', error);
+    throw error;
+  }
 }
 
 // In-memory storage (en producción usarías una base de datos)
@@ -220,7 +235,7 @@ app.listen(PORT, () => {
   const awsConfigured = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY;
   console.log(`🤖 AI features (AWS Bedrock) ${awsConfigured ? 'enabled' : 'disabled (no AWS credentials)'}`);
   if (awsConfigured) {
-    console.log(`📍 AWS Region: ${process.env.AWS_REGION || 'us-east-1'}`);
+    console.log(`📍 AWS Region: ${process.env.AWS_REGION || 'us-east-2'}`);
     console.log(`🧠 Model: ${MODEL_ID}`);
   }
 });

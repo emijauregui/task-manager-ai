@@ -4,81 +4,204 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Manager AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>📋 Task Manager AI</h1>
-            <p class="subtitle">Gestiona tus tareas con inteligencia artificial</p>
-        </header>
-
-        <!-- Task Form -->
-        <div class="task-form-container">
-            <h2 id="form-title">Nueva Tarea</h2>
-            <form id="task-form">
-                <input type="hidden" id="task-id">
-                <div class="form-group">
-                    <label for="task-title">Título *</label>
-                    <input type="text" id="task-title" placeholder="Ej: Completar informe mensual" required>
+    <div class="app-shell">
+        <aside class="app-sidebar">
+            <div class="brand-lockup">
+                <div class="brand-mark">DT</div>
+                <div>
+                    <p class="brand-kicker">Elite Analytics</p>
+                    <h1>Daily Ticket AI</h1>
                 </div>
-                <div class="form-group">
-                    <label for="task-description">Descripción</label>
-                    <textarea id="task-description" rows="3" placeholder="Detalles adicionales sobre la tarea..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="task-priority">Prioridad</label>
-                    <select id="task-priority">
-                        <option value="low">Baja</option>
-                        <option value="medium" selected>Media</option>
-                        <option value="high">Alta</option>
-                    </select>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary" id="submit-btn">
-                        <span id="submit-text">Agregar Tarea</span>
-                    </button>
-                    <button type="button" class="btn btn-secondary" id="cancel-btn" style="display: none;">
-                        Cancelar
-                    </button>
-                    <button type="button" class="btn btn-ai" id="suggest-priority-btn" title="Sugerir prioridad con IA">
-                        🤖 Sugerir Prioridad
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- Filters -->
-        <div class="filters">
-            <button class="filter-btn active" data-filter="all">Todas</button>
-            <button class="filter-btn" data-filter="pending">Pendientes</button>
-            <button class="filter-btn" data-filter="completed">Completadas</button>
-        </div>
-
-        <!-- Tasks List -->
-        <div class="tasks-container">
-            <div id="tasks-list"></div>
-            <div id="empty-state" class="empty-state">
-                <p>📝 No hay tareas todavía</p>
-                <p class="empty-subtitle">Crea tu primera tarea para comenzar</p>
             </div>
-        </div>
 
-        <!-- Loading Spinner -->
-        <div id="loading-spinner" class="spinner" style="display: none;">
-            <div class="spinner-circle"></div>
-            <p>Procesando...</p>
-        </div>
+            <nav class="sidebar-nav">
+                <a href="#daily-ticket-section" class="nav-link is-active">Dashboard</a>
+                <a href="#daily-ticket-games-panel" class="nav-link">Juegos</a>
+                <a href="#daily-ticket-history-panel" class="nav-link">Historial</a>
+                <a href="#tasks-section" class="nav-link">Tareas</a>
+            </nav>
 
-        <!-- Toast Notifications -->
-        <div id="toast-container"></div>
+            <div class="sidebar-card glass-card">
+                <p class="sidebar-card-title">Flujo seguro</p>
+                <p>El dashboard carga solo cache y estado. Bedrock y Odds API se usan unicamente cuando generas ticket.</p>
+            </div>
+        </aside>
+
+        <div class="app-main">
+            <header class="topbar">
+                <div class="topbar-copy">
+                    <p class="topbar-eyebrow">Task Manager + Betting Intel</p>
+                    <h2>Administra tareas y tu Daily Ticket AI desde una sola vista.</h2>
+                </div>
+                <div class="topbar-pills">
+                    <span class="ui-badge subtle">Vanilla HTML/CSS/JS</span>
+                    <span class="ui-badge subtle">Sin costos ocultos al cargar</span>
+                </div>
+            </header>
+
+            <main class="page-content">
+                <section class="daily-ticket-section" id="daily-ticket-section">
+                    <div class="hero-panel glass-card">
+                        <div class="hero-copy">
+                            <p class="hero-kicker">Daily Ticket AI</p>
+                            <h2>Genera picks deportivos solo cuando tu lo solicitas.</h2>
+                            <p class="hero-description">La vista inicial usa solo dashboard cacheado. El boton principal dispara la unica llamada costosa del flujo.</p>
+                            <div class="hero-badges" id="daily-ticket-ticket-flags"></div>
+                        </div>
+                        <div class="hero-actions">
+                            <button type="button" class="btn btn-primary btn-ticket" id="generate-daily-ticket-btn">Generar Ticket del Dia</button>
+                            <button type="button" class="btn btn-secondary" id="view-daily-ticket-btn">Ver Ticket Guardado</button>
+                            <button type="button" class="btn btn-ghost" id="retry-daily-ticket-btn" style="display: none;">Intentar mas tarde</button>
+                        </div>
+                        <div id="daily-ticket-feedback" class="panel-message info"></div>
+                    </div>
+
+                    <div id="daily-ticket-api-status" class="status-grid"></div>
+
+                    <div class="daily-ticket-grid">
+                        <section class="ticket-panel ticket-panel-main glass-card">
+                            <div class="panel-header">
+                                <div>
+                                    <p class="panel-kicker">Ticket disponible</p>
+                                    <h3>Ticket del dia</h3>
+                                </div>
+                                <p id="daily-ticket-summary" class="panel-subtitle">Sin ticket guardado.</p>
+                            </div>
+                            <div id="daily-ticket-current"></div>
+                        </section>
+
+                        <aside class="daily-ticket-side">
+                            <section class="ticket-panel glass-card">
+                                <div class="panel-header">
+                                    <div>
+                                        <p class="panel-kicker">Lectura rapida</p>
+                                        <h3>Resumen ejecutivo</h3>
+                                    </div>
+                                </div>
+                                <div id="daily-ticket-side-summary"></div>
+                            </section>
+
+                            <section class="ticket-panel glass-card">
+                                <div class="panel-header">
+                                    <div>
+                                        <p class="panel-kicker">Riesgo controlado</p>
+                                        <h3>Mercados a evitar</h3>
+                                    </div>
+                                </div>
+                                <div id="daily-ticket-avoid"></div>
+                            </section>
+                        </aside>
+                    </div>
+
+                    <div class="secondary-grid">
+                        <section class="ticket-panel glass-card" id="daily-ticket-games-panel">
+                            <div class="panel-header">
+                                <div>
+                                    <p class="panel-kicker">Scoreboard</p>
+                                    <h3>Juegos de hoy</h3>
+                                </div>
+                                <span class="ui-badge subtle">ESPN cacheado</span>
+                            </div>
+                            <div id="daily-ticket-games"></div>
+                        </section>
+
+                        <section class="ticket-panel glass-card" id="daily-ticket-history-panel">
+                            <div class="panel-header">
+                                <div>
+                                    <p class="panel-kicker">Memoria local</p>
+                                    <h3>Historial reciente</h3>
+                                </div>
+                            </div>
+                            <div id="daily-ticket-history"></div>
+                        </section>
+                    </div>
+                </section>
+
+                <section class="tasks-section" id="tasks-section">
+                    <div class="tasks-header glass-card">
+                        <div>
+                            <p class="panel-kicker">Task Manager</p>
+                            <h2>Workspace de tareas</h2>
+                            <p class="tasks-description">La app original sigue intacta: CRUD, sugerencia de prioridad y breakdown con IA.</p>
+                        </div>
+                    </div>
+
+                    <div class="tasks-grid">
+                        <div class="task-form-container glass-card">
+                            <h2 id="form-title">Nueva Tarea</h2>
+                            <form id="task-form">
+                                <input type="hidden" id="task-id">
+                                <div class="form-group">
+                                    <label for="task-title">Titulo *</label>
+                                    <input type="text" id="task-title" placeholder="Ej: Completar informe mensual" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="task-description">Descripcion</label>
+                                    <textarea id="task-description" rows="4" placeholder="Detalles adicionales sobre la tarea..."></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="task-priority">Prioridad</label>
+                                    <select id="task-priority">
+                                        <option value="low">Baja</option>
+                                        <option value="medium" selected>Media</option>
+                                        <option value="high">Alta</option>
+                                    </select>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary" id="submit-btn">
+                                        <span id="submit-text">Agregar Tarea</span>
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" id="cancel-btn" style="display: none;">Cancelar</button>
+                                    <button type="button" class="btn btn-ghost" id="suggest-priority-btn" title="Sugerir prioridad con IA">Sugerir Prioridad</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="tasks-board">
+                            <div class="filters glass-card">
+                                <button class="filter-btn active" data-filter="all">Todas</button>
+                                <button class="filter-btn" data-filter="pending">Pendientes</button>
+                                <button class="filter-btn" data-filter="completed">Completadas</button>
+                            </div>
+
+                            <div class="tasks-container glass-card">
+                                <div id="tasks-list"></div>
+                                <div id="empty-state" class="empty-state">
+                                    <p>No hay tareas todavia.</p>
+                                    <p class="empty-subtitle">Crea tu primera tarea para comenzar.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
     </div>
 
-    <!-- Modal for Subtasks -->
+    <nav class="mobile-nav">
+        <a href="#daily-ticket-section">Ticket</a>
+        <a href="#daily-ticket-games-panel">Juegos</a>
+        <a href="#daily-ticket-history-panel">Historial</a>
+        <a href="#tasks-section">Tareas</a>
+    </nav>
+
+    <div id="loading-spinner" class="spinner" style="display: none;">
+        <div class="spinner-circle"></div>
+        <p>Procesando...</p>
+    </div>
+
+    <div id="toast-container"></div>
+
     <div id="subtasks-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>✂️ Subtareas Sugeridas</h2>
+                <h2>Subtareas sugeridas</h2>
                 <button class="modal-close" id="modal-close">&times;</button>
             </div>
             <div class="modal-body">

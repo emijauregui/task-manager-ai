@@ -418,6 +418,46 @@ app.post('/api/daily-ticket/history/manual', asyncRoute(async (req, res) => {
   });
 }));
 
+app.post('/api/daily-ticket/history/import', asyncRoute(async (req, res) => {
+  if ((process.env.NODE_ENV || 'development') === 'production') {
+    return res.status(403).json({
+      error: 'Disabled in production',
+      message: 'Bulk MLB ticket import is only enabled outside production.',
+    });
+  }
+
+  const payload = req.body;
+  if (!payload || typeof payload !== 'object') {
+    return res.status(400).json({
+      error: 'Invalid payload',
+      message: 'A JSON payload with a tickets array is required.',
+    });
+  }
+
+  if (!Array.isArray(payload.tickets) || payload.tickets.length === 0) {
+    return res.status(400).json({
+      error: 'Invalid payload',
+      message: 'tickets must be a non-empty array.',
+    });
+  }
+
+  for (let index = 0; index < payload.tickets.length; index += 1) {
+    const validationError = mlbTicketHistoryService.validateImportedTicket(payload.tickets[index], index);
+    if (validationError) {
+      return res.status(400).json({
+        error: 'Invalid ticket payload',
+        message: validationError,
+      });
+    }
+  }
+
+  const result = await mlbTicketHistoryService.importHistoricalTickets(payload.tickets, {
+    sourceHint: 'manual',
+  });
+
+  return res.status(201).json(result);
+}));
+
 app.get('/api/daily-ticket/dashboard', asyncRoute(async (req, res) => {
   const dashboard = await dailyTicketService.getDashboard();
   return res.json(dashboard);

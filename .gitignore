@@ -8,6 +8,7 @@ yarn-error.log*
 .env
 .env.local
 .env.production
+backend/.env
 
 # Build outputs
 dist/
@@ -27,3 +28,6 @@ Thumbs.db
 # Logs
 logs/
 *.log
+
+# App cache
+backend/cache/*.json

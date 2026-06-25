@@ -434,6 +434,12 @@ async function handleGenerateDailyTicket() {
                 'success'
             );
             showToast(generatedForTomorrow ? 'Ticket para manana recuperado desde cache' : 'Ticket mostrado desde cache', 'success');
+        } else if (result.source === 'fallback_generated') {
+            renderDailyTicketFeedback(
+                'La salida de IA se truncó y se generó un ticket fallback desde odds filtrados.',
+                'success'
+            );
+            showToast('Ticket fallback generado', 'warning');
         } else {
             renderDailyTicketFeedback(
                 generatedForTomorrow
@@ -542,6 +548,8 @@ function renderTicketFlags(ticket) {
 
     if (dailyTicketSourceState === 'generated') {
         badges.push('<span class="ui-badge generated">Generado con IA</span>');
+    } else if (dailyTicketSourceState === 'fallback_generated') {
+        badges.push('<span class="ui-badge advisory">Fallback sin IA</span>');
     } else if (dailyTicketSourceState === 'cache') {
         badges.push('<span class="ui-badge cache">Mostrado desde cache</span>');
     }
@@ -602,6 +610,7 @@ function renderTicketCard(ticket) {
     const visualRisk = ticket.risk || ticket.riskLevel || '';
     const visualStake = ticket.stake || ticket.stakeSuggestion || '';
     const unavailable = ticket.available === false;
+    const ticketWarnings = Array.isArray(ticket.warnings) ? ticket.warnings : [];
 
     return `
         <article class="daily-ticket-card ${escapeHtml(ticket.type || 'safe')} ${unavailable ? 'is-unavailable' : ''}">
@@ -638,6 +647,11 @@ function renderTicketCard(ticket) {
                     </div>
                 `
             }
+            ${ticketWarnings.length ? `
+                <div class="ticket-card-warnings">
+                    ${ticketWarnings.map((warning) => `<span class="ticket-card-warning">${escapeHtml(warning)}</span>`).join('')}
+                </div>
+            ` : ''}
         </article>
     `;
 }
@@ -814,6 +828,10 @@ function showRetryLaterButton(show) {
 function getSourceLabel(source) {
     if (source === 'generated') {
         return 'Generado con IA';
+    }
+
+    if (source === 'fallback_generated') {
+        return 'Fallback sin IA';
     }
 
     if (source === 'cache') {

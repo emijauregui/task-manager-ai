@@ -634,6 +634,21 @@ select {
     border: 1px dashed rgba(255, 255, 255, 0.12);
 }
 
+.ticket-card-warnings {
+    display: grid;
+    gap: 8px;
+}
+
+.ticket-card-warning {
+    display: block;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 185, 95, 0.08);
+    border: 1px solid rgba(255, 185, 95, 0.16);
+    color: var(--tertiary);
+    font-size: 0.84rem;
+}
+
 .metric-list {
     display: grid;
     gap: 12px;

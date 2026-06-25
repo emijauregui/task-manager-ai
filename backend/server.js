@@ -1,88 +1,120 @@
 require('dotenv').config();
-const express = require('express');
+
 const cors = require('cors');
-const { BedrockRuntimeClient, InvokeModelCommand } = require('@aws-sdk/client-bedrock-runtime');
+const express = require('express');
+
+const bedrockService = require('./services/bedrockService');
+const dailyTicketService = require('./services/dailyTicketService');
+const oddsService = require('./services/oddsService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
-// Initialize AWS Bedrock client
-const bedrockClient = new BedrockRuntimeClient({
-  region: process.env.AWS_REGION || 'us-east-2',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
+process.on('unhandledRejection', (reason) => {
+  console.error('[server] Unhandled rejection', {
+    message: reason?.message || String(reason),
+    name: reason?.name || 'UnknownRejection',
+  });
 });
 
-// Use inference profile for Claude Sonnet 4.5 (cross-region availability)
-const MODEL_ID = 'us.anthropic.claude-sonnet-4-5-20250929-v1:0';
-
-// Helper function to invoke Bedrock model
-async function invokeBedrockModel(prompt, maxTokens = 2048) {
-  const payload = {
-    anthropic_version: 'bedrock-2023-05-31',
-    max_tokens: maxTokens,
-    messages: [{
-      role: 'user',
-      content: [{
-        type: 'text',
-        text: prompt
-      }]
-    }]
-  };
-
-  const command = new InvokeModelCommand({
-    modelId: MODEL_ID,
-    contentType: 'application/json',
-    accept: 'application/json',
-    body: JSON.stringify(payload),
+process.on('uncaughtException', (error) => {
+  console.error('[server] Uncaught exception', {
+    message: error.message,
+    name: error.name,
   });
+});
 
-  try {
-    const response = await bedrockClient.send(command);
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-
-    // Extract text from the response
-    if (responseBody.content && responseBody.content[0] && responseBody.content[0].text) {
-      return responseBody.content[0].text;
-    }
-
-    throw new Error('Invalid response structure from Bedrock');
-  } catch (error) {
-    console.error('Bedrock invocation error:', error);
-    throw error;
-  }
-}
-
-// In-memory storage (en producción usarías una base de datos)
 let tasks = [];
 let nextId = 1;
 
-// Health check
+function asyncRoute(handler) {
+  return async (req, res) => {
+    try {
+      await handler(req, res);
+    } catch (error) {
+      console.error('[server] Request failed', {
+        path: req.path,
+        method: req.method,
+        message: error.message,
+        name: error.name,
+      });
+
+      res.status(500).json({
+        error: 'Internal server error',
+        message: error.message,
+      });
+    }
+  };
+}
+
+function buildTaskPriorityPrompt(title, description) {
+  return `
+Analiza esta tarea y sugiere un nivel de prioridad (high, medium, o low) basandote en urgencia, importancia e impacto.
+
+Titulo: ${title}
+Descripcion: ${description || 'Sin descripcion'}
+
+Responde SOLO con JSON valido:
+{
+  "priority": "high|medium|low",
+  "reasoning": "explicacion breve"
+}
+  `.trim();
+}
+
+function buildBreakdownPrompt(title, description) {
+  return `
+Analiza esta tarea y dividela en subtareas accionables, pequenas y claras.
+
+Titulo: ${title}
+Descripcion: ${description || 'Sin descripcion'}
+
+Responde SOLO con JSON valido:
+{
+  "subtasks": [
+    {
+      "title": "titulo de la subtarea",
+      "description": "descripcion breve",
+      "priority": "high|medium|low"
+    }
+  ],
+  "reasoning": "explicacion breve"
+}
+  `.trim();
+}
+
+function getBedrockFailureStatus(error) {
+  if (/not configured/i.test(error.message)) {
+    return 503;
+  }
+
+  return 502;
+}
+
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Server is running' });
+  res.json({
+    status: 'ok',
+    message: 'Server is running',
+  });
 });
 
-// Get all tasks
 app.get('/api/tasks', (req, res) => {
   res.json(tasks);
 });
 
-// Get task by ID
 app.get('/api/tasks/:id', (req, res) => {
-  const task = tasks.find(t => t.id === parseInt(req.params.id));
+  const task = tasks.find((item) => item.id === Number(req.params.id));
+
   if (!task) {
     return res.status(404).json({ error: 'Task not found' });
   }
-  res.json(task);
+
+  return res.json(task);
 });
 
-// Create task
 app.post('/api/tasks', (req, res) => {
   const { title, description, priority, completed } = req.body;
 
@@ -90,152 +122,218 @@ app.post('/api/tasks', (req, res) => {
     return res.status(400).json({ error: 'Title is required' });
   }
 
-  const newTask = {
-    id: nextId++,
+  const task = {
+    id: nextId,
     title,
     description: description || '',
     priority: priority || 'medium',
-    completed: completed || false,
+    completed: Boolean(completed),
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
   };
 
-  tasks.push(newTask);
-  res.status(201).json(newTask);
+  tasks.push(task);
+  nextId += 1;
+
+  return res.status(201).json(task);
 });
 
-// Update task
 app.put('/api/tasks/:id', (req, res) => {
-  const taskIndex = tasks.findIndex(t => t.id === parseInt(req.params.id));
+  const index = tasks.findIndex((item) => item.id === Number(req.params.id));
 
-  if (taskIndex === -1) {
+  if (index === -1) {
     return res.status(404).json({ error: 'Task not found' });
   }
 
   const { title, description, priority, completed } = req.body;
-
-  tasks[taskIndex] = {
-    ...tasks[taskIndex],
-    title: title !== undefined ? title : tasks[taskIndex].title,
-    description: description !== undefined ? description : tasks[taskIndex].description,
-    priority: priority !== undefined ? priority : tasks[taskIndex].priority,
-    completed: completed !== undefined ? completed : tasks[taskIndex].completed,
-    updatedAt: new Date().toISOString()
+  tasks[index] = {
+    ...tasks[index],
+    title: title !== undefined ? title : tasks[index].title,
+    description: description !== undefined ? description : tasks[index].description,
+    priority: priority !== undefined ? priority : tasks[index].priority,
+    completed: completed !== undefined ? completed : tasks[index].completed,
+    updatedAt: new Date().toISOString(),
   };
 
-  res.json(tasks[taskIndex]);
+  return res.json(tasks[index]);
 });
 
-// Delete task
 app.delete('/api/tasks/:id', (req, res) => {
-  const taskIndex = tasks.findIndex(t => t.id === parseInt(req.params.id));
+  const index = tasks.findIndex((item) => item.id === Number(req.params.id));
 
-  if (taskIndex === -1) {
+  if (index === -1) {
     return res.status(404).json({ error: 'Task not found' });
   }
 
-  tasks.splice(taskIndex, 1);
-  res.status(204).send();
+  tasks.splice(index, 1);
+  return res.status(204).send();
 });
 
-// AI: Suggest priority for a task
-app.post('/api/ai/suggest-priority', async (req, res) => {
+app.get('/api/ai/health', asyncRoute(async (req, res) => {
+  const health = bedrockService.getHealthStatus();
+
+  if (req.query.test === 'true') {
+    if (!health.configured) {
+      return res.status(503).json({
+        ...health,
+        test: {
+          ok: false,
+          message: 'Bedrock is not fully configured.',
+        },
+      });
+    }
+
+    try {
+      const test = await bedrockService.testConnection();
+      return res.json({
+        ...health,
+        test,
+      });
+    } catch (error) {
+      return res.status(502).json({
+        ...health,
+        test: {
+          ok: false,
+          message: error.message,
+        },
+      });
+    }
+  }
+
+  return res.json(health);
+}));
+
+app.post('/api/ai/suggest-priority', asyncRoute(async (req, res) => {
   const { title, description } = req.body;
 
   if (!title) {
     return res.status(400).json({ error: 'Title is required' });
   }
 
-  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-    return res.status(500).json({ error: 'AWS credentials not configured' });
-  }
-
   try {
-    const prompt = `Analiza esta tarea y sugiere un nivel de prioridad (high, medium, o low) basándote en su urgencia, importancia e impacto.
+    const result = await bedrockService.invokeJson({
+      system: 'Return valid JSON only.',
+      prompt: buildTaskPriorityPrompt(title, description),
+      maxTokens: 180,
+      temperature: 0.2,
+    });
 
-Título: ${title}
-Descripción: ${description || 'Sin descripción'}
-
-Responde SOLO con un objeto JSON en este formato exacto:
-{
-  "priority": "high|medium|low",
-  "reasoning": "breve explicación de por qué elegiste esta prioridad"
-}`;
-
-    const responseText = await invokeBedrockModel(prompt, 1024);
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-
-    if (jsonMatch) {
-      const result = JSON.parse(jsonMatch[0]);
-      res.json(result);
-    } else {
-      throw new Error('Invalid response format from AI');
-    }
+    return res.json({
+      priority: result.priority || 'medium',
+      reasoning: result.reasoning || 'No reasoning returned by the model.',
+    });
   } catch (error) {
-    console.error('Error suggesting priority:', error);
-    res.status(500).json({
+    return res.status(getBedrockFailureStatus(error)).json({
       error: 'Failed to suggest priority',
-      message: error.message
+      message: error.message,
+      bedrock: bedrockService.getHealthStatus(),
     });
   }
-});
+}));
 
-// AI: Break down complex task into subtasks
-app.post('/api/ai/break-down-task', async (req, res) => {
+app.post('/api/ai/break-down-task', asyncRoute(async (req, res) => {
   const { title, description } = req.body;
 
   if (!title) {
     return res.status(400).json({ error: 'Title is required' });
   }
 
-  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-    return res.status(500).json({ error: 'AWS credentials not configured' });
-  }
-
   try {
-    const prompt = `Analiza esta tarea y divídela en subtareas más pequeñas y manejables. Cada subtarea debe ser específica y accionable.
+    const result = await bedrockService.invokeJson({
+      system: 'Return valid JSON only.',
+      prompt: buildBreakdownPrompt(title, description),
+      maxTokens: 600,
+      temperature: 0.2,
+    });
 
-Título: ${title}
-Descripción: ${description || 'Sin descripción'}
-
-Responde SOLO con un objeto JSON en este formato exacto:
-{
-  "subtasks": [
-    {
-      "title": "título de la subtarea",
-      "description": "descripción breve",
-      "priority": "high|medium|low"
-    }
-  ],
-  "reasoning": "breve explicación de cómo dividiste la tarea"
-}`;
-
-    const responseText = await invokeBedrockModel(prompt, 2048);
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-
-    if (jsonMatch) {
-      const result = JSON.parse(jsonMatch[0]);
-      res.json(result);
-    } else {
-      throw new Error('Invalid response format from AI');
-    }
+    return res.json({
+      subtasks: Array.isArray(result.subtasks) ? result.subtasks : [],
+      reasoning: result.reasoning || 'No reasoning returned by the model.',
+    });
   } catch (error) {
-    console.error('Error breaking down task:', error);
-    res.status(500).json({
+    return res.status(getBedrockFailureStatus(error)).json({
       error: 'Failed to break down task',
-      message: error.message
+      message: error.message,
+      bedrock: bedrockService.getHealthStatus(),
     });
   }
-});
+}));
 
-// Start server
+app.get('/api/odds/health', asyncRoute(async (req, res) => {
+  const health = await oddsService.getHealth();
+  return res.json(health);
+}));
+
+app.get('/api/odds/mlb/test', asyncRoute(async (req, res) => {
+  const result = await oddsService.testMlbH2h();
+  return res.json(result);
+}));
+
+app.get('/api/odds/mlb/props/test', asyncRoute(async (req, res) => {
+  const limitEvents = Number(req.query.limitEvents);
+  const result = await oddsService.testMlbProps({
+    date: req.query.date,
+    limitEvents: Number.isFinite(limitEvents) && limitEvents > 0 ? limitEvents : undefined,
+  });
+  return res.json(result);
+}));
+
+app.get('/api/odds/cache/status', asyncRoute(async (req, res) => {
+  const result = await oddsService.getCacheStatus();
+  return res.json(result);
+}));
+
+app.get('/api/daily-ticket/status', asyncRoute(async (req, res) => {
+  const status = await dailyTicketService.getStatus();
+  return res.json(status);
+}));
+
+app.get('/api/daily-ticket/today', asyncRoute(async (req, res) => {
+  const ticket = await dailyTicketService.getTodayTicket();
+  return res.json({
+    hasTicketToday: Boolean(ticket),
+    ticket,
+  });
+}));
+
+app.get('/api/daily-ticket/upcoming', asyncRoute(async (req, res) => {
+  const ticket = await dailyTicketService.getUpcomingTicket();
+  return res.json({
+    hasUpcomingTicket: Boolean(ticket),
+    ticket,
+  });
+}));
+
+app.get('/api/daily-ticket/history', asyncRoute(async (req, res) => {
+  const history = await dailyTicketService.getHistory(5);
+  return res.json({
+    items: history,
+  });
+}));
+
+app.get('/api/daily-ticket/dashboard', asyncRoute(async (req, res) => {
+  const dashboard = await dailyTicketService.getDashboard();
+  return res.json(dashboard);
+}));
+
+app.get('/api/daily-ticket/debug-candidates', asyncRoute(async (req, res) => {
+  const diagnostics = await dailyTicketService.getDebugCandidates();
+  return res.json(diagnostics);
+}));
+
+app.post('/api/daily-ticket/generate', asyncRoute(async (req, res) => {
+  const force = req.body?.force === true;
+  const result = await dailyTicketService.generateDailyTicket({ force });
+  const statusCode = result.success === false && result.source === 'error' ? 500 : 200;
+  return res.status(statusCode).json(result);
+}));
+
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📝 API available at http://localhost:${PORT}/api`);
-  const awsConfigured = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY;
-  console.log(`🤖 AI features (AWS Bedrock) ${awsConfigured ? 'enabled' : 'disabled (no AWS credentials)'}`);
-  if (awsConfigured) {
-    console.log(`📍 AWS Region: ${process.env.AWS_REGION || 'us-east-2'}`);
-    console.log(`🧠 Model: ${MODEL_ID}`);
-  }
+  const bedrockHealth = bedrockService.getHealthStatus();
+  console.log(`[server] Listening on port ${PORT}`);
+  console.log('[server] API base path: /api');
+  console.log('[server] Bedrock configuration', bedrockHealth);
+  console.log('[server] The Odds API configured', {
+    configured: oddsService.isConfigured(),
+  });
 });

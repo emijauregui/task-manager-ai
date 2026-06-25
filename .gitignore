@@ -31,3 +31,4 @@ logs/
 
 # App cache
 backend/cache/*.json
+!backend/cache/.gitkeep

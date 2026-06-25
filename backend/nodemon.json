@@ -1,0 +1,13 @@
+{
+  "watch": [
+    "server.js",
+    "services",
+    "utils"
+  ],
+  "ext": "js",
+  "ignore": [
+    "cache/**",
+    "data/**",
+    "node_modules/**"
+  ]
+}

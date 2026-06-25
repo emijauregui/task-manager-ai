@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Task Manager con inteligencia artificial usando Claude de Anthropic",
   "scripts": {
+    "dev": "cd backend && npm run dev",
     "install-backend": "cd backend && npm install",
     "start-backend": "cd backend && npm start",
     "dev-backend": "cd backend && npm run dev",

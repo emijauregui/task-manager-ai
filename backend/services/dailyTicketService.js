@@ -3,6 +3,7 @@ const drafteaRulesService = require('./drafteaRulesService');
 const espnService = require('./espnService');
 const footballService = require('./footballService');
 const marketMixService = require('./marketMixService');
+const mlbTicketHistoryService = require('./mlbTicketHistoryService');
 const oddsService = require('./oddsService');
 const pickEnrichmentService = require('./pickEnrichmentService');
 const {
@@ -30,6 +31,8 @@ const TICKET_MAX_ODDS = {
   emi: 5.0,
   free_bet: 10.0,
 };
+const PROPS_BLOCKED_TIME_LOCK_MESSAGE = 'Player props no disponibles porque los juegos con props ya empezaron o estan dentro del limite de bloqueo.';
+const PROPS_BLOCKED_TIME_LOCK_SHORT_MESSAGE = 'Player props no disponibles porque el juego ya empezo o esta dentro del limite de bloqueo.';
 
 const TOMORROW_SOURCE_REASON = 'today_had_no_bettable_candidates';
 
@@ -152,6 +155,8 @@ function buildEmptyPropsPipeline() {
     bettable: 0,
     sentToPrompt: 0,
     finalUsed: 0,
+    blockedReason: '',
+    blockedMessage: '',
   };
 }
 
@@ -165,6 +170,59 @@ function buildNoCandidatesResponse() {
     ticket: null,
     dashboardHint: "Try again before tomorrow's games or use force after new odds are available.",
   };
+}
+
+function getSafeIntelligenceDiagnostics(intelligenceDiagnostics = {}) {
+  return {
+    intelligenceEnabled: true,
+    historicalLearningEnabled: intelligenceDiagnostics?.historicalLearningEnabled === true,
+    historicalPatternsApplied: Number(intelligenceDiagnostics?.historicalPatternsApplied || 0),
+    historicalRiskFlags: Array.isArray(intelligenceDiagnostics?.historicalRiskFlags)
+      ? intelligenceDiagnostics.historicalRiskFlags
+      : [],
+  };
+}
+
+async function getHistoricalLearningSummarySafe() {
+  try {
+    return await mlbTicketHistoryService.summarizeHistoricalTickets();
+  } catch (error) {
+    console.error('[outcome-learning] Failed to summarize MLB ticket history', {
+      message: error.message,
+      name: error.name,
+    });
+    return {
+      totalTickets: 0,
+      won: 0,
+      lost: 0,
+      pending: 0,
+      byTicketType: {},
+      byMarketCategory: {},
+      commonFailurePatterns: [],
+      teamExposure: [],
+      playerPropExposure: [],
+      learningEnabled: false,
+      failurePatternCounts: {},
+      teamExposureMap: {},
+      playerPropExposureMap: {},
+    };
+  }
+}
+
+async function saveGeneratedTicketHistorySafe(ticket) {
+  try {
+    const saved = await mlbTicketHistoryService.saveGeneratedTicketResult(ticket);
+    logGenerateStage('HISTORY_SAVE_GENERATED', {
+      id: saved.id,
+      date: saved.date,
+      tickets: Array.isArray(saved.tickets) ? saved.tickets.length : 0,
+    });
+  } catch (error) {
+    console.error('[daily-ticket] Failed to save generated ticket history', {
+      message: error.message,
+      name: error.name,
+    });
+  }
 }
 
 function normalizeKey(value) {
@@ -417,13 +475,30 @@ function resolvePropsBlockedReason(propsPipeline) {
 function buildPropsBlockedWarning(propsBlockedReason) {
   switch (propsBlockedReason) {
     case 'filtered_by_time_lock':
-      return 'Player props were found but excluded because games were already locked or too close to start.';
+      return PROPS_BLOCKED_TIME_LOCK_MESSAGE;
     case 'filtered_by_odds_rules':
       return 'Player props were found but excluded because their odds did not pass ticket rules.';
     case 'filtered_by_status':
       return 'Player props were found but excluded because their games were no longer bettable.';
     case 'all_props_conflicted_or_filtered':
       return 'Props were available but not included in prompt due to candidate selection bug or filtering.';
+    default:
+      return '';
+  }
+}
+
+function buildPropsBlockedMessage(propsBlockedReason) {
+  switch (propsBlockedReason) {
+    case 'filtered_by_time_lock':
+      return PROPS_BLOCKED_TIME_LOCK_SHORT_MESSAGE;
+    case 'filtered_by_odds_rules':
+      return 'Player props no disponibles porque sus momios no pasaron las reglas del ticket.';
+    case 'filtered_by_status':
+      return 'Player props no disponibles porque esos juegos ya no estaban aptos para apuesta.';
+    case 'all_props_conflicted_or_filtered':
+      return 'Player props detectadas, pero no llegaron al prompt final por filtros o conflictos.';
+    case 'final_ticket_props_not_selected':
+      return 'Player props disponibles, pero no quedaron seleccionadas en el ticket final.';
     default:
       return '';
   }
@@ -1199,6 +1274,9 @@ function buildFallbackLeg(candidate, why) {
     ruleWarnings: candidate.ruleWarnings || [],
     teamResolved: candidate.teamResolved === true,
     oddsVerified: candidate.oddsVerified !== false,
+    protected: candidate.protectionSuggested === true,
+    marketProtectionApplied: candidate.protectionSuggested === true,
+    protectionReason: candidate.protectionSuggested === true ? (candidate.protectionReason || '') : '',
     why: sanitizeLegWhy(why, candidate),
     confidenceSource: 'intelligence',
     confidenceAdjusted: false,
@@ -1590,7 +1668,9 @@ async function getDashboard() {
     getTodayTicket(),
     getUpcomingTicket(),
     getHistory(5),
-    espnService.getMlbScoreboard(),
+    espnService.getMlbScoreboardBundle({
+      includeTomorrow: true,
+    }),
   ]);
 
   return {
@@ -1600,6 +1680,14 @@ async function getDashboard() {
     upcomingTicket,
     history,
     games: scoreboard,
+    todayGamesTotal: scoreboard.todayGamesTotal,
+    renderedGamesTotal: scoreboard.renderedGamesTotal,
+    liveGamesTotal: scoreboard.liveGamesTotal,
+    finalGamesTotal: scoreboard.finalGamesTotal,
+    scheduledGamesTotal: scoreboard.scheduledGamesTotal,
+    postponedGamesTotal: scoreboard.postponedGamesTotal,
+    tomorrowGamesTotal: scoreboard.tomorrowGamesTotal,
+    scoreboardSource: scoreboard.scoreboardSource,
   };
 }
 
@@ -2391,6 +2479,7 @@ function finalizePropUsageWarnings(ticket, context = {}) {
     'Only game markets were available from the odds feed.',
     'Only Money Line markets were usable after Draftea and correlation filters.',
     'Player props were available and sent to prompt, but were not selected in final tickets.',
+    PROPS_BLOCKED_TIME_LOCK_MESSAGE,
   ]);
 
   const updateWarnings = (warnings = []) => {
@@ -2466,6 +2555,9 @@ function hydrateLegFromCandidateId(leg, candidateMap, candidates = [], ticketTyp
     ruleWarnings: candidate.ruleWarnings || [],
     teamResolved: candidate.teamResolved === true,
     oddsVerified: candidate.oddsVerified !== false,
+    protected: candidate.protectionSuggested === true,
+    marketProtectionApplied: candidate.protectionSuggested === true,
+    protectionReason: candidate.protectionSuggested === true ? (candidate.protectionReason || '') : '',
     why: sanitizeLegWhy(
       leg?.w || leg?.why || leg?.reason,
       candidate,
@@ -2481,7 +2573,7 @@ function hydrateLegFromCandidateId(leg, candidateMap, candidates = [], ticketTyp
 
 function reconcilePropWarnings(ticket, propsPayload) {
   const propWarning = 'Player props were found but not used because player-team integrity could not be verified.';
-  const propsTimeLockWarning = 'Player props were found but excluded because games were already locked or too close to start.';
+  const propsTimeLockWarning = PROPS_BLOCKED_TIME_LOCK_MESSAGE;
   const genericWarningsToRemove = new Set([
     'Player props unavailable from odds feed; using game markets only.',
     'Only game markets were available from the odds feed.',
@@ -2526,6 +2618,9 @@ function reconcilePropWarnings(ticket, propsPayload) {
 async function getBettableCandidatesForDate(dateKey, options = {}) {
   const {
     force = false,
+    useCache = true,
+    cacheOnly = false,
+    limitPropEvents = MAX_PROP_EVENTS,
   } = options;
 
   logGenerateStage('TARGET_DATE_CHECK_START', {
@@ -2544,13 +2639,15 @@ async function getBettableCandidatesForDate(dateKey, options = {}) {
       oddsService.getMlbOdds({
         markets: 'h2h,spreads,totals',
         forceRefresh: force,
-        useCache: true,
+        useCache,
+        cacheOnly,
         targetDate: dateKey,
       }),
       oddsService.getMlbPropsByDateViaEvents(dateKey, {
         forceRefresh: force,
-        useCache: true,
-        limitEvents: MAX_PROP_EVENTS,
+        useCache,
+        cacheOnly,
+        limitEvents: limitPropEvents,
       }),
     ]);
   } catch (error) {
@@ -2626,9 +2723,12 @@ async function getBettableCandidatesForDate(dateKey, options = {}) {
     ];
     const enrichedCandidates = enrichCandidates(allCandidates, scoreboard);
     const drafteaApplied = drafteaRulesService.applyDrafteaRules(enrichedCandidates);
+    const historicalLearning = await getHistoricalLearningSummarySafe();
     const intelligenceApplied = pickEnrichmentService.enrichCandidates(drafteaApplied.candidates, {
       targetDate: dateKey,
+      historicalLearning,
     });
+    const intelligenceDiagnostics = intelligenceApplied?.diagnostics || {};
     const marketMixApplied = marketMixService.applyMarketMixStrategy(intelligenceApplied.candidates);
     const selection = selectBettableCandidates(marketMixApplied.candidates, new Date(), {
       targetDate: dateKey,
@@ -2662,6 +2762,7 @@ async function getBettableCandidatesForDate(dateKey, options = {}) {
     let promptSummary = summarizePromptCandidates(promptCandidates);
     propsPipeline.sentToPrompt = promptSummary.promptPropsCount;
     let propsBlockedReason = resolvePropsBlockedReason(propsPipeline);
+    let propsBlockedMessage = propsBlockedReason ? buildPropsBlockedMessage(propsBlockedReason) : '';
     let sampleBlockedProps = [];
 
     if (propsAvailable && promptSummary.promptPropsCount === 0) {
@@ -2687,6 +2788,7 @@ async function getBettableCandidatesForDate(dateKey, options = {}) {
           eligiblePlayerProps: eligibleProps.length,
         });
         propsBlockedReason = propsBlockedReason || 'all_props_conflicted_or_filtered';
+        propsBlockedMessage = propsBlockedReason ? buildPropsBlockedMessage(propsBlockedReason) : '';
       }
     }
 
@@ -2717,6 +2819,7 @@ async function getBettableCandidatesForDate(dateKey, options = {}) {
       if (blockedWarning) {
         warnings.push(blockedWarning);
       }
+      propsBlockedMessage = propsBlockedMessage || buildPropsBlockedMessage(propsBlockedReason);
     }
 
     if (candidates.length >= 1 && candidates.length <= 3) {
@@ -2762,12 +2865,22 @@ async function getBettableCandidatesForDate(dateKey, options = {}) {
         pipeline: {
           ...propsPipeline,
           blockedReason: propsBlockedReason,
+          blockedMessage: propsBlockedMessage,
         },
       },
       scoreboard,
       candidates,
       marketMixCandidates,
       promptCandidates,
+      bettablePlayerPropCandidates: propOnlySelection.candidates,
+      playerPropSelectionDiagnostics: propOnlySelection.diagnostics,
+      intelligenceDiagnostics,
+      intelligenceEnabled: true,
+      historicalLearningEnabled: intelligenceDiagnostics.historicalLearningEnabled === true,
+      historicalPatternsApplied: intelligenceDiagnostics.historicalPatternsApplied || 0,
+      historicalRiskFlags: Array.isArray(intelligenceDiagnostics.historicalRiskFlags)
+        ? intelligenceDiagnostics.historicalRiskFlags
+        : [],
       diagnostics: {
         oddsRawGames: Array.isArray(oddsPayload.games) ? oddsPayload.games.length : 0,
         normalizedPicks: Array.isArray(oddsPayload.normalizedPicks) ? oddsPayload.normalizedPicks.length : 0,
@@ -2808,6 +2921,7 @@ async function getBettableCandidatesForDate(dateKey, options = {}) {
           propsFeedAvailable,
           propsAvailable,
           propsBlockedReason,
+          propsBlockedMessage,
           sampleBlockedProps,
         },
         quotaReached: oddsPayload.quotaReached === true,
@@ -2976,9 +3090,11 @@ async function generateDailyTicket(options = {}) {
       candidates,
       marketMixCandidates = [],
       promptCandidates: promptCandidatesFromTarget = [],
+      intelligenceDiagnostics: targetIntelligenceDiagnostics = {},
       diagnostics = {},
       warnings,
     } = targetResult;
+    const intelligenceMetadata = getSafeIntelligenceDiagnostics(targetIntelligenceDiagnostics);
     let promptCandidates = Array.isArray(promptCandidatesFromTarget) && promptCandidatesFromTarget.length > 0
       ? promptCandidatesFromTarget
       : marketMixService.preparePromptCandidates(marketMixCandidates, MAX_CANDIDATES);
@@ -3013,6 +3129,7 @@ async function generateDailyTicket(options = {}) {
       promptCandidateCount: promptSummary.promptCandidateCount,
     };
     const propsBlockedReason = diagnostics?.prompt?.propsBlockedReason || '';
+    const propsBlockedMessage = diagnostics?.prompt?.propsBlockedMessage || '';
     const sampleBlockedProps = Array.isArray(diagnostics?.prompt?.sampleBlockedProps)
       ? diagnostics.prompt.sampleBlockedProps
       : [];
@@ -3103,6 +3220,9 @@ async function generateDailyTicket(options = {}) {
           propsAvailable,
           ticketMode: determineTicketMode(propsPipeline, promptSummary.promptPropsCount),
           propsBlockedReason: finalPropsBlockedReason,
+          propsBlockedMessage: finalPropsBlockedReason
+            ? (propsBlockedMessage || buildPropsBlockedMessage(finalPropsBlockedReason))
+            : '',
           sampleBlockedProps: finalPropsBlockedReason ? sampleBlockedProps : [],
           oddsSource: oddsPayload.source,
           oddsQuotaReached: oddsPayload.quotaReached === true,
@@ -3117,7 +3237,7 @@ async function generateDailyTicket(options = {}) {
           propsEnsured: ensuredFallbackProps.diagnostics.propsEnsured,
           insertedFinalProps: ensuredFallbackProps.diagnostics.insertedFinalProps,
           finalPropsSkippedReason: ensuredFallbackProps.diagnostics.skippedReason,
-          intelligenceEnabled: true,
+          ...intelligenceMetadata,
           avgTicketConfidence: finalCounts.avgTicketConfidence,
           lowestLegConfidence: finalCounts.lowestLegConfidence,
           protectedMarketsUsed: finalCounts.protectedMarketsUsed,
@@ -3135,6 +3255,7 @@ async function generateDailyTicket(options = {}) {
         source: 'fallback_generated',
       });
       await writeCache(getTicketCacheFilename(fallbackTicket.date), fallbackTicket);
+      await saveGeneratedTicketHistorySafe(fallbackTicket);
 
       logGenerateStage('GENERATE_SUCCESS', {
         date: fallbackTicket.date,
@@ -3199,6 +3320,9 @@ async function generateDailyTicket(options = {}) {
         propsAvailable,
         ticketMode: determineTicketMode(propsPipeline, promptSummary.promptPropsCount),
         propsBlockedReason: finalPropsBlockedReason,
+        propsBlockedMessage: finalPropsBlockedReason
+          ? (propsBlockedMessage || buildPropsBlockedMessage(finalPropsBlockedReason))
+          : '',
         sampleBlockedProps: finalPropsBlockedReason ? sampleBlockedProps : [],
         oddsSource: oddsPayload.source,
         oddsQuotaReached: oddsPayload.quotaReached === true,
@@ -3211,7 +3335,7 @@ async function generateDailyTicket(options = {}) {
         propsEnsured: ensuredFinalProps.diagnostics.propsEnsured,
         insertedFinalProps: ensuredFinalProps.diagnostics.insertedFinalProps,
         finalPropsSkippedReason: ensuredFinalProps.diagnostics.skippedReason,
-        intelligenceEnabled: true,
+        ...intelligenceMetadata,
         avgTicketConfidence: finalCounts.avgTicketConfidence,
         lowestLegConfidence: finalCounts.lowestLegConfidence,
         protectedMarketsUsed: finalCounts.protectedMarketsUsed,
@@ -3236,6 +3360,7 @@ async function generateDailyTicket(options = {}) {
         cacheFile: getTicketCacheFilename(ticket.date),
       });
       await writeCache(getTicketCacheFilename(ticket.date), ticket);
+      await saveGeneratedTicketHistorySafe(ticket);
     } catch (error) {
       throw new DailyTicketGenerationError('cache', error.message || 'Failed to write ticket cache.', error);
     }
@@ -3383,5 +3508,6 @@ module.exports = {
   runWhySanitizerSmokeTest,
   sanitizeFinalTicketConfidence,
   sanitizeFinalTicketWhy,
+  getBettableCandidatesForDate,
   selectBettableCandidates,
 };

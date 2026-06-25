@@ -8,6 +8,9 @@ let editingTaskId = null;
 let currentSubtasks = [];
 let dailyTicketDashboard = null;
 let dailyTicketSourceState = 'none';
+let playerPropsDiagnosticsState = null;
+let scoreboardLivePollTimer = null;
+const SCOREBOARD_LIVE_REFRESH_MS = 60000;
 const FINISHED_GAME_REGEX = /\b(finalizado|finalizados|completed|completion|final)\b/i;
 
 const taskForm = document.getElementById('task-form');
@@ -28,6 +31,10 @@ const subtasksModal = document.getElementById('subtasks-modal');
 const modalClose = document.getElementById('modal-close');
 const modalCancel = document.getElementById('modal-cancel');
 const modalCreateAll = document.getElementById('modal-create-all');
+const appShell = document.getElementById('app-shell');
+const appSidebar = document.getElementById('app-sidebar');
+const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+const navDebugProps = document.getElementById('nav-debug-props');
 
 const generateDailyTicketBtn = document.getElementById('generate-daily-ticket-btn');
 const viewDailyTicketBtn = document.getElementById('view-daily-ticket-btn');
@@ -39,11 +46,24 @@ const dailyTicketFlags = document.getElementById('daily-ticket-ticket-flags');
 const dailyTicketCurrent = document.getElementById('daily-ticket-current');
 const dailyTicketSideSummary = document.getElementById('daily-ticket-side-summary');
 const dailyTicketAvoid = document.getElementById('daily-ticket-avoid');
+const dailyTicketGamesMeta = document.getElementById('daily-ticket-games-meta');
+const dailyTicketLiveGames = document.getElementById('daily-ticket-live-games');
 const dailyTicketGames = document.getElementById('daily-ticket-games');
+const dailyTicketUpcomingGames = document.getElementById('daily-ticket-upcoming-games');
+const dailyTicketGamesLiveRefresh = document.getElementById('daily-ticket-games-live-refresh');
 const dailyTicketHistory = document.getElementById('daily-ticket-history');
+const playerPropsDiagnosticsPanel = document.getElementById('player-props-diagnostics-panel');
+const playerPropsDiagnosticsWarning = document.getElementById('player-props-diagnostics-warning');
+const playerPropsDiagnosticsPipeline = document.getElementById('player-props-diagnostics-pipeline');
+const playerPropsDiagnosticsMarkets = document.getElementById('player-props-diagnostics-markets');
+const playerPropsDiagnosticsGames = document.getElementById('player-props-diagnostics-games');
+const playerPropsDiagnosticsPlayers = document.getElementById('player-props-diagnostics-players');
+const playerPropsDiagnosticsRejections = document.getElementById('player-props-diagnostics-rejections');
 
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
+    hydrateSidebarState();
+    updateDebugNavVisibility();
     loadTasks();
     loadDailyTicketDashboard();
 });
@@ -76,6 +96,55 @@ function setupEventListeners() {
             closeModal();
         }
     });
+
+    if (sidebarToggleBtn) {
+        sidebarToggleBtn.addEventListener('click', toggleSidebar);
+    }
+}
+
+function updateDebugNavVisibility() {
+    if (navDebugProps) {
+        navDebugProps.hidden = !isPlayerPropsDiagnosticsEnabled();
+    }
+}
+
+function applySidebarState(collapsed) {
+    if (!appShell || !appSidebar || !sidebarToggleBtn) {
+        return;
+    }
+    syncSidebarState(collapsed);
+
+}
+
+function syncSidebarState(collapsed) {
+    appShell.classList.toggle('sidebar-collapsed', collapsed);
+    appSidebar.classList.toggle('is-collapsed', collapsed);
+    sidebarToggleBtn.textContent = collapsed ? '>' : '<';
+    sidebarToggleBtn.setAttribute('aria-expanded', String(!collapsed));
+    sidebarToggleBtn.setAttribute('aria-label', collapsed ? 'Expandir sidebar' : 'Colapsar sidebar');
+}
+
+function hydrateSidebarState() {
+    if (window.innerWidth <= 900) {
+        applySidebarState(false);
+        return;
+    }
+
+    const collapsed = window.localStorage.getItem('dailyTicketSidebarCollapsed') === 'true';
+    applySidebarState(collapsed);
+}
+
+function toggleSidebar() {
+    const nextCollapsed = !(appShell?.classList.contains('sidebar-collapsed'));
+    window.localStorage.setItem('dailyTicketSidebarCollapsed', String(nextCollapsed));
+    applySidebarState(nextCollapsed);
+}
+
+function isPlayerPropsDiagnosticsEnabled() {
+    const params = new URLSearchParams(window.location.search);
+    return window.location.hostname === 'localhost'
+        || window.location.hostname === '127.0.0.1'
+        || params.get('debug') === 'props';
 }
 
 async function apiCall(endpoint, options = {}) {
@@ -376,12 +445,15 @@ async function loadDailyTicketDashboard(showToastMessage = false, sourceHint = n
         dailyTicketDashboard = await apiCall('/api/daily-ticket/dashboard');
         dailyTicketSourceState = sourceHint || (dailyTicketDashboard.ticket ? 'cache' : 'none');
         renderDailyTicketDashboard();
+        updateScoreboardLivePolling(dailyTicketDashboard.games);
+        void loadPlayerPropsDiagnostics();
 
         if (showToastMessage) {
             showToast('Dashboard actualizado', 'success');
         }
     } catch (error) {
         dailyTicketSourceState = 'error';
+        stopScoreboardLivePolling();
         renderDailyTicketError('No se pudo cargar el dashboard de Daily Ticket AI.');
     }
 }
@@ -436,7 +508,7 @@ async function handleGenerateDailyTicket() {
             showToast(generatedForTomorrow ? 'Ticket para manana recuperado desde cache' : 'Ticket mostrado desde cache', 'success');
         } else if (result.source === 'fallback_generated') {
             renderDailyTicketFeedback(
-                'La salida de IA se truncó y se generó un ticket fallback desde odds filtrados.',
+                'La salida de IA se truncÃ³ y se generÃ³ un ticket fallback desde odds filtrados.',
                 'success'
             );
             showToast('Ticket fallback generado', 'warning');
@@ -476,6 +548,8 @@ async function handleViewSavedTicket() {
         dailyTicketDashboard.ticket = upcoming.ticket || null;
         dailyTicketSourceState = upcoming.ticket ? 'cache' : 'none';
         renderDailyTicketDashboard();
+        updateScoreboardLivePolling(dailyTicketDashboard.games);
+        void loadPlayerPropsDiagnostics();
         renderDailyTicketFeedback(
             upcoming.ticket
                 ? 'Ticket guardado cargado desde cache.'
@@ -517,6 +591,153 @@ function renderDailyTicketDashboard() {
     } else {
         renderDailyTicketFeedback('Dashboard listo. Aun no hay ticket guardado.', 'info');
     }
+}
+
+async function loadPlayerPropsDiagnostics() {
+    if (!isPlayerPropsDiagnosticsEnabled() || !playerPropsDiagnosticsPanel) {
+        return;
+    }
+
+    playerPropsDiagnosticsPanel.hidden = false;
+    playerPropsDiagnosticsWarning.className = 'panel-message info compact';
+    playerPropsDiagnosticsWarning.textContent = 'Cargando diagnostico cache-first de player props...';
+    playerPropsDiagnosticsPipeline.innerHTML = buildPropsDiagnosticsSkeleton();
+    playerPropsDiagnosticsMarkets.innerHTML = '<div class="empty-inline rich">Cargando...</div>';
+    playerPropsDiagnosticsGames.innerHTML = '<div class="empty-inline rich">Cargando...</div>';
+    playerPropsDiagnosticsPlayers.innerHTML = '<div class="empty-inline rich">Cargando...</div>';
+    playerPropsDiagnosticsRejections.innerHTML = '<div class="empty-inline rich">Cargando...</div>';
+
+    try {
+        playerPropsDiagnosticsState = await apiCall('/api/odds/mlb/player-props/diagnostics');
+        renderPlayerPropsDiagnostics(playerPropsDiagnosticsState);
+    } catch (error) {
+        renderPlayerPropsDiagnosticsError(error.message || 'No se pudo cargar el diagnostico de player props.');
+    }
+}
+
+function buildPropsDiagnosticsSkeleton() {
+    return ['Feed', 'Roster', 'Status', 'Time', 'Odds', 'Prompt', 'Final Ticket']
+        .map((label) => `
+            <article class="props-pipeline-step">
+                <span>${escapeHtml(label)}</span>
+                <strong>...</strong>
+            </article>
+        `)
+        .join('');
+}
+
+function renderPlayerPropsDiagnosticsError(message) {
+    if (!playerPropsDiagnosticsPanel) {
+        return;
+    }
+
+    playerPropsDiagnosticsPanel.hidden = false;
+    playerPropsDiagnosticsWarning.className = 'panel-message error compact';
+    playerPropsDiagnosticsWarning.textContent = message;
+    playerPropsDiagnosticsPipeline.innerHTML = '<div class="empty-inline rich">Sin diagnostico disponible.</div>';
+    playerPropsDiagnosticsMarkets.innerHTML = '<div class="empty-inline rich">Sin datos.</div>';
+    playerPropsDiagnosticsGames.innerHTML = '<div class="empty-inline rich">Sin datos.</div>';
+    playerPropsDiagnosticsPlayers.innerHTML = '<div class="empty-inline rich">Sin datos.</div>';
+    playerPropsDiagnosticsRejections.innerHTML = '<div class="empty-inline rich">Sin datos.</div>';
+}
+
+function renderPlayerPropsDiagnostics(diagnostics) {
+    if (!playerPropsDiagnosticsPanel) {
+        return;
+    }
+
+    const pipeline = diagnostics?.pipeline || {};
+    const warning = diagnostics?.warning || 'Diagnostico listo. Esta vista usa cache por default.';
+    const humanSummary = diagnostics?.humanSummary || {};
+    const availabilityDetails = diagnostics?.propsAvailabilityDetails || null;
+    const steps = [
+        { label: 'Feed', value: diagnostics?.feed?.totalPropsFetched ?? 0 },
+        { label: 'Roster', value: pipeline.afterRosterValidation ?? 0 },
+        { label: 'Status', value: pipeline.afterStatusFilter ?? 0 },
+        { label: 'Time', value: pipeline.afterTimeFilter ?? 0 },
+        { label: 'Odds', value: pipeline.afterOddsFilter ?? 0 },
+        { label: 'Prompt', value: pipeline.promptCandidates ?? 0 },
+        { label: 'Final Ticket', value: pipeline.finalTicketProps ?? 0 },
+    ];
+
+    playerPropsDiagnosticsPanel.hidden = false;
+    playerPropsDiagnosticsWarning.className = `panel-message compact ${diagnostics?.quotaReached ? 'error' : 'info'}`;
+    if (diagnostics?.propsAvailabilityStatus === 'blocked_by_time' && availabilityDetails) {
+        playerPropsDiagnosticsWarning.innerHTML = `
+            <strong>Props bloqueadas por horario</strong><br>
+            ${escapeHtml(humanSummary.message || diagnostics.propsAvailabilityMessage || warning)}<br>
+            <span>Props encontradas: ${escapeHtml(String(availabilityDetails.fetchedProps || 0))} | Props validadas por roster: ${escapeHtml(String(availabilityDetails.rosterValidatedProps || 0))} | Props bloqueadas por tiempo: ${escapeHtml(String(availabilityDetails.blockedByTime || 0))} | Limite de bloqueo: ${escapeHtml(String(availabilityDetails.lockMinutesBeforeStart || 0))} min</span>
+        `;
+    } else {
+        playerPropsDiagnosticsWarning.textContent = humanSummary.message || warning;
+    }
+    playerPropsDiagnosticsPipeline.innerHTML = steps.map((step) => `
+        <article class="props-pipeline-step">
+            <span>${escapeHtml(step.label)}</span>
+            <strong>${escapeHtml(String(step.value))}</strong>
+        </article>
+    `).join('');
+
+    playerPropsDiagnosticsMarkets.innerHTML = renderPropsDiagnosticsList(
+        diagnostics?.topMarkets,
+        (item) => item?.market || 'Mercado',
+        (item) => `${item?.fetched || 0} feed Â· ${item?.afterOddsFilter || 0} odds Â· ${item?.used || 0} final`
+    );
+    playerPropsDiagnosticsGames.innerHTML = renderPropsDiagnosticsList(
+        diagnostics?.topGames,
+        (item) => item?.game || 'Juego',
+        (item) => `${item?.props || 0} props`
+    );
+    playerPropsDiagnosticsPlayers.innerHTML = renderPropsDiagnosticsList(
+        diagnostics?.topPlayers,
+        (item) => item?.player || 'Jugador',
+        (item) => `${item?.props || 0} props`
+    );
+    playerPropsDiagnosticsRejections.innerHTML = renderPropsDiagnosticsList(
+        Object.entries(diagnostics?.primaryRejectedReasons || diagnostics?.rejectedReasons || {}).map(([reason, count]) => ({ reason, count })),
+        (item) => formatPropsRejectedReasonLabel(item?.reason || 'unknown'),
+        (item) => `${item?.count || 0}`
+    );
+}
+
+function formatPropsRejectedReasonLabel(reason) {
+    switch (reason) {
+        case 'player_not_on_roster':
+            return 'Jugador fuera del roster';
+        case 'team_unresolved':
+            return 'Equipo no resuelto';
+        case 'lineup_required':
+            return 'Lineup pendiente';
+        case 'game_started':
+            return 'Juego iniciado / time lock';
+        case 'odds_filter':
+            return 'Filtro de momios';
+        case 'duplicate_player':
+            return 'Prop correlacionada';
+        case 'market_rules':
+            return 'Reglas de mercado';
+        default:
+            return reason || 'unknown';
+    }
+}
+
+function renderPropsDiagnosticsList(items, labelGetter, valueGetter) {
+    const list = Array.isArray(items) ? items : [];
+
+    if (!list.length) {
+        return '<div class="empty-inline rich">Sin datos por ahora.</div>';
+    }
+
+    return `
+        <div class="props-mini-list">
+            ${list.slice(0, 6).map((item) => `
+                <div class="props-mini-item">
+                    <span>${escapeHtml(labelGetter(item))}</span>
+                    <strong>${escapeHtml(valueGetter(item))}</strong>
+                </div>
+            `).join('')}
+        </div>
+    `;
 }
 
 function renderApiStatus(status) {
@@ -639,7 +860,7 @@ function renderTicketCard(ticket) {
                                 <div class="ticket-leg-body">
                                     <strong>${escapeHtml(leg.pick)}</strong>
                                     <span>${escapeHtml(leg.game)}</span>
-                                    <small>${escapeHtml(leg.market)} · ${escapeHtml(leg.odds)}</small>
+                                    <small>${escapeHtml(leg.market)} Â· ${escapeHtml(leg.odds)}</small>
                                     <p>${escapeHtml(leg.why || leg.reason || '')}</p>
                                 </div>
                             </div>
@@ -735,53 +956,315 @@ function renderHistory(history) {
 
 function renderGames(scoreboard) {
     if (!scoreboard) {
-        dailyTicketGames.innerHTML = '<div class="empty-inline rich">Sin datos de ESPN por ahora.</div>';
+        if (dailyTicketGamesLiveRefresh) {
+            dailyTicketGamesLiveRefresh.hidden = true;
+        }
+        dailyTicketGamesMeta.innerHTML = '<div class="empty-inline rich">Sin datos de ESPN por ahora.</div>';
+        dailyTicketLiveGames.innerHTML = '<div class="empty-inline rich scoreboard-empty">Sin datos en vivo por ahora.</div>';
+        dailyTicketGames.innerHTML = '<div class="empty-inline rich scoreboard-empty">Sin datos de juegos de hoy.</div>';
+        dailyTicketUpcomingGames.innerHTML = '<div class="empty-inline rich scoreboard-empty">Sin datos de juegos proximos.</div>';
         return;
     }
 
-    const games = Array.isArray(scoreboard.games) ? scoreboard.games : [];
+    const todayGames = Array.isArray(scoreboard?.today?.games)
+        ? scoreboard.today.games
+        : Array.isArray(scoreboard?.games) ? scoreboard.games : [];
+    const liveGames = todayGames.filter((game) => game?.isLive);
+    const todayNonLiveGames = todayGames.filter((game) => !game?.isLive);
+    const tomorrowGames = Array.isArray(scoreboard?.tomorrow?.games) ? scoreboard.tomorrow.games : [];
+    const totalToday = Number(scoreboard?.todayGamesTotal ?? todayGames.length);
+    const liveTotal = Number(scoreboard?.liveGamesTotal ?? liveGames.length);
+    const finalTotal = Number(scoreboard?.finalGamesTotal ?? todayGames.filter((game) => game?.isFinal).length);
+    const scheduledTotal = Number(scoreboard?.scheduledGamesTotal ?? todayGames.filter((game) => game?.isScheduled).length);
+    const postponedTotal = Number(scoreboard?.postponedGamesTotal ?? todayGames.filter((game) => game?.isPostponed).length);
+    const tomorrowTotal = Number(scoreboard?.tomorrowGamesTotal ?? tomorrowGames.length);
+    const renderedTotal = Number(scoreboard?.renderedGamesTotal ?? (todayGames.length + tomorrowGames.length));
+    const liveRefreshEnabled = liveTotal > 0;
 
-    if (!games.length) {
-        dailyTicketGames.innerHTML = `
-            <div class="empty-inline rich">
-                ${escapeHtml(scoreboard.message || 'No hay juegos disponibles en el cache actual.')}
+    if (dailyTicketGamesLiveRefresh) {
+        dailyTicketGamesLiveRefresh.hidden = !liveRefreshEnabled;
+    }
+
+    dailyTicketGamesMeta.innerHTML = `
+        <div class="scoreboard-meta">
+            <div class="scoreboard-meta-top">
+                <div>
+                    <div class="scoreboard-total">${escapeHtml(`${totalToday} juegos encontrados hoy`)}</div>
+                    <div class="scoreboard-breakdown">${escapeHtml(`${finalTotal} finalizados | ${scheduledTotal} programados | ${liveTotal} en vivo | ${postponedTotal} pospuestos`)}</div>
+                </div>
+                <div class="scoreboard-breakdown">${escapeHtml(`${renderedTotal} juegos visibles entre hoy y manana`)}</div>
+            </div>
+            <div class="scoreboard-breakdown">${escapeHtml(tomorrowTotal > 0 ? `${tomorrowTotal} juegos para manana en cache` : 'Sin juegos programados para manana en cache.')}</div>
+            ${isPlayerPropsDiagnosticsEnabled() ? `<div class="scoreboard-debug">Fuente: ${escapeHtml(scoreboard?.scoreboardSource || scoreboard?.source || 'unavailable')} | Last updated: ${escapeHtml(formatDateTime(scoreboard?.lastUpdated))}${liveRefreshEnabled ? ' | Actualizando en vivo cada 60s' : ''}</div>` : ''}
+            ${scoreboard?.message ? `<div class="scoreboard-debug">${escapeHtml(scoreboard.message)}</div>` : ''}
+        </div>
+    `;
+
+    dailyTicketLiveGames.innerHTML = renderScoreboardSection(
+        liveGames,
+        'No hay juegos en vivo ahora.',
+        'Los juegos live se refrescan cada 60 segundos.'
+    );
+    dailyTicketGames.innerHTML = renderScoreboardSection(
+        todayNonLiveGames,
+        todayGames.length
+            ? 'Todos los juegos de hoy estan en vivo.'
+            : (scoreboard?.message || 'No hay juegos disponibles en el cache actual.'),
+        'Se muestran todos los juegos del slate disponible.'
+    );
+    dailyTicketUpcomingGames.innerHTML = renderScoreboardSection(
+        tomorrowGames,
+        'Sin juegos programados para manana en cache.',
+        'Proximos juegos desde ESPN cacheado.'
+    );
+}
+
+function renderScoreboardSection(games, emptyMessage, helperText = '') {
+    const list = Array.isArray(games) ? games : [];
+
+    if (!list.length) {
+        return `
+            <div class="empty-inline rich scoreboard-empty">
+                <strong>${escapeHtml(emptyMessage)}</strong>
+                ${helperText ? `<p>${escapeHtml(helperText)}</p>` : ''}
             </div>
         `;
-        return;
     }
 
-    dailyTicketGames.innerHTML = `
-        <div class="games-list">
-            ${games.slice(0, 8).map((game) => `
-                <article class="game-row">
-                    <div class="game-time">
-                        <span>${escapeHtml(formatGameTime(game.startTime))}</span>
-                        <small>${escapeHtml(game.status || 'Programado')}</small>
-                    </div>
-                    <div class="game-matchup">
-                        <div class="game-team">
+    return `
+        <div class="games-stack">
+            ${list.map((game) => renderGameCard(game)).join('')}
+        </div>
+    `;
+}
+
+function renderGameCard(game) {
+    const badgeClass = getGameBadgeClass(game);
+    const badgeLabel = getGameBadgeLabel(game);
+    const inningLabel = formatInningLabel(game);
+    const probablePitchers = renderProbablePitchers(game);
+    const linescore = renderGameLinescore(game);
+    const recordText = Array.isArray(game?.records) && game.records.length
+        ? game.records.join(' | ')
+        : 'Sin records';
+
+    return `
+        <article class="game-card">
+            <div class="game-card-top">
+                <div class="game-status-block">
+                    <strong>${escapeHtml(formatGameTime(game.startTime))}</strong>
+                    <small>${escapeHtml(game.statusDescription || game.status || 'Programado')}</small>
+                </div>
+                <span class="game-badge ${escapeHtml(badgeClass)}">${escapeHtml(badgeLabel)}</span>
+            </div>
+            <div class="game-card-layout">
+                <div class="game-core">
+                    <div class="game-team-row">
+                        <div class="game-team-meta">
                             ${renderTeamAvatar(game.awayTeam, game.awayLogo)}
-                            <div>
-                                <strong>${escapeHtml(game.awayTeam)}</strong>
+                            <div class="game-team-copy">
+                                <strong>${escapeHtml(game.awayTeam || 'Visitante')}</strong>
                                 <small>Visitante</small>
                             </div>
                         </div>
-                        <div class="game-team">
+                        <span class="game-score">${escapeHtml(formatScoreValue(game.awayScore))}</span>
+                    </div>
+                    <div class="game-team-row">
+                        <div class="game-team-meta">
                             ${renderTeamAvatar(game.homeTeam, game.homeLogo)}
-                            <div>
-                                <strong>${escapeHtml(game.homeTeam)}</strong>
+                            <div class="game-team-copy">
+                                <strong>${escapeHtml(game.homeTeam || 'Local')}</strong>
                                 <small>Local</small>
                             </div>
                         </div>
+                        <span class="game-score">${escapeHtml(formatScoreValue(game.homeScore))}</span>
                     </div>
-                    <div class="game-side">
-                        ${game.score ? `<strong>${escapeHtml(game.score)}</strong>` : '<strong>--</strong>'}
-                        <small>${escapeHtml(game.venue || 'Sin venue')}</small>
-                    </div>
-                </article>
-            `).join('')}
+                </div>
+                <div class="game-detail-list">
+                    ${inningLabel ? `<div class="game-detail-item"><strong>Inning:</strong> ${escapeHtml(inningLabel)}</div>` : ''}
+                    <div class="game-detail-item"><strong>Venue:</strong> ${escapeHtml(game.venue || 'Sin venue')}</div>
+                    <div class="game-detail-item"><strong>Records:</strong> ${escapeHtml(recordText)}</div>
+                    ${probablePitchers}
+                </div>
+                ${linescore}
+            </div>
+        </article>
+    `;
+}
+
+function getGameBadgeClass(game) {
+    if (game?.isLive) {
+        return 'live';
+    }
+
+    if (game?.isFinal) {
+        return 'final';
+    }
+
+    if (game?.isPostponed) {
+        return 'postponed';
+    }
+
+    return 'scheduled';
+}
+
+function getGameBadgeLabel(game) {
+    if (game?.isLive) {
+        return 'Live';
+    }
+
+    if (game?.isFinal) {
+        return 'Final';
+    }
+
+    if (game?.isPostponed) {
+        return 'Pospuesto';
+    }
+
+    return 'Programado';
+}
+
+function formatScoreValue(value) {
+    return Number.isFinite(Number(value)) ? String(value) : '--';
+}
+
+function formatInningLabel(game) {
+    const half = String(game?.inningHalf || '').trim();
+    const inning = String(game?.inning || '').trim();
+
+    if (half && inning) {
+        return `${half} ${inning}`;
+    }
+
+    if (inning) {
+        return inning;
+    }
+
+    return '';
+}
+
+function renderProbablePitchers(game) {
+    const probables = Array.isArray(game?.probablePitchers) ? game.probablePitchers : [];
+
+    if (!probables.length) {
+        return '<div class="game-detail-item"><strong>Probables:</strong> Sin probables cargados.</div>';
+    }
+
+    return `
+        <div class="game-detail-item">
+            <strong>Probables:</strong>
+            ${probables.map((item) => `${item.team}: ${item.athlete || 'Pendiente'}${item.record ? ` (${item.record})` : ''}`).join(' | ')}
         </div>
     `;
+}
+
+function renderGameLinescore(game) {
+    const linescore = game?.linescore;
+    const hasInnings = Boolean(linescore && Array.isArray(linescore.innings) && linescore.innings.length);
+    const isScheduledGame = game?.isScheduled === true || String(game?.statusType || '').toUpperCase() === 'STATUS_SCHEDULED';
+
+    if (!hasInnings) {
+        if (isScheduledGame) {
+            return '<div class="game-detail-item">Sin linescore disponible antes del primer lanzamiento.</div>';
+        }
+
+        const boxscoreSummary = game?.boxscoreSummary;
+        if (boxscoreSummary?.away && boxscoreSummary?.home) {
+            return `
+                <div class="linescore-wrap">
+                    <div class="game-detail-item">${escapeHtml(boxscoreSummary.away)}</div>
+                    <div class="game-detail-item">${escapeHtml(boxscoreSummary.home)}</div>
+                </div>
+            `;
+        }
+
+        return '<div class="game-detail-item">Sin linescore por entradas en cache.</div>';
+    }
+
+    return `
+        <div class="linescore-wrap">
+            <table class="linescore-table">
+                <thead>
+                    <tr>
+                        <th>Equipo</th>
+                        ${linescore.innings.map((inning) => `<th>${escapeHtml(inning)}</th>`).join('')}
+                        <th>R H E</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${renderLinescoreRow(linescore.away)}
+                    ${renderLinescoreRow(linescore.home)}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function renderLinescoreRow(team) {
+    const inningRuns = Array.isArray(team?.inningRuns) ? team.inningRuns : [];
+
+    return `
+        <tr>
+            <td>${escapeHtml(team?.team || '')}</td>
+            ${inningRuns.map((value) => `<td>${escapeHtml(String(value || ''))}</td>`).join('')}
+            <td class="linescore-rhe">${escapeHtml(`R ${team?.runs || '-'} H ${team?.hits || '-'} E ${team?.errors || '-'}`)}</td>
+        </tr>
+    `;
+}
+
+function stopScoreboardLivePolling() {
+    if (scoreboardLivePollTimer) {
+        window.clearInterval(scoreboardLivePollTimer);
+        scoreboardLivePollTimer = null;
+    }
+
+    if (dailyTicketGamesLiveRefresh) {
+        dailyTicketGamesLiveRefresh.hidden = true;
+    }
+}
+
+function updateScoreboardLivePolling(scoreboard) {
+    const hasLiveGames = Number(scoreboard?.liveGamesTotal ?? scoreboard?.today?.live ?? 0) > 0;
+
+    if (!hasLiveGames) {
+        stopScoreboardLivePolling();
+        return;
+    }
+
+    if (dailyTicketGamesLiveRefresh) {
+        dailyTicketGamesLiveRefresh.hidden = false;
+    }
+
+    if (scoreboardLivePollTimer) {
+        return;
+    }
+
+    scoreboardLivePollTimer = window.setInterval(() => {
+        void refreshLiveScoreboard();
+    }, SCOREBOARD_LIVE_REFRESH_MS);
+}
+
+async function refreshLiveScoreboard() {
+    try {
+        const refreshed = await apiCall('/api/mlb/scoreboard?includeTomorrow=true&refreshLive=true');
+        if (!dailyTicketDashboard) {
+            return;
+        }
+
+        dailyTicketDashboard.games = refreshed;
+        dailyTicketDashboard.todayGamesTotal = refreshed.todayGamesTotal;
+        dailyTicketDashboard.renderedGamesTotal = refreshed.renderedGamesTotal;
+        dailyTicketDashboard.liveGamesTotal = refreshed.liveGamesTotal;
+        dailyTicketDashboard.finalGamesTotal = refreshed.finalGamesTotal;
+        dailyTicketDashboard.scheduledGamesTotal = refreshed.scheduledGamesTotal;
+        dailyTicketDashboard.postponedGamesTotal = refreshed.postponedGamesTotal;
+        dailyTicketDashboard.tomorrowGamesTotal = refreshed.tomorrowGamesTotal;
+        dailyTicketDashboard.scoreboardSource = refreshed.scoreboardSource;
+        renderGames(refreshed);
+        updateScoreboardLivePolling(refreshed);
+    } catch (error) {
+        console.error('Live scoreboard refresh failed:', error);
+    }
 }
 
 function renderDailyTicketSkeleton(mode = 'dashboard') {
@@ -799,9 +1282,17 @@ function renderDailyTicketSkeleton(mode = 'dashboard') {
     `;
     dailyTicketSideSummary.innerHTML = '<div class="skeleton-block side"></div>';
     dailyTicketAvoid.innerHTML = '<div class="skeleton-block side"></div>';
+    if (dailyTicketGamesLiveRefresh) {
+        dailyTicketGamesLiveRefresh.hidden = true;
+    }
+    dailyTicketGamesMeta.innerHTML = '<div class="skeleton-block side"></div>';
+    dailyTicketLiveGames.innerHTML = '<div class="skeleton-block tall"></div>';
+    dailyTicketGames.innerHTML = '<div class="skeleton-block tall"></div>';
+    dailyTicketUpcomingGames.innerHTML = '<div class="skeleton-block tall"></div>';
 }
 
 function renderDailyTicketError(message) {
+    stopScoreboardLivePolling();
     dailyTicketFlags.innerHTML = '<span class="ui-badge error">Error</span>';
     dailyTicketSummary.textContent = 'No fue posible cargar la vista.';
     dailyTicketCurrent.innerHTML = `
@@ -813,6 +1304,10 @@ function renderDailyTicketError(message) {
     `;
     dailyTicketSideSummary.innerHTML = '<div class="empty-inline rich">Revisa el backend y vuelve a intentar.</div>';
     dailyTicketAvoid.innerHTML = '<div class="empty-inline rich">Sin datos por error de carga.</div>';
+    dailyTicketGamesMeta.innerHTML = '<div class="empty-inline rich">No fue posible cargar el scoreboard MLB.</div>';
+    dailyTicketLiveGames.innerHTML = '<div class="empty-inline rich scoreboard-empty">Sin juegos en vivo por error de carga.</div>';
+    dailyTicketGames.innerHTML = '<div class="empty-inline rich scoreboard-empty">Sin juegos de hoy por error de carga.</div>';
+    dailyTicketUpcomingGames.innerHTML = '<div class="empty-inline rich scoreboard-empty">Sin juegos proximos por error de carga.</div>';
     renderDailyTicketFeedback(message, 'error');
 }
 

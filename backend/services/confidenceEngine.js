@@ -2,6 +2,18 @@ function clampScore(value, min = 0, max = 100) {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
 
+function normalizeKey(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function uniqueStrings(values = []) {
+  return Array.from(new Set((Array.isArray(values) ? values : []).filter(Boolean)));
+}
+
 function addEvidence(target, message) {
   if (message) {
     target.push(message);
@@ -228,16 +240,177 @@ function scoreCandidate(candidate) {
   };
 }
 
-function applyConfidenceEngine(candidates = []) {
-  const scored = candidates.map(scoreCandidate);
+function applyHistoricalLearning(candidate, learningSummary = {}) {
+  if (!learningSummary?.learningEnabled) {
+    return {
+      ...candidate,
+      historicalPatternsApplied: [],
+      historicalRiskFlags: [],
+    };
+  }
+
+  let confidence = Number(candidate?.confidenceScore || 0);
+  let value = Number(candidate?.valueScore || 0);
+  let volatility = Number(candidate?.volatilityScore || 0);
+  const riskFlags = [...(Array.isArray(candidate?.riskFlags) ? candidate.riskFlags : [])];
+  const evidence = [...(Array.isArray(candidate?.evidence) ? candidate.evidence : [])];
+  const appliedPatterns = [];
+  const category = getMarketCategory(candidate);
+  const odds = Number(candidate?.oddsDecimal);
+  const failurePatternCounts = learningSummary?.failurePatternCounts || {};
+  const candidateTeamKey = normalizeKey(candidate?.candidateTeam || candidate?.playerTeam || '');
+  const playerKey = normalizeKey(candidate?.playerName || candidate?.player || '');
+  const teamExposure = candidateTeamKey ? learningSummary?.teamExposureMap?.[candidateTeamKey] : null;
+  const playerExposure = playerKey ? learningSummary?.playerPropExposureMap?.[playerKey] : null;
+  const isHomeRunProp = category === 'player_hrr' || String(candidate?.market || '').toLowerCase() === 'batter_home_runs';
+
+  function applyPattern(patternKey, effect = {}) {
+    appliedPatterns.push(patternKey);
+    confidence += Number(effect.confidence || 0);
+    value += Number(effect.value || 0);
+    volatility += Number(effect.volatility || 0);
+    addRiskFlag(riskFlags, effect.riskFlag || '');
+    addEvidence(evidence, effect.evidence || '');
+  }
+
+  if (category === 'moneyline' && Number(failurePatternCounts.ml_one_run_loss_risk || 0) > 0 && candidate?.closeGameRisk !== 'low') {
+    applyPattern('ml_one_run_loss_risk', {
+      confidence: -4,
+      value: -2,
+      riskFlag: 'historical_ml_one_run_loss_risk',
+      evidence: 'Historical pattern: ML one-run loss risk.',
+    });
+  }
+
+  if (category === 'moneyline' && Number(failurePatternCounts.protected_spread_preferred || 0) > 0 && candidate?.preferredMarket === 'spread') {
+    applyPattern('protected_spread_preferred', {
+      confidence: -5,
+      value: -3,
+      riskFlag: 'historical_protected_spread_preferred',
+      evidence: 'Historical pattern: protected spread preferred.',
+    });
+  }
+
+  if (category === 'spread' && isPlusOnePointFive(candidate) && Number(failurePatternCounts.protected_spread_preferred || 0) > 0) {
+    applyPattern('protected_spread_preferred', {
+      confidence: 4,
+      value: 3,
+      evidence: 'Historical pattern: protected spread preferred.',
+    });
+  }
+
+  if ((candidate?.candidateType === 'player_prop' || category.startsWith('player_') || category === 'pitcher_strikeouts') && candidate?.lineupConfidence !== 'confirmed' && Number(failurePatternCounts.player_prop_requires_lineup_confirmation || 0) > 0) {
+    applyPattern('player_prop_requires_lineup_confirmation', {
+      confidence: -5,
+      value: -2,
+      volatility: 4,
+      riskFlag: 'historical_lineup_confirmation_risk',
+      evidence: 'Historical pattern: player prop requires lineup confirmation.',
+    });
+  }
+
+  if (isHomeRunProp && Number(failurePatternCounts.home_run_market_high_volatility || 0) > 0) {
+    applyPattern('home_run_market_high_volatility', {
+      confidence: -4,
+      value: -2,
+      volatility: 6,
+      riskFlag: 'historical_home_run_volatility',
+      evidence: 'Historical pattern: home run market volatility.',
+    });
+  }
+
+  if (category === 'moneyline' && Number.isFinite(odds) && odds > 0 && odds <= 1.6 && Number(failurePatternCounts.low_value_favorite_ml || 0) > 0) {
+    applyPattern('low_value_favorite_ml', {
+      confidence: -4,
+      value: -4,
+      riskFlag: 'historical_low_value_favorite_ml',
+      evidence: 'Historical pattern: low-value favorite ML.',
+    });
+  }
+
+  if ((category === 'total' || String(candidate?.market || '').toLowerCase() === 'totals') && Number(failurePatternCounts.totals_with_limited_context || 0) > 0 && !candidate?.records?.length && !candidate?.venue) {
+    applyPattern('totals_with_limited_context', {
+      confidence: -4,
+      value: -3,
+      volatility: 4,
+      riskFlag: 'historical_totals_limited_context',
+      evidence: 'Historical pattern: totals with limited context.',
+    });
+  }
+
+  if (teamExposure && Number(teamExposure.legs || 0) >= 4 && Number(teamExposure.lossRate || 0) >= 0.6) {
+    applyPattern('team_loss_exposure', {
+      value: -3,
+      riskFlag: 'historical_team_loss_exposure',
+      evidence: 'Historical pattern: repeated team loss exposure.',
+    });
+  }
+
+  if (playerExposure && Number(playerExposure.legs || 0) >= 3 && Number(playerExposure.lossRate || 0) >= 0.6) {
+    applyPattern('player_prop_loss_exposure', {
+      value: -2,
+      riskFlag: 'historical_player_prop_loss_exposure',
+      evidence: 'Historical pattern: repeated player prop loss exposure.',
+    });
+  }
+
+  if (playerExposure && Number(playerExposure.lineupIssues || 0) > 0 && candidate?.lineupConfidence !== 'confirmed') {
+    applyPattern('player_prop_lineup_exposure', {
+      confidence: -3,
+      volatility: 2,
+      riskFlag: 'historical_player_lineup_issue',
+      evidence: 'Historical pattern: player prop requires lineup confirmation.',
+    });
+  }
+
+  if (Number(failurePatternCounts.long_parlay_one_leg_loss || 0) > 0 && Number(candidate?.volatilityScore || 0) >= 65) {
+    applyPattern('long_parlay_one_leg_loss', {
+      confidence: -2,
+      volatility: 2,
+      riskFlag: 'historical_long_parlay_exposure',
+      evidence: 'Historical pattern: long parlay exposure.',
+    });
+  }
+
+  return {
+    ...candidate,
+    confidenceScore: clampScore(confidence),
+    valueScore: clampScore(value),
+    volatilityScore: clampScore(volatility),
+    riskFlags: uniqueStrings(riskFlags),
+    evidence: uniqueStrings(evidence),
+    historicalPatternsApplied: uniqueStrings(appliedPatterns),
+    historicalRiskFlags: uniqueStrings(riskFlags.filter((flag) => String(flag).startsWith('historical_'))),
+  };
+}
+
+function applyConfidenceEngine(candidates = [], context = {}) {
+  const historicalLearning = context?.historicalLearning || null;
+  const baseScored = candidates.map(scoreCandidate);
+  const scored = baseScored.map((candidate) => applyHistoricalLearning(candidate, historicalLearning));
   const avgConfidence = scored.length
     ? Math.round(scored.reduce((total, candidate) => total + Number(candidate.confidenceScore || 0), 0) / scored.length)
     : 0;
+  const historicalPatternsApplied = scored.reduce((total, candidate) => (
+    total + (Array.isArray(candidate.historicalPatternsApplied) ? candidate.historicalPatternsApplied.length : 0)
+  ), 0);
+  const historicalRiskFlags = uniqueStrings(scored.flatMap((candidate) => candidate.historicalRiskFlags || []));
+
+  if (historicalLearning?.learningEnabled && historicalPatternsApplied > 0) {
+    console.log('[outcome-learning] APPLIED_LEARNING', {
+      candidates: scored.length,
+      historicalPatternsApplied,
+      historicalRiskFlags,
+    });
+  }
 
   return {
     candidates: scored,
     diagnostics: {
       avgConfidence,
+      historicalLearningEnabled: historicalLearning?.learningEnabled === true,
+      historicalPatternsApplied,
+      historicalRiskFlags,
       topByConfidence: [...scored]
         .sort((left, right) => Number(right.confidenceScore || 0) - Number(left.confidenceScore || 0))
         .slice(0, 5)
@@ -253,5 +426,6 @@ function applyConfidenceEngine(candidates = []) {
 }
 
 module.exports = {
+  applyHistoricalLearning,
   applyConfidenceEngine,
 };

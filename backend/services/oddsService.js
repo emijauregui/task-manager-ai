@@ -517,7 +517,35 @@ function buildRejectedReasonCounts(props = []) {
   }, {});
 }
 
-async function readOrFetchCachedOdds(filename, fetcher, maxAgeMinutes, forceRefresh = false) {
+async function readOrFetchCachedOdds(filename, fetcher, maxAgeMinutes, forceRefresh = false, options = {}) {
+  const {
+    cacheOnly = false,
+  } = options;
+
+  if (cacheOnly) {
+    const cached = await readCache(filename, {
+      maxAgeMinutes,
+      allowStale: true,
+    });
+
+    if (cached.exists && cached.data) {
+      return {
+        ...cached.data,
+        source: cached.expired ? 'stale_cache' : 'cache',
+        quotaReached: false,
+      };
+    }
+
+    throw new OddsApiError(
+      'ODDS_API_CACHE_UNAVAILABLE',
+      `No cached The Odds API payload is available for ${filename}.`,
+      {
+        httpStatus: 503,
+        pathname: filename,
+      }
+    );
+  }
+
   if (!forceRefresh) {
     const cached = await readCache(filename, {
       maxAgeMinutes,
@@ -628,6 +656,7 @@ async function getMlbEventsByDate(targetDate = getDateKeyInTimeZone(new Date()),
   const {
     forceRefresh = false,
     useCache = true,
+    cacheOnly = false,
     timeZone = TARGET_TIME_ZONE,
   } = options;
 
@@ -654,13 +683,16 @@ async function getMlbEventsByDate(targetDate = getDateKeyInTimeZone(new Date()),
     return load();
   }
 
-  return readOrFetchCachedOdds(cacheFilename, load, EVENT_PROPS_CACHE_MINUTES, forceRefresh);
+  return readOrFetchCachedOdds(cacheFilename, load, EVENT_PROPS_CACHE_MINUTES, forceRefresh, {
+    cacheOnly,
+  });
 }
 
 async function getMlbEventMarkets(eventId, options = {}) {
   const {
     forceRefresh = false,
     useCache = true,
+    cacheOnly = false,
     regions = 'us',
   } = options;
 
@@ -683,13 +715,16 @@ async function getMlbEventMarkets(eventId, options = {}) {
     return load();
   }
 
-  return readOrFetchCachedOdds(cacheFilename, load, EVENT_PROPS_CACHE_MINUTES, forceRefresh);
+  return readOrFetchCachedOdds(cacheFilename, load, EVENT_PROPS_CACHE_MINUTES, forceRefresh, {
+    cacheOnly,
+  });
 }
 
 async function getMlbEventPropsOdds(eventId, markets, options = {}) {
   const {
     forceRefresh = false,
     useCache = true,
+    cacheOnly = false,
     regions = 'us',
   } = options;
   const normalizedMarkets = Array.from(new Set((Array.isArray(markets) ? markets : [])
@@ -718,7 +753,7 @@ async function getMlbEventPropsOdds(eventId, markets, options = {}) {
   if (useCache && !forceRefresh) {
     const cached = await readCache(cacheFilename, {
       maxAgeMinutes: EVENT_PROPS_CACHE_MINUTES,
-      allowStale: false,
+      allowStale: cacheOnly,
     });
 
     const cachedMarkets = Array.isArray(cached.data?.requestedMarkets) ? cached.data.requestedMarkets : [];
@@ -726,8 +761,19 @@ async function getMlbEventPropsOdds(eventId, markets, options = {}) {
     if (cached.hit && cached.data && cacheCoversRequest) {
       return {
         ...cached.data,
-        source: 'cache',
+        source: cached.expired ? 'stale_cache' : 'cache',
       };
+    }
+
+    if (cacheOnly) {
+      throw new OddsApiError(
+        'ODDS_API_CACHE_UNAVAILABLE',
+        `No cached event props odds payload is available for event ${eventId}.`,
+        {
+          httpStatus: 503,
+          pathname: `/sports/baseball_mlb/events/${eventId}/odds`,
+        }
+      );
     }
   }
 
@@ -745,6 +791,7 @@ async function getMlbPropsByDateViaEvents(targetDate = getDateKeyInTimeZone(new 
   const {
     forceRefresh = false,
     useCache = true,
+    cacheOnly = false,
     limitEvents = 3,
     requestedMarkets = EVENT_PLAYER_PROP_MARKETS,
     regions = 'us',
@@ -755,6 +802,7 @@ async function getMlbPropsByDateViaEvents(targetDate = getDateKeyInTimeZone(new 
     eventsPayload = await getMlbEventsByDate(targetDate, {
       forceRefresh,
       useCache,
+      cacheOnly,
     });
   } catch (error) {
     if (!shouldFallbackToCacheOnError(error)) {
@@ -802,6 +850,7 @@ async function getMlbPropsByDateViaEvents(targetDate = getDateKeyInTimeZone(new 
       eventMarkets = await getMlbEventMarkets(event.id, {
         forceRefresh,
         useCache,
+        cacheOnly,
         regions,
       });
     } catch (error) {
@@ -836,6 +885,7 @@ async function getMlbPropsByDateViaEvents(targetDate = getDateKeyInTimeZone(new 
       eventProps = await getMlbEventPropsOdds(event.id, propMarketsFound, {
         forceRefresh,
         useCache,
+        cacheOnly,
         regions,
       });
     } catch (error) {
@@ -968,6 +1018,7 @@ async function getMlbOdds(options = {}) {
     timeZone = TARGET_TIME_ZONE,
     forceRefresh = false,
     useCache = true,
+    cacheOnly = false,
   } = options;
 
   const cacheFilename = `odds-mlb-${targetDate}.json`;
@@ -1022,7 +1073,9 @@ async function getMlbOdds(options = {}) {
   };
 
   const payload = useCache
-    ? await readOrFetchCachedOdds(cacheFilename, load, DEFAULT_CACHE_MINUTES, forceRefresh)
+    ? await readOrFetchCachedOdds(cacheFilename, load, DEFAULT_CACHE_MINUTES, forceRefresh, {
+      cacheOnly,
+    })
     : {
       ...(await load()),
       source: 'live',

@@ -5,13 +5,26 @@ const express = require('express');
 
 const bedrockService = require('./services/bedrockService');
 const dailyTicketService = require('./services/dailyTicketService');
+const espnService = require('./services/espnService');
+const mlbTicketHistoryService = require('./services/mlbTicketHistoryService');
 const oddsService = require('./services/oddsService');
+const playerPropsDiagnosticsService = require('./services/playerPropsDiagnosticsService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
+app.use((error, req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && Object.prototype.hasOwnProperty.call(error, 'body')) {
+    return res.status(400).json({
+      error: 'Invalid JSON payload',
+      message: 'Request body is not valid JSON.',
+    });
+  }
+
+  return next(error);
+});
 
 process.on('unhandledRejection', (reason) => {
   console.error('[server] Unhandled rejection', {
@@ -92,6 +105,10 @@ function getBedrockFailureStatus(error) {
   }
 
   return 502;
+}
+
+function parseBooleanQuery(value) {
+  return String(value || '').trim().toLowerCase() === 'true';
 }
 
 app.get('/health', (req, res) => {
@@ -278,8 +295,49 @@ app.get('/api/odds/mlb/props/test', asyncRoute(async (req, res) => {
   return res.json(result);
 }));
 
+app.get('/api/odds/mlb/player-props/diagnostics', asyncRoute(async (req, res) => {
+  const limitEvents = Number(req.query.limitEvents);
+  const result = await playerPropsDiagnosticsService.getPlayerPropsDiagnostics({
+    targetDate: req.query.date,
+    useLive: parseBooleanQuery(req.query.useLive),
+    limitEvents: Number.isFinite(limitEvents) && limitEvents > 0 ? limitEvents : undefined,
+  });
+  return res.json(result);
+}));
+
+app.get('/api/odds/mlb/player-props/game/:eventId', asyncRoute(async (req, res) => {
+  const limitEvents = Number(req.query.limitEvents);
+  const result = await playerPropsDiagnosticsService.getPlayerPropsByGame(req.params.eventId, {
+    targetDate: req.query.date,
+    useLive: parseBooleanQuery(req.query.useLive),
+    limitEvents: Number.isFinite(limitEvents) && limitEvents > 0 ? limitEvents : undefined,
+  });
+  return res.json(result);
+}));
+
+app.get('/api/odds/mlb/player-props/player/:player', asyncRoute(async (req, res) => {
+  const limitEvents = Number(req.query.limitEvents);
+  const result = await playerPropsDiagnosticsService.getPlayerPropsByPlayer(req.params.player, {
+    targetDate: req.query.date,
+    useLive: parseBooleanQuery(req.query.useLive),
+    limitEvents: Number.isFinite(limitEvents) && limitEvents > 0 ? limitEvents : undefined,
+  });
+  return res.json(result);
+}));
+
 app.get('/api/odds/cache/status', asyncRoute(async (req, res) => {
   const result = await oddsService.getCacheStatus();
+  return res.json(result);
+}));
+
+app.get('/api/mlb/scoreboard', asyncRoute(async (req, res) => {
+  const includeTomorrow = parseBooleanQuery(req.query.includeTomorrow);
+  const refreshLive = parseBooleanQuery(req.query.refreshLive);
+  const result = await espnService.getMlbScoreboardBundle({
+    dateKey: req.query.date,
+    includeTomorrow,
+    refreshLive,
+  });
   return res.json(result);
 }));
 
@@ -311,6 +369,55 @@ app.get('/api/daily-ticket/history', asyncRoute(async (req, res) => {
   });
 }));
 
+app.get('/api/daily-ticket/history/summary', asyncRoute(async (req, res) => {
+  const summary = await mlbTicketHistoryService.summarizeHistoricalTickets();
+  return res.json(summary);
+}));
+
+app.get('/api/daily-ticket/history/manual', asyncRoute(async (req, res) => {
+  const items = await mlbTicketHistoryService.listHistoricalTickets({
+    includeGenerated: false,
+    manualOnly: true,
+  });
+  return res.json({
+    items,
+  });
+}));
+
+app.post('/api/daily-ticket/history/manual', asyncRoute(async (req, res) => {
+  if ((process.env.NODE_ENV || 'development') === 'production') {
+    return res.status(403).json({
+      error: 'Disabled in production',
+      message: 'Manual MLB ticket history is only enabled outside production.',
+    });
+  }
+
+  const payload = req.body;
+  if (!payload || typeof payload !== 'object') {
+    return res.status(400).json({
+      error: 'Invalid payload',
+      message: 'A JSON ticket payload is required.',
+    });
+  }
+
+  const normalized = mlbTicketHistoryService.normalizeHistoricalTicket(payload, {
+    sourceHint: 'manual',
+  });
+
+  if (!Array.isArray(normalized.legs) || normalized.legs.length === 0) {
+    return res.status(400).json({
+      error: 'Invalid ticket',
+      message: 'At least one leg is required.',
+    });
+  }
+
+  const saved = await mlbTicketHistoryService.saveHistoricalTicket(normalized);
+  return res.status(201).json({
+    success: true,
+    item: saved,
+  });
+}));
+
 app.get('/api/daily-ticket/dashboard', asyncRoute(async (req, res) => {
   const dashboard = await dailyTicketService.getDashboard();
   return res.json(dashboard);
@@ -328,7 +435,7 @@ app.post('/api/daily-ticket/generate', asyncRoute(async (req, res) => {
   return res.status(statusCode).json(result);
 }));
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   const bedrockHealth = bedrockService.getHealthStatus();
   console.log(`[server] Listening on port ${PORT}`);
   console.log('[server] API base path: /api');
@@ -337,3 +444,8 @@ app.listen(PORT, () => {
     configured: oddsService.isConfigured(),
   });
 });
+
+module.exports = {
+  app,
+  server,
+};

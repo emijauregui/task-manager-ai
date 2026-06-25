@@ -10,21 +10,52 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="app-shell">
-        <aside class="app-sidebar">
-            <div class="brand-lockup">
-                <div class="brand-mark">DT</div>
-                <div>
-                    <p class="brand-kicker">Elite Analytics</p>
-                    <h1>Daily Ticket AI</h1>
+    <div class="app-shell" id="app-shell">
+        <aside class="app-sidebar" id="app-sidebar">
+            <div class="sidebar-top">
+                <div class="brand-lockup">
+                    <div class="brand-mark">DT</div>
+                    <div class="brand-copy">
+                        <p class="brand-kicker">Elite Analytics</p>
+                        <h1>Daily Ticket AI</h1>
+                    </div>
                 </div>
+                <button type="button" class="sidebar-toggle" id="sidebar-toggle-btn" aria-label="Colapsar sidebar" aria-expanded="true">&lt;</button>
             </div>
 
             <nav class="sidebar-nav">
-                <a href="#daily-ticket-section" class="nav-link is-active">Dashboard</a>
-                <a href="#daily-ticket-games-panel" class="nav-link">Juegos</a>
-                <a href="#daily-ticket-history-panel" class="nav-link">Historial</a>
-                <a href="#tasks-section" class="nav-link">Tareas</a>
+                <a href="#daily-ticket-section" class="nav-link is-active">
+                    <span class="nav-icon">DB</span>
+                    <span class="nav-label">Dashboard</span>
+                </a>
+                <a href="#daily-ticket-current-panel" class="nav-link">
+                    <span class="nav-icon">TD</span>
+                    <span class="nav-label">Ticket del dia</span>
+                </a>
+                <a href="#daily-ticket-live-panel" class="nav-link">
+                    <span class="nav-icon">LV</span>
+                    <span class="nav-label">Juegos en vivo</span>
+                </a>
+                <a href="#daily-ticket-today-panel" class="nav-link">
+                    <span class="nav-icon">HO</span>
+                    <span class="nav-label">Juegos de hoy</span>
+                </a>
+                <a href="#daily-ticket-upcoming-panel" class="nav-link">
+                    <span class="nav-icon">MX</span>
+                    <span class="nav-label">Proximos juegos</span>
+                </a>
+                <a href="#daily-ticket-history-panel" class="nav-link">
+                    <span class="nav-icon">HS</span>
+                    <span class="nav-label">Historial</span>
+                </a>
+                <a href="#player-props-diagnostics-panel" class="nav-link" id="nav-debug-props" hidden>
+                    <span class="nav-icon">DP</span>
+                    <span class="nav-label">Debug props</span>
+                </a>
+                <a href="#tasks-section" class="nav-link">
+                    <span class="nav-icon">TK</span>
+                    <span class="nav-label">Tareas</span>
+                </a>
             </nav>
 
             <div class="sidebar-card glass-card">
@@ -65,7 +96,7 @@
                     <div id="daily-ticket-api-status" class="status-grid"></div>
 
                     <div class="daily-ticket-grid">
-                        <section class="ticket-panel ticket-panel-main glass-card">
+                        <section class="ticket-panel ticket-panel-main glass-card" id="daily-ticket-current-panel">
                             <div class="panel-header">
                                 <div>
                                     <p class="panel-kicker">Ticket disponible</p>
@@ -100,15 +131,45 @@
                     </div>
 
                     <div class="secondary-grid">
-                        <section class="ticket-panel glass-card" id="daily-ticket-games-panel">
+                        <section class="ticket-panel glass-card scoreboard-panel" id="daily-ticket-games-panel">
                             <div class="panel-header">
                                 <div>
                                     <p class="panel-kicker">Scoreboard</p>
-                                    <h3>Juegos de hoy</h3>
+                                    <h3>MLB Scoreboard</h3>
                                 </div>
-                                <span class="ui-badge subtle">ESPN cacheado</span>
+                                <div class="scoreboard-panel-badges">
+                                    <span class="ui-badge subtle">ESPN cacheado</span>
+                                    <span class="ui-badge subtle" id="daily-ticket-games-live-refresh" hidden>Actualizando en vivo cada 60s</span>
+                                </div>
                             </div>
-                            <div id="daily-ticket-games"></div>
+                            <div id="daily-ticket-games-meta"></div>
+                            <section class="scoreboard-group" id="daily-ticket-live-panel">
+                                <div class="scoreboard-group-header">
+                                    <div>
+                                        <p class="panel-kicker">Live</p>
+                                        <h4>Juegos en vivo</h4>
+                                    </div>
+                                </div>
+                                <div id="daily-ticket-live-games"></div>
+                            </section>
+                            <section class="scoreboard-group" id="daily-ticket-today-panel">
+                                <div class="scoreboard-group-header">
+                                    <div>
+                                        <p class="panel-kicker">Hoy</p>
+                                        <h4>Juegos de hoy</h4>
+                                    </div>
+                                </div>
+                                <div id="daily-ticket-games"></div>
+                            </section>
+                            <section class="scoreboard-group" id="daily-ticket-upcoming-panel">
+                                <div class="scoreboard-group-header">
+                                    <div>
+                                        <p class="panel-kicker">Manana</p>
+                                        <h4>Proximos juegos</h4>
+                                    </div>
+                                </div>
+                                <div id="daily-ticket-upcoming-games"></div>
+                            </section>
                         </section>
 
                         <section class="ticket-panel glass-card" id="daily-ticket-history-panel">
@@ -121,6 +182,36 @@
                             <div id="daily-ticket-history"></div>
                         </section>
                     </div>
+
+                    <section class="ticket-panel glass-card diagnostics-panel" id="player-props-diagnostics-panel" hidden>
+                        <div class="panel-header">
+                            <div>
+                                <p class="panel-kicker">Dev Debug</p>
+                                <h3>Player Props Pipeline</h3>
+                            </div>
+                            <span class="ui-badge subtle">Solo desarrollo / debug</span>
+                        </div>
+                        <div id="player-props-diagnostics-warning" class="panel-message info compact"></div>
+                        <div id="player-props-diagnostics-pipeline" class="props-pipeline-grid"></div>
+                        <div class="props-diagnostics-grid">
+                            <div class="props-diagnostics-block">
+                                <h4>Top mercados</h4>
+                                <div id="player-props-diagnostics-markets"></div>
+                            </div>
+                            <div class="props-diagnostics-block">
+                                <h4>Top juegos</h4>
+                                <div id="player-props-diagnostics-games"></div>
+                            </div>
+                            <div class="props-diagnostics-block">
+                                <h4>Top jugadores</h4>
+                                <div id="player-props-diagnostics-players"></div>
+                            </div>
+                            <div class="props-diagnostics-block">
+                                <h4>Rejected reasons</h4>
+                                <div id="player-props-diagnostics-rejections"></div>
+                            </div>
+                        </div>
+                    </section>
                 </section>
 
                 <section class="tasks-section" id="tasks-section">

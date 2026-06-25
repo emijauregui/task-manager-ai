@@ -32,3 +32,7 @@ logs/
 # App cache
 backend/cache/*.json
 !backend/cache/.gitkeep
+
+# App data generated locally
+backend/data/*.json
+!backend/data/.gitkeep

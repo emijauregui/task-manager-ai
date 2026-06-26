@@ -756,6 +756,17 @@ function buildLegFromCandidate(candidate, previousLeg = {}) {
     ruleWarnings: candidate.ruleWarnings || [],
     teamResolved: candidate.teamResolved === true,
     oddsVerified: candidate.oddsVerified !== false,
+    protected: candidate.protectionSuggested === true,
+    marketProtectionApplied: candidate.protectionSuggested === true,
+    protectionReason: candidate.protectionSuggested === true ? (candidate.protectionReason || '') : '',
+    historicalInfluenceApplied: candidate.historicalInfluenceApplied === true,
+    historicalBoostApplied: candidate.historicalBoostApplied === true,
+    historicalPenaltyApplied: candidate.historicalPenaltyApplied === true,
+    historicalInfluenceReason: String(candidate.historicalInfluenceReason || '').trim(),
+    historicalConfidenceDelta: Number(candidate.historicalConfidenceDelta || 0),
+    historicalInfluenceWarnings: Array.isArray(candidate.historicalInfluenceWarnings)
+      ? candidate.historicalInfluenceWarnings
+      : [],
   };
 }
 

@@ -1,3 +1,7 @@
+'use strict';
+
+const historicalInfluenceService = require('./historicalInfluenceService');
+
 function clampScore(value, min = 0, max = 100) {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
@@ -387,31 +391,58 @@ function applyHistoricalLearning(candidate, learningSummary = {}) {
 function applyConfidenceEngine(candidates = [], context = {}) {
   const historicalLearning = context?.historicalLearning || null;
   const baseScored = candidates.map(scoreCandidate);
-  const scored = baseScored.map((candidate) => applyHistoricalLearning(candidate, historicalLearning));
-  const avgConfidence = scored.length
-    ? Math.round(scored.reduce((total, candidate) => total + Number(candidate.confidenceScore || 0), 0) / scored.length)
+  const learned = baseScored.map((candidate) => applyHistoricalLearning(candidate, historicalLearning));
+  let influenced = learned;
+  let influenceDiagnostics = {
+    historicalInfluenceEnabled: false,
+    historicalInfluenceMode: 'disabled',
+    historicalInfluenceAppliedCount: 0,
+    historicalBoostedCount: 0,
+    historicalPenalizedCount: 0,
+    historicalInfluenceWarnings: [],
+  };
+
+  try {
+    const influenceResult = historicalInfluenceService.applyHistoricalPatternInfluence(learned, historicalLearning);
+    influenced = influenceResult.candidates;
+    influenceDiagnostics = influenceResult.diagnostics;
+  } catch (error) {
+    console.error('[outcome-learning] Historical influence failed', {
+      message: error.message,
+      name: error.name,
+    });
+  }
+
+  const avgConfidence = influenced.length
+    ? Math.round(influenced.reduce((total, candidate) => total + Number(candidate.confidenceScore || 0), 0) / influenced.length)
     : 0;
-  const historicalPatternsApplied = scored.reduce((total, candidate) => (
+  const historicalPatternsApplied = influenced.reduce((total, candidate) => (
     total + (Array.isArray(candidate.historicalPatternsApplied) ? candidate.historicalPatternsApplied.length : 0)
   ), 0);
-  const historicalRiskFlags = uniqueStrings(scored.flatMap((candidate) => candidate.historicalRiskFlags || []));
+  const historicalRiskFlags = uniqueStrings(influenced.flatMap((candidate) => candidate.historicalRiskFlags || []));
 
   if (historicalLearning?.learningEnabled && historicalPatternsApplied > 0) {
     console.log('[outcome-learning] APPLIED_LEARNING', {
-      candidates: scored.length,
+      candidates: influenced.length,
       historicalPatternsApplied,
       historicalRiskFlags,
     });
   }
 
   return {
-    candidates: scored,
+    candidates: influenced,
     diagnostics: {
       avgConfidence,
       historicalLearningEnabled: historicalLearning?.learningEnabled === true,
       historicalPatternsApplied,
       historicalRiskFlags,
-      topByConfidence: [...scored]
+      historicalInfluenceEnabled: influenceDiagnostics.historicalInfluenceEnabled === true,
+      historicalInfluenceMode: influenceDiagnostics.historicalInfluenceMode || 'disabled',
+      historicalInfluenceAppliedCount: Number(influenceDiagnostics.historicalInfluenceAppliedCount || 0),
+      historicalBoostedCount: Number(influenceDiagnostics.historicalBoostedCount || 0),
+      historicalPenalizedCount: Number(influenceDiagnostics.historicalPenalizedCount || 0),
+      historicalInfluenceWarnings: uniqueStrings(influenceDiagnostics.historicalInfluenceWarnings || []),
+      topByConfidence: [...influenced]
         .sort((left, right) => Number(right.confidenceScore || 0) - Number(left.confidenceScore || 0))
         .slice(0, 5)
         .map((candidate) => ({

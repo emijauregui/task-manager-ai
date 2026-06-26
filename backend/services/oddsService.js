@@ -24,6 +24,10 @@ const EVENT_PLAYER_PROP_MARKETS = [
   'batter_home_runs',
 ];
 const SUPPORTED_MARKETS = new Set([...CORE_MARKETS, ...EXTRA_PLAYER_PROP_MARKETS]);
+const CONTROLLED_REFRESH_ALLOWED_MARKETS = new Set(['h2h', 'spreads', 'totals']);
+const CONTROLLED_REFRESH_ALLOWED_REGIONS = new Set(['us']);
+const DEFAULT_REFRESH_MARKETS = ['h2h', 'spreads'];
+const DEFAULT_REFRESH_REGION = 'us';
 
 class OddsApiError extends Error {
   constructor(code, message, options = {}) {
@@ -243,6 +247,54 @@ function buildUrl(pathname, params = {}) {
   });
 
   return url;
+}
+
+function normalizeCommaSeparatedList(value, fallback = []) {
+  const items = String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return items.length > 0 ? items : [...fallback];
+}
+
+function buildEstimatedCostHint(regions = [], markets = []) {
+  return `Costo esperado aproximado: regions * markets = ${regions.length} * ${markets.length}`;
+}
+
+function parseControlledRefreshOptions(options = {}) {
+  const regions = normalizeCommaSeparatedList(options.regions, [DEFAULT_REFRESH_REGION]);
+  const markets = normalizeCommaSeparatedList(options.markets, DEFAULT_REFRESH_MARKETS);
+  const invalidRegion = regions.find((region) => !CONTROLLED_REFRESH_ALLOWED_REGIONS.has(region));
+  if (invalidRegion) {
+    return {
+      ok: false,
+      requestedRegions: regions.join(','),
+      requestedMarkets: markets.join(','),
+      estimatedCostHint: buildEstimatedCostHint(regions, markets),
+      warning: 'Region no permitida para refresh controlado.',
+    };
+  }
+
+  const invalidMarket = markets.find((market) => !CONTROLLED_REFRESH_ALLOWED_MARKETS.has(market));
+  if (invalidMarket) {
+    return {
+      ok: false,
+      requestedRegions: regions.join(','),
+      requestedMarkets: markets.join(','),
+      estimatedCostHint: buildEstimatedCostHint(regions, markets),
+      warning: 'Market no permitido para refresh controlado.',
+    };
+  }
+
+  return {
+    ok: true,
+    regions,
+    markets,
+    requestedRegions: regions.join(','),
+    requestedMarkets: markets.join(','),
+    estimatedCostHint: buildEstimatedCostHint(regions, markets),
+  };
 }
 
 function getMlbOddsCacheFilename(targetDate = getDateKeyInTimeZone(new Date())) {
@@ -1357,6 +1409,7 @@ async function testMlbProps(options = {}) {
 async function getMlbOdds(options = {}) {
   const {
     markets = CORE_MARKETS.join(','),
+    regions = 'us',
     targetDate = getDateKeyInTimeZone(new Date()),
     timeZone = TARGET_TIME_ZONE,
     forceRefresh = false,
@@ -1373,7 +1426,7 @@ async function getMlbOdds(options = {}) {
 
     try {
       fetched = await fetchOddsJson('/sports/baseball_mlb/odds', {
-        regions: 'us',
+        regions,
         markets,
         oddsFormat: 'decimal',
         dateFormat: 'iso',
@@ -1388,7 +1441,7 @@ async function getMlbOdds(options = {}) {
       if (requestedProps.length > 0 && !isQuotaError(error) && !isLiveDisabledError(error)) {
         warnings.push('Some requested player prop markets were unavailable from The Odds API; using supported game markets only.');
         fetched = await fetchOddsJson('/sports/baseball_mlb/odds', {
-          regions: 'us',
+          regions,
           markets: CORE_MARKETS.join(','),
           oddsFormat: 'decimal',
           dateFormat: 'iso',
@@ -1428,6 +1481,8 @@ async function getMlbOdds(options = {}) {
 
   logOddsEvent('RETURNING_MLB_ODDS_PAYLOAD', {
     cacheFilename,
+    regions,
+    requestedMarkets: markets,
     gamesFound: Array.isArray(payload.games) ? payload.games.length : 0,
     source: payload.source,
     quotaReached: payload.quotaReached === true,
@@ -1440,6 +1495,35 @@ async function refreshMlbOdds(options = {}) {
   const targetDate = String(options.targetDate || getDateKeyInTimeZone(new Date())).trim();
   const confirmLive = options.confirmLive === true;
   const guard = getGuardStatus();
+  const controlledOptions = parseControlledRefreshOptions(options);
+
+  if (!controlledOptions.ok) {
+    return {
+      success: false,
+      runtimeMode: guard.runtimeMode,
+      oddsLiveEnabled: guard.oddsLiveEnabled,
+      targetDate,
+      requestedRegions: controlledOptions.requestedRegions,
+      requestedMarkets: controlledOptions.requestedMarkets,
+      estimatedCostHint: controlledOptions.estimatedCostHint,
+      oddsSource: 'refresh_blocked',
+      gamesFound: 0,
+      cacheFilename: '',
+      lastQuotaCost: guard.lastQuotaCost,
+      lastQuotaRemaining: guard.lastQuotaRemaining,
+      lastQuotaUsed: guard.lastQuotaUsed,
+      lastQuotaPathname: guard.lastQuotaPathname,
+      quotaSamples: guard.quotaSamples,
+      warning: controlledOptions.warning,
+      error: null,
+    };
+  }
+
+  const {
+    requestedRegions,
+    requestedMarkets,
+    estimatedCostHint,
+  } = controlledOptions;
 
   if (!confirmLive) {
     return {
@@ -1447,6 +1531,9 @@ async function refreshMlbOdds(options = {}) {
       runtimeMode: guard.runtimeMode,
       oddsLiveEnabled: guard.oddsLiveEnabled,
       targetDate,
+      requestedRegions,
+      requestedMarkets,
+      estimatedCostHint,
       oddsSource: 'refresh_blocked',
       gamesFound: 0,
       cacheFilename: '',
@@ -1466,6 +1553,9 @@ async function refreshMlbOdds(options = {}) {
       runtimeMode: getOddsRuntimeMode(),
       oddsLiveEnabled: false,
       targetDate,
+      requestedRegions,
+      requestedMarkets,
+      estimatedCostHint,
       oddsSource: 'refresh_blocked',
       gamesFound: 0,
       cacheFilename: '',
@@ -1482,7 +1572,8 @@ async function refreshMlbOdds(options = {}) {
   try {
     const payload = await getMlbOdds({
       targetDate,
-      markets: CORE_MARKETS.join(','),
+      regions: requestedRegions,
+      markets: requestedMarkets,
       forceRefresh: true,
       useCache: true,
       cacheOnly: false,
@@ -1494,6 +1585,9 @@ async function refreshMlbOdds(options = {}) {
       runtimeMode: updatedGuard.runtimeMode,
       oddsLiveEnabled: updatedGuard.oddsLiveEnabled,
       targetDate,
+      requestedRegions,
+      requestedMarkets,
+      estimatedCostHint,
       oddsSource: payload.source || 'live',
       gamesFound: Array.isArray(payload.games) ? payload.games.length : 0,
       cacheFilename: getMlbOddsCacheFilename(targetDate),
@@ -1512,6 +1606,9 @@ async function refreshMlbOdds(options = {}) {
       runtimeMode: updatedGuard.runtimeMode,
       oddsLiveEnabled: updatedGuard.oddsLiveEnabled,
       targetDate,
+      requestedRegions,
+      requestedMarkets,
+      estimatedCostHint,
       oddsSource: 'refresh_failed',
       gamesFound: 0,
       cacheFilename: '',

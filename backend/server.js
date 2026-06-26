@@ -340,6 +340,8 @@ app.post('/api/daily-ticket/odds/refresh', asyncRoute(async (req, res) => {
   const result = await oddsService.refreshMlbOdds({
     targetDate: payload.targetDate,
     confirmLive: payload.confirmLive === true,
+    regions: payload.regions,
+    markets: payload.markets,
   });
 
   return res.json(result);

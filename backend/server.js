@@ -335,6 +335,16 @@ app.get('/api/daily-ticket/odds/guard', asyncRoute(async (req, res) => {
   return res.json(oddsService.getGuardStatus());
 }));
 
+app.post('/api/daily-ticket/odds/refresh', asyncRoute(async (req, res) => {
+  const payload = req.body && typeof req.body === 'object' ? req.body : {};
+  const result = await oddsService.refreshMlbOdds({
+    targetDate: payload.targetDate,
+    confirmLive: payload.confirmLive === true,
+  });
+
+  return res.json(result);
+}));
+
 app.get('/api/mlb/scoreboard', asyncRoute(async (req, res) => {
   const includeTomorrow = parseBooleanQuery(req.query.includeTomorrow);
   const refreshLive = parseBooleanQuery(req.query.refreshLive);

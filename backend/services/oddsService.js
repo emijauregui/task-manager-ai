@@ -245,6 +245,10 @@ function buildUrl(pathname, params = {}) {
   return url;
 }
 
+function getMlbOddsCacheFilename(targetDate = getDateKeyInTimeZone(new Date())) {
+  return `odds-mlb-${targetDate}.json`;
+}
+
 async function fetchOddsJson(pathname, params = {}) {
   if (!isConfigured()) {
     throw new OddsApiError('ODDS_API_NOT_CONFIGURED', 'ODDS_API_KEY is not configured.', {
@@ -1360,7 +1364,7 @@ async function getMlbOdds(options = {}) {
     cacheOnly = false,
   } = options;
 
-  const cacheFilename = `odds-mlb-${targetDate}.json`;
+  const cacheFilename = getMlbOddsCacheFilename(targetDate);
 
   const warnings = [];
 
@@ -1432,6 +1436,98 @@ async function getMlbOdds(options = {}) {
   return payload;
 }
 
+async function refreshMlbOdds(options = {}) {
+  const targetDate = String(options.targetDate || getDateKeyInTimeZone(new Date())).trim();
+  const confirmLive = options.confirmLive === true;
+  const guard = getGuardStatus();
+
+  if (!confirmLive) {
+    return {
+      success: false,
+      runtimeMode: guard.runtimeMode,
+      oddsLiveEnabled: guard.oddsLiveEnabled,
+      targetDate,
+      oddsSource: 'refresh_blocked',
+      gamesFound: 0,
+      cacheFilename: '',
+      lastQuotaCost: guard.lastQuotaCost,
+      lastQuotaRemaining: guard.lastQuotaRemaining,
+      lastQuotaUsed: guard.lastQuotaUsed,
+      lastQuotaPathname: guard.lastQuotaPathname,
+      quotaSamples: guard.quotaSamples,
+      warning: 'confirmLive=true requerido para refrescar odds live.',
+      error: null,
+    };
+  }
+
+  if (!isLiveEnabled()) {
+    return {
+      success: false,
+      runtimeMode: getOddsRuntimeMode(),
+      oddsLiveEnabled: false,
+      targetDate,
+      oddsSource: 'refresh_blocked',
+      gamesFound: 0,
+      cacheFilename: '',
+      lastQuotaCost: guard.lastQuotaCost,
+      lastQuotaRemaining: guard.lastQuotaRemaining,
+      lastQuotaUsed: guard.lastQuotaUsed,
+      lastQuotaPathname: guard.lastQuotaPathname,
+      quotaSamples: guard.quotaSamples,
+      warning: 'ODDS_API_LIVE_ENABLED=false; refresh live bloqueado.',
+      error: null,
+    };
+  }
+
+  try {
+    const payload = await getMlbOdds({
+      targetDate,
+      markets: CORE_MARKETS.join(','),
+      forceRefresh: true,
+      useCache: true,
+      cacheOnly: false,
+    });
+    const updatedGuard = getGuardStatus();
+
+    return {
+      success: true,
+      runtimeMode: updatedGuard.runtimeMode,
+      oddsLiveEnabled: updatedGuard.oddsLiveEnabled,
+      targetDate,
+      oddsSource: payload.source || 'live',
+      gamesFound: Array.isArray(payload.games) ? payload.games.length : 0,
+      cacheFilename: getMlbOddsCacheFilename(targetDate),
+      lastQuotaCost: updatedGuard.lastQuotaCost,
+      lastQuotaRemaining: updatedGuard.lastQuotaRemaining,
+      lastQuotaUsed: updatedGuard.lastQuotaUsed,
+      lastQuotaPathname: updatedGuard.lastQuotaPathname,
+      quotaSamples: updatedGuard.quotaSamples,
+      warning: payload.warning || '',
+      error: null,
+    };
+  } catch (error) {
+    const updatedGuard = getGuardStatus();
+    return {
+      success: false,
+      runtimeMode: updatedGuard.runtimeMode,
+      oddsLiveEnabled: updatedGuard.oddsLiveEnabled,
+      targetDate,
+      oddsSource: 'refresh_failed',
+      gamesFound: 0,
+      cacheFilename: '',
+      lastQuotaCost: updatedGuard.lastQuotaCost,
+      lastQuotaRemaining: updatedGuard.lastQuotaRemaining,
+      lastQuotaUsed: updatedGuard.lastQuotaUsed,
+      lastQuotaPathname: updatedGuard.lastQuotaPathname,
+      quotaSamples: updatedGuard.quotaSamples,
+      warning: isQuotaError(error)
+        ? 'The Odds API quota has been reached.'
+        : '',
+      error: error.message || 'Unable to refresh MLB odds.',
+    };
+  }
+}
+
 async function getCacheStatus() {
   const todayDateKey = getDateKeyInTimeZone(new Date());
   const todayFilename = `odds-mlb-${todayDateKey}.json`;
@@ -1469,6 +1565,7 @@ async function getCacheStatus() {
 module.exports = {
   assertOddsLiveAllowed,
   getGuardStatus,
+  getMlbOddsCacheFilename,
   getOddsRuntimeMode,
   getCacheStatus,
   getMlbEventMarkets,
@@ -1477,6 +1574,7 @@ module.exports = {
   getHealth,
   getMlbOdds,
   getMlbPropsByDateViaEvents,
+  refreshMlbOdds,
   isConfigured,
   isOddsLiveEnabled: isLiveEnabled,
   isLiveDisabledError,

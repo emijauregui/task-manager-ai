@@ -118,6 +118,17 @@ function buildErrorResponse(error) {
       : 'Daily Ticket generation failed. Check backend logs.',
     stage: normalized.stage || 'unknown',
   };
+
+  if (normalized.errorCode === 'ODDS_API_LIVE_DISABLED') {
+    return {
+      ...base,
+      oddsSource: 'cache_missing',
+      propsAvailabilityStatus: 'blocked_by_env',
+      runtimeMode: oddsService.getOddsRuntimeMode?.() || 'cache_only',
+    };
+  }
+
+  return base;
 }
 
 function uniqueStrings(values = []) {
@@ -2694,7 +2705,7 @@ async function getBettableCandidatesForDate(dateKey, options = {}) {
       stageError.message = 'No odds cache available and The Odds API quota has been reached.';
     } else if (oddsService.isLiveDisabledError?.(error)) {
       stageError.errorCode = 'ODDS_API_LIVE_DISABLED';
-      stageError.message = 'Live odds are disabled and no local odds cache is available.';
+      stageError.message = 'The Odds API live esta desactivada; no se hizo fallback live.';
     }
     throw stageError;
   }
@@ -3018,8 +3029,9 @@ async function getDebugCandidates(options = {}) {
           afterTimeFilter: 0,
           afterOddsFilter: 0,
           quotaReached: false,
-          warning: 'Live The Odds API is disabled. Showing cached data if available.',
-          oddsSource: 'unavailable',
+          warning: 'The Odds API live esta desactivada; no se hizo fallback live.',
+          oddsSource: 'cache_missing',
+          propsAvailabilityStatus: 'blocked_by_env',
           sampleBlockedProps: [],
           playerPropsPipeline: buildEmptyPropsPipeline(),
         };

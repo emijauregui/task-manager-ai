@@ -331,6 +331,10 @@ app.get('/api/odds/cache/status', asyncRoute(async (req, res) => {
   return res.json(result);
 }));
 
+app.get('/api/daily-ticket/odds/guard', asyncRoute(async (req, res) => {
+  return res.json(oddsService.getGuardStatus());
+}));
+
 app.get('/api/mlb/scoreboard', asyncRoute(async (req, res) => {
   const includeTomorrow = parseBooleanQuery(req.query.includeTomorrow);
   const refreshLive = parseBooleanQuery(req.query.refreshLive);
@@ -486,9 +490,10 @@ const server = app.listen(PORT, () => {
   console.log(`[server] Listening on port ${PORT}`);
   console.log('[server] API base path: /api');
   console.log('[server] Bedrock configuration', bedrockHealth);
-  console.log('[server] The Odds API configured', {
-    configured: oddsService.isConfigured(),
-  });
+console.log('[server] The Odds API configured', {
+  configured: oddsService.isConfigured(),
+  runtimeMode: oddsService.getOddsRuntimeMode?.() || 'cache_only',
+});
 });
 
 module.exports = {

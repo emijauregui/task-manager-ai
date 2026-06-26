@@ -326,9 +326,10 @@ function buildWarningFromError(error, useLive) {
 
   if (oddsService.isLiveDisabledError?.(error) || error?.code === 'ODDS_API_LIVE_DISABLED') {
     return {
-      warning: 'Live The Odds API is disabled. Showing cached data if available.',
+      warning: 'The Odds API live esta desactivada; no se hizo fallback live.',
       quotaReached: false,
-      oddsSource: 'unavailable',
+      oddsSource: 'cache_missing',
+      propsAvailabilityStatus: 'blocked_by_env',
     };
   }
 
@@ -487,6 +488,16 @@ async function getPlayerPropsDiagnostics(options = {}) {
       quotaReached: fallback.quotaReached,
       oddsSource: fallback.oddsSource,
     });
+    if (fallback.propsAvailabilityStatus) {
+      empty.propsAvailabilityStatus = fallback.propsAvailabilityStatus;
+      empty.propsAvailabilityMessage = fallback.warning;
+      empty.humanSummary = {
+        status: 'blocked_by_env',
+        title: 'Live bloqueado por configuracion',
+        message: 'The Odds API live esta desactivada; no se hizo fallback live.',
+        recommendation: 'Activa ODDS_API_LIVE_ENABLED=true solo cuando quieras consumir requests reales.',
+      };
+    }
     logDiagnosticsStage('FEED', {
       targetDate,
       source: empty.oddsSource,

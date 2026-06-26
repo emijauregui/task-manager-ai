@@ -38,12 +38,124 @@ class OddsApiError extends Error {
   }
 }
 
+const guardState = {
+  liveCallsBlocked: 0,
+  liveCallsAllowed: 0,
+  cacheHits: 0,
+  cacheMisses: 0,
+  lastBlockedReason: null,
+  lastLiveCallAt: null,
+  lastCacheHitAt: null,
+};
+
 function isConfigured() {
   return Boolean(process.env.ODDS_API_KEY);
 }
 
 function isLiveEnabled() {
-  return String(process.env.ODDS_API_LIVE_ENABLED || 'true').trim().toLowerCase() !== 'false';
+  return String(process.env.ODDS_API_LIVE_ENABLED ?? '').trim().toLowerCase() === 'true';
+}
+
+function getOddsRuntimeMode() {
+  return isLiveEnabled() ? 'live_enabled' : 'cache_only';
+}
+
+function getGuardStatus() {
+  return {
+    oddsLiveEnabled: isLiveEnabled(),
+    runtimeMode: getOddsRuntimeMode(),
+    hasOddsApiKey: isConfigured(),
+    liveCallsBlocked: guardState.liveCallsBlocked,
+    liveCallsAllowed: guardState.liveCallsAllowed,
+    cacheHits: guardState.cacheHits,
+    cacheMisses: guardState.cacheMisses,
+    lastBlockedReason: guardState.lastBlockedReason,
+    lastLiveCallAt: guardState.lastLiveCallAt,
+    lastCacheHitAt: guardState.lastCacheHitAt,
+  };
+}
+
+function logOddsEvent(event, payload = {}) {
+  const cleaned = Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined)
+  );
+  console.log(`[odds-service] ${event}`, cleaned);
+}
+
+function recordLiveCallAllowed(pathname, metadata = {}) {
+  guardState.liveCallsAllowed += 1;
+  guardState.lastLiveCallAt = new Date().toISOString();
+  logOddsEvent('LIVE_CALL_ALLOWED', {
+    pathname,
+    runtimeMode: getOddsRuntimeMode(),
+    ...metadata,
+  });
+}
+
+function recordLiveCallBlocked(pathname, reason, metadata = {}) {
+  guardState.liveCallsBlocked += 1;
+  guardState.lastBlockedReason = reason;
+  logOddsEvent('LIVE_CALL_BLOCKED_BY_ENV', {
+    pathname,
+    runtimeMode: getOddsRuntimeMode(),
+    reason,
+    ...metadata,
+  });
+}
+
+function recordCacheHit(filename, source = 'cache', metadata = {}) {
+  guardState.cacheHits += 1;
+  guardState.lastCacheHitAt = new Date().toISOString();
+  if (source === 'stale_cache') {
+    logOddsEvent('STALE_CACHE_USED', {
+      filename,
+      source,
+      ...metadata,
+    });
+    return;
+  }
+
+  logOddsEvent('USING_CACHE', {
+    filename,
+    source,
+    ...metadata,
+  });
+}
+
+function recordCacheMiss(filename, metadata = {}) {
+  guardState.cacheMisses += 1;
+  if (!isLiveEnabled()) {
+    logOddsEvent('CACHE_MISSING_LIVE_DISABLED', {
+      filename,
+      runtimeMode: getOddsRuntimeMode(),
+      ...metadata,
+    });
+    return;
+  }
+
+  logOddsEvent('CACHE_MISSING', {
+    filename,
+    runtimeMode: getOddsRuntimeMode(),
+    ...metadata,
+  });
+}
+
+function assertOddsLiveAllowed(pathname, metadata = {}) {
+  if (!isLiveEnabled()) {
+    const reason = 'ODDS_API_LIVE_ENABLED is not explicitly true.';
+    recordLiveCallBlocked(pathname, reason, metadata);
+    throw new OddsApiError(
+      'ODDS_API_LIVE_DISABLED',
+      'The Odds API live esta desactivada; no se hizo fallback live.',
+      {
+        httpStatus: 503,
+        liveDisabled: true,
+        pathname,
+      }
+    );
+  }
+
+  recordLiveCallAllowed(pathname, metadata);
 }
 
 function isQuotaError(error) {
@@ -82,24 +194,17 @@ async function fetchOddsJson(pathname, params = {}) {
     });
   }
 
-  if (!isLiveEnabled()) {
-    throw new OddsApiError(
-      'ODDS_API_LIVE_DISABLED',
-      'Live The Odds API requests are disabled by ODDS_API_LIVE_ENABLED=false.',
-      {
-        httpStatus: 503,
-        liveDisabled: true,
-        pathname,
-      }
-    );
-  }
+  assertOddsLiveAllowed(pathname, {
+    regions: params.regions || null,
+    markets: params.markets || null,
+  });
 
   const url = buildUrl(pathname, {
     ...params,
     apiKey: process.env.ODDS_API_KEY,
   });
 
-  console.log('[odds] Requesting The Odds API', {
+  logOddsEvent('REQUESTING_LIVE_API', {
     pathname,
     regions: params.regions || null,
     markets: params.markets || null,
@@ -520,6 +625,7 @@ function buildRejectedReasonCounts(props = []) {
 async function readOrFetchCachedOdds(filename, fetcher, maxAgeMinutes, forceRefresh = false, options = {}) {
   const {
     cacheOnly = false,
+    pathname = filename,
   } = options;
 
   if (cacheOnly) {
@@ -529,6 +635,9 @@ async function readOrFetchCachedOdds(filename, fetcher, maxAgeMinutes, forceRefr
     });
 
     if (cached.exists && cached.data) {
+      recordCacheHit(filename, cached.expired ? 'stale_cache' : 'cache', {
+        pathname,
+      });
       return {
         ...cached.data,
         source: cached.expired ? 'stale_cache' : 'cache',
@@ -536,6 +645,25 @@ async function readOrFetchCachedOdds(filename, fetcher, maxAgeMinutes, forceRefr
       };
     }
 
+    recordCacheMiss(filename, {
+      pathname,
+      cacheOnly: true,
+    });
+    if (!isLiveEnabled()) {
+      recordLiveCallBlocked(pathname, 'ODDS_API_LIVE_ENABLED is not explicitly true.', {
+        filename,
+        cacheOnly: true,
+      });
+      throw new OddsApiError(
+        'ODDS_API_LIVE_DISABLED',
+        'The Odds API live esta desactivada; no se hizo fallback live.',
+        {
+          httpStatus: 503,
+          liveDisabled: true,
+          pathname,
+        }
+      );
+    }
     throw new OddsApiError(
       'ODDS_API_CACHE_UNAVAILABLE',
       `No cached The Odds API payload is available for ${filename}.`,
@@ -553,11 +681,52 @@ async function readOrFetchCachedOdds(filename, fetcher, maxAgeMinutes, forceRefr
     });
 
     if (cached.hit && cached.data) {
+      recordCacheHit(filename, 'cache', {
+        pathname,
+      });
       return {
         ...cached.data,
         source: 'cache',
       };
     }
+  }
+
+  if (!isLiveEnabled()) {
+    const cached = await readCache(filename, {
+      maxAgeMinutes,
+      allowStale: true,
+    });
+
+    if (cached.exists && cached.data) {
+      recordCacheHit(filename, cached.expired ? 'stale_cache' : 'cache', {
+        pathname,
+        forcedLiveBypassed: forceRefresh === true,
+      });
+      return {
+        ...cached.data,
+        source: cached.expired ? 'stale_cache' : 'cache',
+        quotaReached: false,
+        warning: 'The Odds API live esta desactivada; se uso cache local existente.',
+      };
+    }
+
+    recordCacheMiss(filename, {
+      pathname,
+      forceRefresh,
+    });
+    recordLiveCallBlocked(pathname, 'ODDS_API_LIVE_ENABLED is not explicitly true.', {
+      filename,
+      forceRefresh,
+    });
+    throw new OddsApiError(
+      'ODDS_API_LIVE_DISABLED',
+      'The Odds API live esta desactivada; no se hizo fallback live.',
+      {
+        httpStatus: 503,
+        liveDisabled: true,
+        pathname,
+      }
+    );
   }
 
   try {
@@ -579,6 +748,10 @@ async function readOrFetchCachedOdds(filename, fetcher, maxAgeMinutes, forceRefr
     });
 
     if (staleCache.exists && staleCache.data) {
+      recordCacheHit(filename, staleCache.expired ? 'stale_cache' : 'cache', {
+        pathname,
+        fallbackFrom: error.code || error.name || 'unknown_error',
+      });
       return {
         ...staleCache.data,
         source: staleCache.expired ? 'stale_cache' : 'cache',
@@ -589,6 +762,10 @@ async function readOrFetchCachedOdds(filename, fetcher, maxAgeMinutes, forceRefr
       };
     }
 
+    recordCacheMiss(filename, {
+      pathname,
+      fallbackFrom: error.code || error.name || 'unknown_error',
+    });
     throw error;
   }
 }
@@ -601,6 +778,18 @@ async function getHealth() {
       sportsCount: 0,
       sampleSports: [],
       message: 'ODDS_API_KEY is not configured.',
+    };
+  }
+
+  if (!isLiveEnabled()) {
+    return {
+      configured: true,
+      mlbAvailable: false,
+      sportsCount: 0,
+      sampleSports: [],
+      runtimeMode: getOddsRuntimeMode(),
+      oddsSource: 'cache_only',
+      message: 'The Odds API live esta desactivada; no se ejecuto health probe live.',
     };
   }
 
@@ -633,23 +822,39 @@ async function testMlbH2h() {
     };
   }
 
-  const { data } = await fetchOddsJson('/sports/baseball_mlb/odds', {
-    regions: 'us',
-    markets: 'h2h',
-    oddsFormat: 'decimal',
-    dateFormat: 'iso',
-  });
+  try {
+    const payload = await getMlbOdds({
+      markets: 'h2h',
+      forceRefresh: false,
+      useCache: true,
+      cacheOnly: !isLiveEnabled(),
+    });
+    const games = Array.isArray(payload.games) ? payload.games : [];
 
-  const games = Array.isArray(data) ? data : [];
+    return {
+      success: true,
+      gamesFound: games.length,
+      sampleGame: normalizeSampleGame(games[0]),
+      oddsSource: payload.source || 'cache',
+      runtimeMode: getOddsRuntimeMode(),
+      message: games.length > 0
+        ? 'MLB odds retrieved successfully.'
+        : 'No MLB odds found right now, but API key and sport are valid.',
+    };
+  } catch (error) {
+    if (isLiveDisabledError(error)) {
+      return {
+        success: false,
+        gamesFound: 0,
+        sampleGame: null,
+        oddsSource: 'cache_missing',
+        runtimeMode: getOddsRuntimeMode(),
+        message: 'The Odds API live esta desactivada; no se hizo fallback live.',
+      };
+    }
 
-  return {
-    success: true,
-    gamesFound: games.length,
-    sampleGame: normalizeSampleGame(games[0]),
-    message: games.length > 0
-      ? 'MLB odds retrieved successfully.'
-      : 'No MLB odds found right now, but API key and sport are valid.',
-  };
+    throw error;
+  }
 }
 
 async function getMlbEventsByDate(targetDate = getDateKeyInTimeZone(new Date()), options = {}) {
@@ -680,11 +885,14 @@ async function getMlbEventsByDate(targetDate = getDateKeyInTimeZone(new Date()),
   };
 
   if (!useCache) {
-    return load();
+    if (isLiveEnabled()) {
+      return load();
+    }
   }
 
   return readOrFetchCachedOdds(cacheFilename, load, EVENT_PROPS_CACHE_MINUTES, forceRefresh, {
     cacheOnly,
+    pathname: '/sports/baseball_mlb/events',
   });
 }
 
@@ -712,11 +920,14 @@ async function getMlbEventMarkets(eventId, options = {}) {
   };
 
   if (!useCache) {
-    return load();
+    if (isLiveEnabled()) {
+      return load();
+    }
   }
 
   return readOrFetchCachedOdds(cacheFilename, load, EVENT_PROPS_CACHE_MINUTES, forceRefresh, {
     cacheOnly,
+    pathname: `/sports/baseball_mlb/events/${eventId}/markets`,
   });
 }
 
@@ -731,9 +942,10 @@ async function getMlbEventPropsOdds(eventId, markets, options = {}) {
     .map((market) => String(market || '').trim())
     .filter(Boolean)));
   const cacheFilename = `odds-event-props-${eventId}.json`;
+  const pathname = `/sports/baseball_mlb/events/${eventId}/odds`;
 
   const load = async () => {
-    const { data, headers } = await fetchOddsJson(`/sports/baseball_mlb/events/${eventId}/odds`, {
+    const { data, headers } = await fetchOddsJson(pathname, {
       regions,
       markets: normalizedMarkets.join(','),
       oddsFormat: 'decimal',
@@ -759,6 +971,9 @@ async function getMlbEventPropsOdds(eventId, markets, options = {}) {
     const cachedMarkets = Array.isArray(cached.data?.requestedMarkets) ? cached.data.requestedMarkets : [];
     const cacheCoversRequest = normalizedMarkets.every((market) => cachedMarkets.includes(market));
     if (cached.hit && cached.data && cacheCoversRequest) {
+      recordCacheHit(cacheFilename, cached.expired ? 'stale_cache' : 'cache', {
+        pathname,
+      });
       return {
         ...cached.data,
         source: cached.expired ? 'stale_cache' : 'cache',
@@ -766,15 +981,72 @@ async function getMlbEventPropsOdds(eventId, markets, options = {}) {
     }
 
     if (cacheOnly) {
+      recordCacheMiss(cacheFilename, {
+        pathname,
+        cacheOnly: true,
+      });
+      if (!isLiveEnabled()) {
+        recordLiveCallBlocked(pathname, 'ODDS_API_LIVE_ENABLED is not explicitly true.', {
+          filename: cacheFilename,
+          cacheOnly: true,
+        });
+        throw new OddsApiError(
+          'ODDS_API_LIVE_DISABLED',
+          'The Odds API live esta desactivada; no se hizo fallback live.',
+          {
+            httpStatus: 503,
+            liveDisabled: true,
+            pathname,
+          }
+        );
+      }
       throw new OddsApiError(
         'ODDS_API_CACHE_UNAVAILABLE',
         `No cached event props odds payload is available for event ${eventId}.`,
         {
           httpStatus: 503,
-          pathname: `/sports/baseball_mlb/events/${eventId}/odds`,
+          pathname,
         }
       );
     }
+  }
+
+  if (!isLiveEnabled()) {
+    const cached = await readCache(cacheFilename, {
+      maxAgeMinutes: EVENT_PROPS_CACHE_MINUTES,
+      allowStale: true,
+    });
+    const cachedMarkets = Array.isArray(cached.data?.requestedMarkets) ? cached.data.requestedMarkets : [];
+    const cacheCoversRequest = normalizedMarkets.every((market) => cachedMarkets.includes(market));
+
+    if (cached.exists && cached.data && cacheCoversRequest) {
+      recordCacheHit(cacheFilename, cached.expired ? 'stale_cache' : 'cache', {
+        pathname,
+        forcedLiveBypassed: forceRefresh === true,
+      });
+      return {
+        ...cached.data,
+        source: cached.expired ? 'stale_cache' : 'cache',
+      };
+    }
+
+    recordCacheMiss(cacheFilename, {
+      pathname,
+      forceRefresh,
+    });
+    recordLiveCallBlocked(pathname, 'ODDS_API_LIVE_ENABLED is not explicitly true.', {
+      filename: cacheFilename,
+      forceRefresh,
+    });
+    throw new OddsApiError(
+      'ODDS_API_LIVE_DISABLED',
+      'The Odds API live esta desactivada; no se hizo fallback live.',
+      {
+        httpStatus: 503,
+        liveDisabled: true,
+        pathname,
+      }
+    );
   }
 
   const payload = await load();
@@ -831,9 +1103,10 @@ async function getMlbPropsByDateViaEvents(targetDate = getDateKeyInTimeZone(new 
       sampleRejectedProps: [],
       warning: isQuotaError(error)
         ? 'The Odds API quota has been reached. Showing cached data if available.'
-        : 'Live The Odds API is disabled. Showing cached data if available.',
+        : 'The Odds API live esta desactivada; no se hizo fallback live.',
       quotaReached: isQuotaError(error),
-      source: 'unavailable',
+      source: isLiveDisabledError(error) ? 'cache_missing' : 'unavailable',
+      propsAvailabilityStatus: isLiveDisabledError(error) ? 'blocked_by_env' : 'unavailable',
     };
   }
   const events = Array.isArray(eventsPayload.events) ? eventsPayload.events.slice(0, limitEvents) : [];
@@ -1005,8 +1278,13 @@ async function testMlbProps(options = {}) {
       sampleProps: [],
       sampleEligibleProps: [],
       sampleRejectedProps: [],
-      warning: 'Player props unavailable from The Odds API for current plan/feed.',
+      warning: isLiveDisabledError(error)
+        ? 'The Odds API live esta desactivada; no se hizo fallback live.'
+        : 'Player props unavailable from The Odds API for current plan/feed.',
       message: error.message,
+      oddsSource: isLiveDisabledError(error) ? 'cache_missing' : 'unavailable',
+      propsAvailabilityStatus: isLiveDisabledError(error) ? 'blocked_by_env' : 'unavailable',
+      runtimeMode: getOddsRuntimeMode(),
     };
   }
 }
@@ -1072,9 +1350,10 @@ async function getMlbOdds(options = {}) {
     };
   };
 
-  const payload = useCache
+  const payload = useCache || !isLiveEnabled()
     ? await readOrFetchCachedOdds(cacheFilename, load, DEFAULT_CACHE_MINUTES, forceRefresh, {
       cacheOnly,
+      pathname: '/sports/baseball_mlb/odds',
     })
     : {
       ...(await load()),
@@ -1082,7 +1361,7 @@ async function getMlbOdds(options = {}) {
       quotaReached: false,
     };
 
-  console.log('[odds] Returning MLB odds payload', {
+  logOddsEvent('RETURNING_MLB_ODDS_PAYLOAD', {
     cacheFilename,
     gamesFound: Array.isArray(payload.games) ? payload.games.length : 0,
     source: payload.source,
@@ -1122,10 +1401,14 @@ async function getCacheStatus() {
       latestAgeMinutes: Number.isFinite(latestAgeMs) ? Math.round(latestAgeMs / 60000) : null,
     },
     liveEnabled: isLiveEnabled(),
+    runtimeMode: getOddsRuntimeMode(),
   };
 }
 
 module.exports = {
+  assertOddsLiveAllowed,
+  getGuardStatus,
+  getOddsRuntimeMode,
   getCacheStatus,
   getMlbEventMarkets,
   getMlbEventPropsOdds,
@@ -1134,6 +1417,7 @@ module.exports = {
   getMlbOdds,
   getMlbPropsByDateViaEvents,
   isConfigured,
+  isOddsLiveEnabled: isLiveEnabled,
   isLiveDisabledError,
   isLiveEnabled,
   isQuotaError,

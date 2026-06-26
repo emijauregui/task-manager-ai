@@ -2,6 +2,7 @@ const bedrockService = require('./bedrockService');
 const drafteaRulesService = require('./drafteaRulesService');
 const espnService = require('./espnService');
 const footballService = require('./footballService');
+const historicalPatternEngine = require('./historicalPatternEngine');
 const marketMixService = require('./marketMixService');
 const mlbTicketHistoryService = require('./mlbTicketHistoryService');
 const oddsService = require('./oddsService');
@@ -180,12 +181,31 @@ function getSafeIntelligenceDiagnostics(intelligenceDiagnostics = {}) {
     historicalRiskFlags: Array.isArray(intelligenceDiagnostics?.historicalRiskFlags)
       ? intelligenceDiagnostics.historicalRiskFlags
       : [],
+    historicalPatternSummary: intelligenceDiagnostics?.historicalPatternSummary || historicalPatternEngine.buildEmptyPatternSnapshot(),
   };
 }
 
 async function getHistoricalLearningSummarySafe() {
   try {
-    return await mlbTicketHistoryService.summarizeHistoricalTickets();
+    const summary = await mlbTicketHistoryService.summarizeHistoricalTickets();
+    try {
+      const patternReport = await historicalPatternEngine.summarizeHistoricalPatterns({
+        summary,
+      });
+      return {
+        ...summary,
+        patternSnapshot: historicalPatternEngine.buildPatternSnapshot(patternReport),
+      };
+    } catch (error) {
+      console.error('[outcome-learning] Failed to summarize MLB historical patterns', {
+        message: error.message,
+        name: error.name,
+      });
+      return {
+        ...summary,
+        patternSnapshot: historicalPatternEngine.buildEmptyPatternSnapshot(),
+      };
+    }
   } catch (error) {
     console.error('[outcome-learning] Failed to summarize MLB ticket history', {
       message: error.message,
@@ -205,6 +225,7 @@ async function getHistoricalLearningSummarySafe() {
       failurePatternCounts: {},
       teamExposureMap: {},
       playerPropExposureMap: {},
+      patternSnapshot: historicalPatternEngine.buildEmptyPatternSnapshot(),
     };
   }
 }
@@ -2728,7 +2749,10 @@ async function getBettableCandidatesForDate(dateKey, options = {}) {
       targetDate: dateKey,
       historicalLearning,
     });
-    const intelligenceDiagnostics = intelligenceApplied?.diagnostics || {};
+    const intelligenceDiagnostics = {
+      ...(intelligenceApplied?.diagnostics || {}),
+      historicalPatternSummary: historicalLearning?.patternSnapshot || historicalPatternEngine.buildEmptyPatternSnapshot(),
+    };
     const marketMixApplied = marketMixService.applyMarketMixStrategy(intelligenceApplied.candidates);
     const selection = selectBettableCandidates(marketMixApplied.candidates, new Date(), {
       targetDate: dateKey,

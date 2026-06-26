@@ -6,6 +6,7 @@ const express = require('express');
 const bedrockService = require('./services/bedrockService');
 const dailyTicketService = require('./services/dailyTicketService');
 const espnService = require('./services/espnService');
+const historicalPatternEngine = require('./services/historicalPatternEngine');
 const mlbTicketHistoryService = require('./services/mlbTicketHistoryService');
 const oddsService = require('./services/oddsService');
 const playerPropsDiagnosticsService = require('./services/playerPropsDiagnosticsService');
@@ -372,6 +373,11 @@ app.get('/api/daily-ticket/history', asyncRoute(async (req, res) => {
 app.get('/api/daily-ticket/history/summary', asyncRoute(async (req, res) => {
   const summary = await mlbTicketHistoryService.summarizeHistoricalTickets();
   return res.json(summary);
+}));
+
+app.get('/api/daily-ticket/history/patterns', asyncRoute(async (req, res) => {
+  const patterns = await historicalPatternEngine.summarizeHistoricalPatterns();
+  return res.json(patterns);
 }));
 
 app.get('/api/daily-ticket/history/manual', asyncRoute(async (req, res) => {

@@ -46,6 +46,12 @@ const guardState = {
   lastBlockedReason: null,
   lastLiveCallAt: null,
   lastCacheHitAt: null,
+  lastQuotaRemaining: null,
+  lastQuotaUsed: null,
+  lastQuotaCost: null,
+  lastQuotaUpdatedAt: null,
+  lastQuotaPathname: null,
+  quotaSamples: [],
 };
 
 function isConfigured() {
@@ -72,6 +78,12 @@ function getGuardStatus() {
     lastBlockedReason: guardState.lastBlockedReason,
     lastLiveCallAt: guardState.lastLiveCallAt,
     lastCacheHitAt: guardState.lastCacheHitAt,
+    lastQuotaRemaining: guardState.lastQuotaRemaining,
+    lastQuotaUsed: guardState.lastQuotaUsed,
+    lastQuotaCost: guardState.lastQuotaCost,
+    lastQuotaUpdatedAt: guardState.lastQuotaUpdatedAt,
+    lastQuotaPathname: guardState.lastQuotaPathname,
+    quotaSamples: guardState.quotaSamples,
   };
 }
 
@@ -158,6 +170,53 @@ function assertOddsLiveAllowed(pathname, metadata = {}) {
   recordLiveCallAllowed(pathname, metadata);
 }
 
+function normalizeQuotaHeaderValue(value) {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function captureQuotaHeaders(pathname, headers = {}) {
+  const requestsRemaining = normalizeQuotaHeaderValue(headers.requestsRemaining);
+  const requestsUsed = normalizeQuotaHeaderValue(headers.requestsUsed);
+  const requestsLast = normalizeQuotaHeaderValue(headers.requestsLast);
+  const timestamp = new Date().toISOString();
+
+  guardState.lastQuotaRemaining = requestsRemaining;
+  guardState.lastQuotaUsed = requestsUsed;
+  guardState.lastQuotaCost = requestsLast;
+  guardState.lastQuotaUpdatedAt = timestamp;
+  guardState.lastQuotaPathname = pathname;
+  guardState.quotaSamples = [
+    ...guardState.quotaSamples,
+    {
+      timestamp,
+      pathname,
+      requestsRemaining,
+      requestsUsed,
+      requestsLast,
+      runtimeMode: getOddsRuntimeMode(),
+    },
+  ].slice(-10);
+
+  if (requestsRemaining === null && requestsUsed === null && requestsLast === null) {
+    logOddsEvent('QUOTA_HEADERS_MISSING', {
+      pathname,
+    });
+    return;
+  }
+
+  logOddsEvent('QUOTA_HEADERS_CAPTURED', {
+    pathname,
+    requestsRemaining,
+    requestsUsed,
+    requestsLast,
+  });
+}
+
 function isQuotaError(error) {
   return error?.code === 'ODDS_API_QUOTA_REACHED' || error?.quotaReached === true;
 }
@@ -211,6 +270,12 @@ async function fetchOddsJson(pathname, params = {}) {
   });
 
   const response = await fetch(url);
+  const headerSnapshot = {
+    requestsRemaining: response.headers.get('x-requests-remaining'),
+    requestsUsed: response.headers.get('x-requests-used'),
+    requestsLast: response.headers.get('x-requests-last'),
+  };
+  captureQuotaHeaders(pathname, headerSnapshot);
   const rawText = await response.text();
   let payload = null;
 
@@ -241,11 +306,7 @@ async function fetchOddsJson(pathname, params = {}) {
 
   return {
     data: payload,
-    headers: {
-      requestsRemaining: response.headers.get('x-requests-remaining'),
-      requestsUsed: response.headers.get('x-requests-used'),
-      requestsLast: response.headers.get('x-requests-last'),
-    },
+    headers: headerSnapshot,
   };
 }
 

@@ -2,6 +2,7 @@
 
 const fs = require('fs/promises');
 const path = require('path');
+const drafteaSettlementService = require('./drafteaSettlementService');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const HISTORY_FILE = path.join(DATA_DIR, 'mlb-ticket-history.json');
@@ -123,7 +124,7 @@ function normalizeHistoricalLeg(rawLeg = {}) {
     marketCategory: String(rawLeg.marketCategory || '').trim(),
     pick: String(rawLeg.pick || '').trim(),
     odds: String(rawLeg.odds || '').trim(),
-    result: ensureEnum(rawLeg.result, SUPPORTED_LEG_RESULTS, 'pending'),
+    result: drafteaSettlementService.normalizeLegResult(rawLeg.result, 'pending'),
     lostByMargin: safeNullableNumber(rawLeg.lostByMargin),
     wouldProtectedSpreadHaveWon: rawLeg.wouldProtectedSpreadHaveWon === true,
     lineupIssue: rawLeg.lineupIssue === true,
@@ -144,17 +145,86 @@ function inferTicketTypeFromTickets(rawTicket = {}) {
 }
 
 function getTicketStatus(rawTicket = {}) {
-  return ensureEnum(rawTicket.status || rawTicket.result, SUPPORTED_TICKET_RESULTS, 'pending');
+  return drafteaSettlementService.normalizeTicketResult(rawTicket.status || rawTicket.result, 'pending');
+}
+
+function deriveSettlementTypeFromOutcome(outcome = 'pending', fallback = 'pending') {
+  if (outcome === 'won') {
+    return 'full_multiplier';
+  }
+
+  if (outcome === 'lost') {
+    return 'lost';
+  }
+
+  if (outcome === 'void' || outcome === 'push') {
+    return 'all_void_refund';
+  }
+
+  return fallback;
+}
+
+function getTicketOutcome(ticket = {}) {
+  return drafteaSettlementService.normalizeTicketResult(ticket.computedResult || ticket.status, 'pending');
+}
+
+function getTicketSettlementType(ticket = {}) {
+  const stored = String(ticket.settlementType || '').trim();
+  if (stored) {
+    return stored;
+  }
+
+  const derived = drafteaSettlementService.settleTicketByLegResults(ticket);
+  return deriveSettlementTypeFromOutcome(getTicketOutcome(ticket), derived.settlementType);
+}
+
+function getTicketAccounting(ticket = {}) {
+  const derivedSettlement = drafteaSettlementService.settleTicketByLegResults(ticket);
+  const stake = safeNumber(ticket.stake, 0);
+  const effectivePayout = Number.isFinite(Number(ticket.effectivePayout))
+    ? safeNumber(ticket.effectivePayout, derivedSettlement.effectivePayout)
+    : derivedSettlement.effectivePayout;
+  const netProfit = Number.isFinite(Number(ticket.netProfit))
+    ? safeNumber(ticket.netProfit, derivedSettlement.netProfit)
+    : Number((effectivePayout - stake).toFixed(2));
+
+  return {
+    stake: Number(stake.toFixed(2)),
+    effectivePayout: Number(effectivePayout.toFixed(2)),
+    netProfit: Number(netProfit.toFixed(2)),
+  };
 }
 
 function normalizeHistoricalTicket(rawTicket = {}, options = {}) {
   const source = ensureEnum(rawTicket.source || options.sourceHint, ['manual', 'generated', 'draftea_screenshot'], 'manual');
   const ticketType = inferTicketTypeFromTickets(rawTicket);
+  const stake = safeNumber(rawTicket.stake, 0);
+  const payout = safeNumber(rawTicket.payout, 0);
   const legs = Array.isArray(rawTicket.legs)
     ? rawTicket.legs.map(normalizeHistoricalLeg)
     : Array.isArray(rawTicket.tickets)
       ? rawTicket.tickets.flatMap((ticketItem) => (Array.isArray(ticketItem?.legs) ? ticketItem.legs.map((leg) => normalizeHistoricalLeg(leg)) : []))
       : [];
+  const settlement = drafteaSettlementService.settleTicketByLegResults({
+    stake,
+    payout: rawTicket.payout,
+    legs,
+  });
+  const explicitStatusProvided = String(rawTicket.status || rawTicket.result || '').trim() !== '';
+  const explicitOutcome = explicitStatusProvided ? getTicketStatus(rawTicket) : 'pending';
+  const computedResult = settlement.computedResult === 'pending' && explicitOutcome !== 'pending'
+    ? explicitOutcome
+    : settlement.computedResult;
+  const settlementType = settlement.computedResult === 'pending' && explicitOutcome !== 'pending'
+    ? deriveSettlementTypeFromOutcome(explicitOutcome, settlement.settlementType)
+    : settlement.settlementType;
+  const status = explicitStatusProvided ? explicitOutcome : computedResult;
+  const effectivePayout = Number.isFinite(Number(rawTicket.effectivePayout))
+    ? safeNumber(rawTicket.effectivePayout, settlement.effectivePayout)
+    : settlement.effectivePayout;
+  const netProfit = Number.isFinite(Number(rawTicket.netProfit))
+    ? safeNumber(rawTicket.netProfit, settlement.netProfit)
+    : Number((effectivePayout - stake).toFixed(2));
 
   return {
     id: String(rawTicket.id || buildHistoryId(source)).trim(),
@@ -162,11 +232,22 @@ function normalizeHistoricalTicket(rawTicket = {}, options = {}) {
     date: safeDate(rawTicket.date),
     sport: 'mlb',
     ticketType,
-    stake: safeNumber(rawTicket.stake, 0),
-    payout: safeNumber(rawTicket.payout, 0),
+    stake,
+    payout,
     potentialPayout: safeNumber(rawTicket.potentialPayout, 0),
     odds: String(rawTicket.odds || '').trim(),
-    status: getTicketStatus(rawTicket),
+    status,
+    computedResult,
+    settlementType,
+    totalLegs: settlement.totalLegs,
+    activeLegs: settlement.activeLegs,
+    voidLegs: settlement.voidLegs,
+    wonLegs: settlement.wonLegs,
+    lostLegs: settlement.lostLegs,
+    pendingLegs: settlement.pendingLegs,
+    pushLegs: settlement.pushLegs,
+    effectivePayout: Number(effectivePayout.toFixed(2)),
+    netProfit: Number(netProfit.toFixed(2)),
     legs,
     notes: String(rawTicket.notes || '').trim(),
     lessons: uniqueStrings(rawTicket.lessons),
@@ -221,7 +302,7 @@ function classifyTicketPattern(ticket = {}) {
     }
   });
 
-  if (ticket.status === 'lost' && legs.length >= 4 && singleLostLeg) {
+  if (getTicketOutcome(ticket) === 'lost' && legs.length >= 4 && singleLostLeg) {
     patterns.add('long_parlay_one_leg_loss');
   }
 
@@ -298,6 +379,13 @@ function validateImportedLeg(rawLeg = {}, index = 0) {
     return `tickets[${index}].legs requiere market en cada leg.`;
   }
 
+  if (String(rawLeg.result || '').trim()) {
+    const normalized = drafteaSettlementService.normalizeLegResult(rawLeg.result, '__invalid__');
+    if (normalized === '__invalid__') {
+      return `tickets[${index}].legs contiene result invalido. Usa won, lost, pending, void, push, cancelled, canceled, postponed o refund.`;
+    }
+  }
+
   return '';
 }
 
@@ -314,10 +402,6 @@ function validateImportedTicket(rawTicket = {}, index = 0) {
     return `tickets[${index}].ticketType es requerido.`;
   }
 
-  if (!String(rawTicket.result || rawTicket.status || '').trim()) {
-    return `tickets[${index}].result es requerido.`;
-  }
-
   if (!Array.isArray(rawTicket.legs) || rawTicket.legs.length === 0) {
     return `tickets[${index}].legs debe ser un arreglo con al menos una leg.`;
   }
@@ -327,9 +411,11 @@ function validateImportedTicket(rawTicket = {}, index = 0) {
     return `tickets[${index}].ticketType no es soportado. Usa safe, emi, free_bet o sus nombres visibles.`;
   }
 
-  const unsupportedResult = !SUPPORTED_TICKET_RESULTS.includes(String(rawTicket.result || rawTicket.status || '').trim().toLowerCase());
-  if (unsupportedResult) {
-    return `tickets[${index}].result no es soportado. Usa won, lost, push, pending, void o partial.`;
+  if (String(rawTicket.result || rawTicket.status || '').trim()) {
+    const normalizedResult = drafteaSettlementService.normalizeTicketResult(rawTicket.result || rawTicket.status, '__invalid__');
+    if (normalizedResult === '__invalid__') {
+      return `tickets[${index}].result no es soportado. Usa won, lost, push, pending, void, partial, cancelled, canceled, postponed o refund.`;
+    }
   }
 
   for (let legIndex = 0; legIndex < rawTicket.legs.length; legIndex += 1) {
@@ -390,6 +476,8 @@ function buildTicketTypeRecord(tickets = []) {
 
   tickets.forEach((ticket) => {
     const key = ensureEnum(ticket.ticketType, SUPPORTED_TICKET_TYPES, 'unknown');
+    const outcome = getTicketOutcome(ticket);
+    const accounting = getTicketAccounting(ticket);
     if (!summary[key]) {
       summary[key] = {
         total: 0,
@@ -407,11 +495,11 @@ function buildTicketTypeRecord(tickets = []) {
     }
 
     summary[key].total += 1;
-    summary[key].totalStake += safeNumber(ticket.stake, 0);
-    summary[key].totalPayout += safeNumber(ticket.payout, 0);
+    summary[key].totalStake += accounting.stake;
+    summary[key].totalPayout += accounting.effectivePayout;
 
-    if (summary[key][ticket.status] !== undefined) {
-      summary[key][ticket.status] += 1;
+    if (summary[key][outcome] !== undefined) {
+      summary[key][outcome] += 1;
     } else {
       summary[key].pending += 1;
     }
@@ -609,10 +697,33 @@ async function saveHistoricalTicket(ticket) {
 function buildGeneratedHistoryRecord(ticket) {
   const date = safeDate(ticket?.date);
   const id = `generated-${date}`;
+  const computedTicketItems = Array.isArray(ticket?.tickets) ? ticket.tickets.map((ticketItem) => ({
+    type: ensureEnum(ticketItem?.type, SUPPORTED_TICKET_TYPES, 'unknown'),
+    available: ticketItem?.available !== false,
+    warnings: uniqueStrings(ticketItem?.warnings),
+    legs: Array.isArray(ticketItem?.legs) ? ticketItem.legs.map((leg) => ({
+      candidateId: String(leg?.candidateId || '').trim(),
+      game: String(leg?.game || '').trim(),
+      team: String(leg?.candidateTeam || leg?.team || '').trim(),
+      player: String(leg?.player || leg?.playerName || '').trim() || extractPlayerFromPick(leg?.pick, leg?.market),
+      market: String(leg?.market || '').trim(),
+      marketCategory: String(leg?.marketCategory || '').trim(),
+      pick: String(leg?.pick || '').trim(),
+      odds: String(leg?.odds || '').trim(),
+      result: drafteaSettlementService.normalizeLegResult(leg?.result, 'pending'),
+    })) : [],
+  })) : [];
+  const settlement = drafteaSettlementService.settleTicketByLegResults({
+    stake: 0,
+    payout: 0,
+    legs: computedTicketItems.flatMap((item) => item.legs || []),
+  });
   return {
     id,
     date,
     status: ensureEnum(ticket?.status, SUPPORTED_TICKET_RESULTS, 'pending'),
+    computedResult: settlement.computedResult,
+    settlementType: settlement.settlementType,
     source: 'generated',
     ticketMeta: {
       targetDate: ticket?.targetDate || date,
@@ -626,22 +737,7 @@ function buildGeneratedHistoryRecord(ticket) {
       historicalPatternsApplied: safeNumber(ticket?.meta?.historicalPatternsApplied, 0),
       historicalRiskFlags: uniqueStrings(ticket?.meta?.historicalRiskFlags),
     },
-    tickets: Array.isArray(ticket?.tickets) ? ticket.tickets.map((ticketItem) => ({
-      type: ensureEnum(ticketItem?.type, SUPPORTED_TICKET_TYPES, 'unknown'),
-      available: ticketItem?.available !== false,
-      warnings: uniqueStrings(ticketItem?.warnings),
-      legs: Array.isArray(ticketItem?.legs) ? ticketItem.legs.map((leg) => ({
-        candidateId: String(leg?.candidateId || '').trim(),
-        game: String(leg?.game || '').trim(),
-        team: String(leg?.candidateTeam || leg?.team || '').trim(),
-        player: String(leg?.player || leg?.playerName || '').trim() || extractPlayerFromPick(leg?.pick, leg?.market),
-        market: String(leg?.market || '').trim(),
-        marketCategory: String(leg?.marketCategory || '').trim(),
-        pick: String(leg?.pick || '').trim(),
-        odds: String(leg?.odds || '').trim(),
-        result: ensureEnum(leg?.result, SUPPORTED_LEG_RESULTS, 'pending'),
-      })) : [],
-    })) : [],
+    tickets: computedTicketItems,
   };
 }
 
@@ -662,16 +758,29 @@ async function summarizeHistoricalTickets() {
   const tickets = await loadHistoricalTickets({
     includeGenerated: true,
   });
+  const ticketOutcomes = tickets.map((ticket) => getTicketOutcome(ticket));
+  const accountingRows = tickets.map((ticket) => getTicketAccounting(ticket));
+  const settlementBreakdown = tickets.reduce((accumulator, ticket) => {
+    const key = getTicketSettlementType(ticket);
+    accumulator[key] = (accumulator[key] || 0) + 1;
+    return accumulator;
+  }, {
+    full_multiplier: 0,
+    reduced_multiplier: 0,
+    all_void_refund: 0,
+    lost: 0,
+    pending: 0,
+  });
   const totalTickets = tickets.length;
-  const won = tickets.filter((ticket) => ticket.status === 'won').length;
-  const lost = tickets.filter((ticket) => ticket.status === 'lost').length;
-  const push = tickets.filter((ticket) => ticket.status === 'push').length;
-  const pending = tickets.filter((ticket) => ticket.status === 'pending').length;
-  const voidCount = tickets.filter((ticket) => ticket.status === 'void').length;
-  const partial = tickets.filter((ticket) => ticket.status === 'partial').length;
-  const totalStake = tickets.reduce((sum, ticket) => sum + safeNumber(ticket.stake, 0), 0);
-  const totalPayout = tickets.reduce((sum, ticket) => sum + safeNumber(ticket.payout, 0), 0);
-  const netProfit = totalPayout - totalStake;
+  const won = ticketOutcomes.filter((outcome) => outcome === 'won').length;
+  const lost = ticketOutcomes.filter((outcome) => outcome === 'lost').length;
+  const push = ticketOutcomes.filter((outcome) => outcome === 'push').length;
+  const pending = ticketOutcomes.filter((outcome) => outcome === 'pending').length;
+  const voidCount = ticketOutcomes.filter((outcome) => outcome === 'void').length;
+  const partial = ticketOutcomes.filter((outcome) => outcome === 'partial').length;
+  const totalStake = accountingRows.reduce((sum, item) => sum + item.stake, 0);
+  const totalPayout = accountingRows.reduce((sum, item) => sum + item.effectivePayout, 0);
+  const netProfit = accountingRows.reduce((sum, item) => sum + item.netProfit, 0);
   const roi = totalStake > 0 ? ((netProfit / totalStake) * 100) : 0;
   const byTicketType = summarizeByTicketType(tickets);
   const byMarketCategory = getMarketPerformanceSummary(tickets);
@@ -692,6 +801,7 @@ async function summarizeHistoricalTickets() {
     totalPayout: Number(totalPayout.toFixed(2)),
     netProfit: Number(netProfit.toFixed(2)),
     roi: Number(roi.toFixed(2)),
+    settlementBreakdown,
     recordByTicketType,
     recordByMarket: byMarketCategory,
     byTicketType,

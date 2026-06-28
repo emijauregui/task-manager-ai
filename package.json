@@ -1,24 +1,27 @@
 {
   "name": "task-manager-ai",
   "version": "1.0.0",
-  "description": "Task Manager con inteligencia artificial usando Claude de Anthropic",
+  "description": "Daily Ticket AI — MLB picks, scoreboard, ticket builder y análisis",
   "scripts": {
-    "dev": "cd backend && npm run dev",
-    "install-backend": "cd backend && npm install",
-    "start-backend": "cd backend && npm start",
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm install && npm run build",
+    "preview": "cd frontend && npm run preview",
+    "install-frontend": "cd frontend && npm install",
     "dev-backend": "cd backend && npm run dev",
-    "serve-frontend": "npx serve frontend"
+    "start-backend": "cd backend && npm start",
+    "install-backend": "cd backend && npm install",
+    "serve-frontend-legacy": "npx serve frontend"
   },
   "keywords": [
     "task-manager",
     "ai",
-    "anthropic",
-    "claude"
+    "mlb",
+    "daily-ticket"
   ],
   "author": "",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/task-manager-ai.git"
+    "url": "https://github.com/emijauregui/task-manager-ai.git"
   }
 }

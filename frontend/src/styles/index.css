@@ -1,0 +1,14 @@
+/**
+ * index.css
+ * ──────────────────────────────────────────────────────────
+ * Re-exports the canonical vanilla styles.css so React can
+ * import them via Vite's CSS pipeline.
+ *
+ * During React Migration v1 we keep the original styles.css
+ * untouched. Future phases will migrate CSS to CSS Modules or
+ * component-scoped styles incrementally.
+ * ──────────────────────────────────────────────────────────
+ */
+
+/* Import the canonical Ballpark Betting Desk stylesheet */
+@import url('../../styles.css');

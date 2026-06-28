@@ -13,6 +13,11 @@ backend/.env
 # Build outputs
 dist/
 build/
+frontend/dist/
+frontend/node_modules/
+
+# Legacy vanilla backup (not needed in git)
+frontend/index.html.legacy
 
 # IDE
 .vscode/

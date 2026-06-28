@@ -1,8 +1,17 @@
 [build]
-  publish = "frontend"
-  command = ""
+  base    = "frontend"
+  publish = "frontend/dist"
+  command = "npm install && npm run build"
 
+# API proxy — forwards /api/* to the Render backend
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from   = "/api/*"
+  to     = "https://task-manager-ai-bayn.onrender.com/api/:splat"
+  status = 200
+  force  = true
+
+# SPA fallback — all other routes serve index.html
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
   status = 200

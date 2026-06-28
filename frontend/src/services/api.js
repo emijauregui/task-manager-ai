@@ -80,6 +80,28 @@ export async function fetchDashboard() {
 }
 
 /**
+ * GET /api/daily-ticket/dashboard
+ * Read-only dashboard lookup for React. Cache-first only.
+ */
+export async function getDailyTicketDashboard() {
+  try {
+    const res = await fetch(apiUrl('/api/daily-ticket/dashboard'), {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+
+    if (!res.ok) {
+      throw new Error(`getDailyTicketDashboard: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data && typeof data === 'object' ? data : {};
+  } catch (error) {
+    throw new Error(error?.message || 'getDailyTicketDashboard: request failed');
+  }
+}
+
+/**
  * GET /api/mlb/scoreboard
  * Returns cached ESPN scoreboard data.
  */

@@ -671,3 +671,56 @@
     justify-content: flex-start;
   }
 }
+
+/* --- React Migration v3.2: Dashboard Data -------------------------------- */
+
+.react-dashboard-hero .slate-desk-note {
+  border-color: rgba(105, 196, 141, 0.2);
+  background: rgba(105, 196, 141, 0.07);
+  color: #d5f5df;
+}
+
+.react-dashboard-state {
+  padding: 28px;
+  display: grid;
+  gap: 12px;
+  max-width: 900px;
+}
+
+.react-dashboard-state h3 {
+  font-size: clamp(1.25rem, 2vw, 1.85rem);
+  line-height: 1.1;
+}
+
+.react-dashboard-state p,
+.react-dashboard-state small {
+  color: var(--text-secondary);
+}
+
+.react-dashboard-state.error {
+  border-color: rgba(196, 100, 87, 0.28);
+}
+
+.react-dashboard-grid {
+  align-items: stretch;
+}
+
+.react-dashboard-grid .empty-inline.rich {
+  min-height: 132px;
+}
+
+.react-dashboard-warnings {
+  display: grid;
+  gap: 12px;
+}
+
+.react-dashboard-warnings .warning-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.react-dashboard-warnings .warning-chip {
+  max-width: 100%;
+  line-height: 1.35;
+}

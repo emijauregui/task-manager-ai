@@ -1,20 +1,15 @@
 /**
  * DebugPropsView.jsx
- * Phase: React Migration v1 — Foundation (placeholder)
- * Hidden by default — only visible in dev mode.
+ * Phase: React Migration v1 - Foundation
  */
 export default function DebugPropsView() {
   return (
     <section
-      className="app-view debug-view"
+      className="app-view debug-view foundation-view is-active"
       id="debug-props"
       data-app-view="debug-props"
-      hidden
     >
-      <section
-        className="ticket-panel glass-card compact-panel debug-empty-panel"
-        id="debug-props-empty-panel"
-      >
+      <section className="ticket-panel glass-card compact-panel debug-empty-panel">
         <div className="panel-header">
           <div>
             <p className="panel-kicker">Dev Debug</p>
@@ -22,50 +17,22 @@ export default function DebugPropsView() {
           </div>
         </div>
         <div className="empty-inline rich">
-          <strong>Debug props disponible solo en desarrollo.</strong>
-          <p>
-            Cuando esta vista se habilita, aquí aparece el pipeline completo de
-            props, filtros y ticket final.
-          </p>
+          <strong>Diagnostico de props placeholder.</strong>
+          <p>Esta vista ahora renderiza su propio contenido desde #debug-props. No muestra Dashboard.</p>
         </div>
-      </section>
 
-      <section
-        className="ticket-panel glass-card diagnostics-panel"
-        id="player-props-diagnostics-panel"
-        hidden
-      >
-        <div className="panel-header">
-          <div>
-            <p className="panel-kicker">Dev Debug</p>
-            <h3>Player Props Pipeline</h3>
-          </div>
-          <span className="ui-badge subtle">Solo desarrollo / debug</span>
-        </div>
-        <div
-          id="player-props-diagnostics-warning"
-          className="panel-message info compact"
-        />
-        <div
-          id="player-props-diagnostics-pipeline"
-          className="props-pipeline-grid"
-        />
-        <div className="props-diagnostics-grid">
+        <div className="props-diagnostics-grid foundation-debug-grid">
           <div className="props-diagnostics-block">
-            <h4>Top mercados</h4>
-            <div id="player-props-diagnostics-markets" />
+            <h4>Pipeline</h4>
+            <p>Markets, games, players y rejections pendientes de migrar.</p>
           </div>
           <div className="props-diagnostics-block">
-            <h4>Top juegos</h4>
-            <div id="player-props-diagnostics-games" />
+            <h4>Guard rails</h4>
+            <p>Sin Bedrock automatico y sin Odds API live durante foundation.</p>
           </div>
           <div className="props-diagnostics-block">
-            <h4>Top jugadores</h4>
-            <div id="player-props-diagnostics-players" />
-          </div>
-          <div className="props-diagnostics-block">
-            <h4>Rejected reasons</h4>
-            <div id="player-props-diagnostics-rejections" />
+            <h4>Salida esperada</h4>
+            <p>Panel tecnico compacto para validar props antes de conectar datos reales.</p>
           </div>
         </div>
       </section>

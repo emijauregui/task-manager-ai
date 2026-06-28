@@ -1,94 +1,50 @@
 /**
  * TasksView.jsx
- * Phase: React Migration v1 — Foundation (placeholder)
- * The original Task Manager feature — CRUD + AI priority suggestion.
+ * Phase: React Migration v1 - Foundation
  */
 export default function TasksView() {
   return (
     <section
-      className="tasks-section app-view"
+      className="tasks-section app-view foundation-view is-active"
       id="tasks"
       data-app-view="tasks"
-      hidden
     >
       <div className="tasks-header glass-card">
         <div>
           <p className="panel-kicker">Task Manager</p>
           <h2>Workspace de tareas</h2>
           <p className="tasks-description">
-            La app original sigue intacta: CRUD, sugerencia de prioridad y breakdown con IA.
+            Placeholder compacto para tareas. La logica legacy no se migra en esta fase.
           </p>
         </div>
       </div>
 
-      <div className="tasks-grid">
-        <div className="task-form-container glass-card">
-          <h2 id="form-title">Nueva Tarea</h2>
-          <form id="task-form">
-            <input type="hidden" id="task-id" />
-            <div className="form-group">
-              <label htmlFor="task-title">Titulo *</label>
-              <input
-                type="text"
-                id="task-title"
-                placeholder="Ej: Completar informe mensual"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="task-description">Descripcion</label>
-              <textarea
-                id="task-description"
-                rows={4}
-                placeholder="Detalles adicionales sobre la tarea..."
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="task-priority">Prioridad</label>
-              <select id="task-priority">
-                <option value="low">Baja</option>
-                <option value="medium" defaultValue>Media</option>
-                <option value="high">Alta</option>
-              </select>
-            </div>
-            <div className="form-actions">
-              <button type="submit" className="btn btn-primary" id="submit-btn">
-                <span id="submit-text">Agregar Tarea</span>
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                id="cancel-btn"
-                style={{ display: 'none' }}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                id="suggest-priority-btn"
-                title="Sugerir prioridad con IA"
-              >
-                Sugerir Prioridad
-              </button>
-            </div>
-          </form>
-        </div>
+      <div className="tasks-grid foundation-task-grid">
+        <section className="task-form-container glass-card">
+          <h2>Nueva tarea</h2>
+          <div className="empty-inline rich">
+            <strong>Formulario reservado.</strong>
+            <p>La foundation solo valida navegacion y layout. No llama IA ni crea tareas.</p>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-primary" disabled>Agregar despues</button>
+            <button type="button" className="btn btn-ghost" disabled>Sugerir prioridad</button>
+          </div>
+        </section>
 
-        <div className="tasks-board">
-          <div className="filters glass-card">
-            <button className="filter-btn active" data-filter="all">Todas</button>
-            <button className="filter-btn" data-filter="pending">Pendientes</button>
-            <button className="filter-btn" data-filter="completed">Completadas</button>
-          </div>
-          <div className="tasks-container glass-card">
-            <div id="tasks-list" />
-            <div id="empty-state" className="empty-state">
-              <p>No hay tareas todavia.</p>
-              <p className="empty-subtitle">Crea tu primera tarea para comenzar.</p>
+        <section className="tasks-container glass-card">
+          <div className="panel-header">
+            <div>
+              <p className="panel-kicker">Tareas</p>
+              <h3>Board placeholder</h3>
             </div>
           </div>
-        </div>
+          <div className="foundation-list">
+            <span>Todas: 0</span>
+            <span>Pendientes: 0</span>
+            <span>Completadas: 0</span>
+          </div>
+        </section>
       </div>
     </section>
   );

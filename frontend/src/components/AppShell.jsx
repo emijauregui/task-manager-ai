@@ -1,10 +1,6 @@
 /**
  * AppShell.jsx
- * Phase: React Migration v1 — Foundation
- *
- * Top-level layout shell — mirrors the vanilla <div class="app-shell">.
- * Handles hash-based navigation (reads window.location.hash, updates on change).
- * Renders the correct view based on the current hash.
+ * Phase: React Migration v1 - Foundation
  */
 import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
@@ -16,78 +12,81 @@ import HistoryView from '../views/HistoryView';
 import DebugPropsView from '../views/DebugPropsView';
 import TasksView from '../views/TasksView';
 
-/** Map hash fragment → view key */
-const HASH_TO_VIEW = {
-  '#dashboard': 'dashboard',
-  '#daily-ticket': 'daily-ticket',
-  '#scoreboard': 'scoreboard',
-  '#history': 'history',
-  '#debug-props': 'debug-props',
-  '#tasks': 'tasks',
+const DEFAULT_VIEW = 'dashboard';
+const ROUTES = [
+  { hash: '#dashboard', view: 'dashboard', label: 'Home' },
+  { hash: '#daily-ticket', view: 'daily-ticket', label: 'Ticket' },
+  { hash: '#scoreboard', view: 'scoreboard', label: 'Board' },
+  { hash: '#history', view: 'history', label: 'Historial' },
+  { hash: '#debug-props', view: 'debug-props', label: 'Debug' },
+  { hash: '#tasks', view: 'tasks', label: 'Tareas' },
+];
+
+const HASH_TO_VIEW = ROUTES.reduce((map, route) => {
+  map[route.hash] = route.view;
+  return map;
+}, {});
+
+const VIEW_COMPONENTS = {
+  dashboard: DashboardView,
+  'daily-ticket': DailyTicketView,
+  scoreboard: ScoreboardView,
+  history: HistoryView,
+  'debug-props': DebugPropsView,
+  tasks: TasksView,
 };
 
-const DEFAULT_VIEW = 'dashboard';
-
 function getViewFromHash() {
+  if (typeof window === 'undefined') {
+    return DEFAULT_VIEW;
+  }
+
   return HASH_TO_VIEW[window.location.hash] ?? DEFAULT_VIEW;
 }
 
-export default function AppShell() {
-  const [activeView, setActiveView] = useState(getViewFromHash);
+function isValidView(view) {
+  return Object.prototype.hasOwnProperty.call(VIEW_COMPONENTS, view);
+}
 
-  // Sync state when the hash changes (browser back/forward or link clicks)
+export default function AppShell() {
+  const [activeView, setActiveView] = useState(() => getViewFromHash());
+  const ActiveView = VIEW_COMPONENTS[activeView] ?? DashboardView;
+
   useEffect(() => {
-    const handleHashChange = () => setActiveView(getViewFromHash());
+    const handleHashChange = () => {
+      setActiveView(getViewFromHash());
+    };
+
+    handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Navigate programmatically (called by Sidebar)
   function handleNavigate(view) {
-    setActiveView(view);
+    setActiveView(isValidView(view) ? view : DEFAULT_VIEW);
   }
 
   return (
-    <div className="app-shell" id="app-shell">
+    <div className="app-shell react-foundation" id="app-shell">
       <Sidebar activeView={activeView} onNavigate={handleNavigate} />
 
       <div className="app-main">
         <DeskChrome />
 
         <main className="page-content">
-          {/* All views are rendered; visibility is controlled by
-              the `hidden` attribute on each section — same as vanilla.
-              This means IDs remain in the DOM for the vanilla app.js
-              to find during the transition period. */}
-          <DashboardView active={activeView === 'dashboard'} />
-          <DailyTicketView active={activeView === 'daily-ticket'} />
-          <ScoreboardView active={activeView === 'scoreboard'} />
-          <HistoryView active={activeView === 'history'} />
-          <DebugPropsView active={activeView === 'debug-props'} />
-          <TasksView active={activeView === 'tasks'} />
+          <ActiveView />
         </main>
       </div>
 
-      {/* Mobile bottom nav */}
       <nav className="mobile-nav">
-        {[
-          { hash: '#dashboard', view: 'dashboard', label: 'Home' },
-          { hash: '#daily-ticket', view: 'daily-ticket', label: 'Ticket' },
-          { hash: '#scoreboard', view: 'scoreboard', label: 'Board' },
-          { hash: '#history', view: 'history', label: 'Historial' },
-          { hash: '#tasks', view: 'tasks', label: 'Tareas' },
-        ].map((item) => (
+        {ROUTES.map((item) => (
           <a
             key={item.view}
             href={item.hash}
             className={`mobile-nav-link${activeView === item.view ? ' is-active' : ''}`}
             data-nav-view={item.view}
             aria-label={item.label}
-            onClick={(e) => {
-              e.preventDefault();
-              handleNavigate(item.view);
-              window.location.hash = item.hash;
-            }}
+            onClick={() => handleNavigate(item.view)}
           >
             <span className="mobile-nav-icon" aria-hidden="true" />
             <span>{item.label}</span>
@@ -95,16 +94,13 @@ export default function AppShell() {
         ))}
       </nav>
 
-      {/* Toast container — vanilla app.js still writes here */}
       <div id="toast-container" />
 
-      {/* Loading spinner — vanilla app.js still controls this */}
       <div id="loading-spinner" className="spinner" style={{ display: 'none' }}>
         <div className="spinner-circle" />
         <p>Procesando...</p>
       </div>
 
-      {/* Subtasks modal — preserved for Tasks view compatibility */}
       <div id="subtasks-modal" className="modal">
         <div className="modal-content">
           <div className="modal-header">

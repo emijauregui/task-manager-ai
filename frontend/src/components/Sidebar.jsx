@@ -1,9 +1,6 @@
 /**
  * Sidebar.jsx
- * Phase: React Migration v1 — Foundation
- *
- * Renders the left navigation sidebar with hash-based nav links.
- * Mirrors the vanilla HTML <aside class="app-sidebar"> exactly.
+ * Phase: React Migration v1 - Foundation
  */
 
 const NAV_ITEMS = [
@@ -23,7 +20,7 @@ const NAV_ITEMS = [
   {
     hash: '#daily-ticket',
     view: 'daily-ticket',
-    label: 'Ticket del día',
+    label: 'Ticket del dia',
     icon: (
       <svg viewBox="0 0 24 24" fill="none">
         <path d="M4.5 8.5A2.5 2.5 0 0 1 7 6h10a2.5 2.5 0 0 1 2.5 2.5v2a2 2 0 0 0 0 4v1.5A2.5 2.5 0 0 1 17 18.5H7A2.5 2.5 0 0 1 4.5 16v-1.5a2 2 0 0 0 0-4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -59,7 +56,6 @@ const NAV_ITEMS = [
     hash: '#debug-props',
     view: 'debug-props',
     label: 'Debug props',
-    hidden: true,
     id: 'nav-debug-props',
     icon: (
       <svg viewBox="0 0 24 24" fill="none">
@@ -82,9 +78,6 @@ const NAV_ITEMS = [
   },
 ];
 
-/**
- * @param {{ activeView: string, onNavigate: (view: string) => void }} props
- */
 export default function Sidebar({ activeView, onNavigate }) {
   return (
     <aside className="app-sidebar" id="app-sidebar">
@@ -122,12 +115,7 @@ export default function Sidebar({ activeView, onNavigate }) {
             data-nav-view={item.view}
             aria-label={item.label}
             id={item.id}
-            hidden={item.hidden || undefined}
-            onClick={(e) => {
-              e.preventDefault();
-              onNavigate(item.view);
-              window.location.hash = item.hash;
-            }}
+            onClick={() => onNavigate(item.view)}
           >
             <span className="nav-icon" aria-hidden="true">
               {item.icon}
@@ -150,7 +138,7 @@ export default function Sidebar({ activeView, onNavigate }) {
           </span>
         </summary>
         <p className="sidebar-card-copy">
-          El dashboard carga solo cache y estado. Bedrock y Odds API se usan únicamente cuando generas ticket.
+          El dashboard carga solo cache y estado. Bedrock y Odds API se usan unicamente cuando generas ticket.
         </p>
       </details>
     </aside>

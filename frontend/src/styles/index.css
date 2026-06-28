@@ -1,14 +1,145 @@
 /**
  * index.css
- * ──────────────────────────────────────────────────────────
- * Re-exports the canonical vanilla styles.css so React can
- * import them via Vite's CSS pipeline.
- *
- * During React Migration v1 we keep the original styles.css
- * untouched. Future phases will migrate CSS to CSS Modules or
- * component-scoped styles incrementally.
- * ──────────────────────────────────────────────────────────
+ * React imports the canonical Ballpark Betting Desk stylesheet through Vite.
+ * Foundation-specific fixes live here so frontend/styles.css stays untouched.
  */
 
 /* Import the canonical Ballpark Betting Desk stylesheet */
 @import url('../../styles.css');
+
+/* React Migration v1 foundation fixes. Keep vanilla styles.css untouched. */
+#root {
+  min-height: 100vh;
+}
+
+.react-foundation .app-main,
+.react-foundation .page-content,
+.react-foundation .app-view {
+  min-width: 0;
+  width: 100%;
+}
+
+.react-foundation .page-content {
+  align-items: start;
+}
+
+.react-foundation .foundation-view {
+  width: 100%;
+}
+
+.react-foundation .slate-desk-hero {
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  align-items: start;
+}
+
+.react-foundation .slate-desk-head {
+  width: 100%;
+  max-width: 980px;
+}
+
+.react-foundation .slate-desk-head h2 {
+  max-width: min(960px, 100%);
+  font-size: clamp(1.9rem, 3vw, 3rem);
+  line-height: 1.02;
+  letter-spacing: 0.06em;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: manual;
+  text-wrap: balance;
+}
+
+.react-foundation .slate-desk-head .hero-description {
+  max-width: 68ch;
+}
+
+.react-foundation .foundation-card-grid,
+.react-foundation .foundation-task-grid {
+  align-items: stretch;
+}
+
+.react-foundation .foundation-quick-links {
+  grid-template-columns: 1fr;
+}
+
+.foundation-list {
+  display: grid;
+  gap: 10px;
+}
+
+.foundation-list span,
+.foundation-game-card,
+.foundation-archive-grid > article {
+  border: 1px solid rgba(233, 226, 205, 0.09);
+  background: rgba(247, 241, 224, 0.035);
+  border-radius: 14px;
+}
+
+.foundation-list span {
+  padding: 11px 12px;
+  color: var(--text-secondary);
+}
+
+.foundation-ticket-strip,
+.foundation-scoreboard-grid,
+.foundation-archive-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.foundation-ticket-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.foundation-ticket-strip .mini-ticket-card {
+  text-align: left;
+}
+
+.foundation-slip {
+  margin-top: 14px;
+}
+
+.foundation-game-card {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+}
+
+.foundation-game-card strong {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+}
+
+.foundation-game-card p,
+.foundation-archive-grid p,
+.foundation-debug-grid p {
+  color: var(--text-secondary);
+}
+
+.foundation-history-metrics {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 1180px) {
+  .react-foundation .slate-desk-hero,
+  .react-foundation .foundation-ticket-strip,
+  .react-foundation .foundation-scoreboard-grid,
+  .react-foundation .foundation-archive-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .react-foundation .mobile-nav {
+    grid-template-columns: repeat(6, minmax(70px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .react-foundation .slate-desk-head h2 {
+    font-size: clamp(1.65rem, 8vw, 2.35rem);
+    max-width: 100%;
+  }
+}

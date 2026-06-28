@@ -3,20 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task Manager AI</title>
+    <title>Task Manager AI | Daily Ticket AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="app-shell" id="app-shell">
         <aside class="app-sidebar" id="app-sidebar">
-            <div class="sidebar-top">
+                <div class="sidebar-top">
                 <div class="brand-lockup">
-                    <div class="brand-mark">DT</div>
+                    <div class="brand-mark brand-logo-frame brand-logo-frame-sidebar">
+                        <img src="assets/newlogo-nbck.png" alt="Daily Ticket AI" class="brand-logo brand-logo-sidebar">
+                    </div>
                     <div class="brand-copy">
-                        <p class="brand-kicker">Elite Analytics</p>
+                        <p class="brand-kicker">Premium MLB Analytics</p>
                         <h1>Daily Ticket AI</h1>
                     </div>
                 </div>
@@ -24,68 +26,121 @@
             </div>
 
             <nav class="sidebar-nav">
-                <a href="#daily-ticket-section" class="nav-link is-active">
-                    <span class="nav-icon">DB</span>
+                <a href="#dashboard" class="nav-link is-active" data-nav-view="dashboard" aria-label="Dashboard">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <rect x="3.5" y="4" width="7" height="6.5" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                            <rect x="13.5" y="4" width="7" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                            <rect x="3.5" y="13.5" width="7" height="6.5" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                            <path d="M14.5 18.5h5.5M14.5 15.5h3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </span>
                     <span class="nav-label">Dashboard</span>
                 </a>
-                <a href="#daily-ticket-current-panel" class="nav-link">
-                    <span class="nav-icon">TD</span>
+                <a href="#daily-ticket" class="nav-link" data-nav-view="daily-ticket" aria-label="Ticket del dia">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M4.5 8.5A2.5 2.5 0 0 1 7 6h10a2.5 2.5 0 0 1 2.5 2.5v2a2 2 0 0 0 0 4v1.5A2.5 2.5 0 0 1 17 18.5H7A2.5 2.5 0 0 1 4.5 16v-1.5a2 2 0 0 0 0-4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                            <path d="M9 9h6M9 12.5h6M9 16h3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </span>
                     <span class="nav-label">Ticket del dia</span>
                 </a>
-                <a href="#daily-ticket-live-panel" class="nav-link">
-                    <span class="nav-icon">LV</span>
-                    <span class="nav-label">Juegos en vivo</span>
+                <a href="#scoreboard" class="nav-link" data-nav-view="scoreboard" aria-label="Scoreboard">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <rect x="3.5" y="5" width="17" height="10.5" rx="3" stroke="currentColor" stroke-width="1.8"/>
+                            <path d="M7.2 9h3M7.2 12h3M12 8.3v4.9M15.6 8.3v4.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <path d="M16.2 18.3 18.6 20.7 21 18.3 18.6 15.9 16.2 18.3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="nav-label">Scoreboard</span>
                 </a>
-                <a href="#daily-ticket-today-panel" class="nav-link">
-                    <span class="nav-icon">HO</span>
-                    <span class="nav-label">Juegos de hoy</span>
-                </a>
-                <a href="#daily-ticket-upcoming-panel" class="nav-link">
-                    <span class="nav-icon">MX</span>
-                    <span class="nav-label">Proximos juegos</span>
-                </a>
-                <a href="#daily-ticket-history-panel" class="nav-link">
-                    <span class="nav-icon">HS</span>
+                <a href="#history" class="nav-link" data-nav-view="history" aria-label="Historial">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M5 6.5H3.5V4m1.5 2.5a8.5 8.5 0 1 1-1.1 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 8v4l3 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <path d="M16.5 17.5 20 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </span>
                     <span class="nav-label">Historial</span>
                 </a>
-                <a href="#player-props-diagnostics-panel" class="nav-link" id="nav-debug-props" hidden>
-                    <span class="nav-icon">DP</span>
+                <a href="#debug-props" class="nav-link" id="nav-debug-props" data-nav-view="debug-props" hidden aria-label="Debug props">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M12 4.5a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15Z" stroke="currentColor" stroke-width="1.8"/>
+                            <path d="M12 7.5v9M7.5 12h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                        </svg>
+                    </span>
                     <span class="nav-label">Debug props</span>
                 </a>
-                <a href="#tasks-section" class="nav-link">
-                    <span class="nav-icon">TK</span>
+                <a href="#tasks" class="nav-link" data-nav-view="tasks" aria-label="Tareas">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <rect x="4" y="4.5" width="16" height="15" rx="3" stroke="currentColor" stroke-width="1.8"/>
+                            <path d="m8 10 1.8 1.8L13 8.8M8 15h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
                     <span class="nav-label">Tareas</span>
                 </a>
             </nav>
 
-            <div class="sidebar-card glass-card">
-                <p class="sidebar-card-title">Flujo seguro</p>
-                <p>El dashboard carga solo cache y estado. Bedrock y Odds API se usan unicamente cuando generas ticket.</p>
-            </div>
+            <details class="sidebar-card sidebar-card-collapsible glass-card">
+                <summary class="sidebar-card-summary">
+                    <div class="sidebar-card-heading">
+                        <p class="sidebar-card-title">Flujo seguro</p>
+                        <span class="sidebar-card-chip">Cache-first</span>
+                    </div>
+                    <span class="sidebar-card-toggle" aria-hidden="true">
+                        <svg viewBox="0 0 16 16" fill="none">
+                            <path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                </summary>
+                <p class="sidebar-card-copy">El dashboard carga solo cache y estado. Bedrock y Odds API se usan unicamente cuando generas ticket.</p>
+            </details>
         </aside>
 
         <div class="app-main">
-            <header class="topbar">
-                <div class="topbar-copy">
-                    <p class="topbar-eyebrow">Task Manager + Betting Intel</p>
-                    <h2>Administra tareas y tu Daily Ticket AI desde una sola vista.</h2>
-                </div>
-                <div class="topbar-pills">
-                    <span class="ui-badge subtle">Vanilla HTML/CSS/JS</span>
-                    <span class="ui-badge subtle">Sin costos ocultos al cargar</span>
+            <header class="topbar desk-scorebar">
+                <div class="desk-scorebar-track">
+                    <div class="desk-scorebar-item is-title">
+                        <span class="desk-scorebar-label">Slate MLB</span>
+                        <strong id="desk-scorebar-title">Daily Ticket AI Desk</strong>
+                    </div>
+                    <div class="desk-scorebar-item">
+                        <span class="desk-scorebar-label">Fecha</span>
+                        <strong id="desk-scorebar-date">--</strong>
+                    </div>
+                    <div class="desk-scorebar-item">
+                        <span class="desk-scorebar-label">Hora Mazatlan</span>
+                        <strong id="desk-scorebar-time">--</strong>
+                    </div>
+                    <div class="desk-scorebar-item">
+                        <span class="desk-scorebar-label">Cache status</span>
+                        <strong id="desk-scorebar-cache">Cache read</strong>
+                    </div>
+                    <div class="desk-scorebar-item">
+                        <span class="desk-scorebar-label">Calls</span>
+                        <strong id="desk-scorebar-calls">No live calls</strong>
+                    </div>
                 </div>
             </header>
 
             <main class="page-content">
-                <section class="daily-ticket-section" id="daily-ticket-section">
-                    <div class="hero-panel glass-card">
-                        <div class="hero-copy">
-                            <p class="hero-kicker">Daily Ticket AI</p>
-                            <h2>Genera picks deportivos solo cuando tu lo solicitas.</h2>
-                            <p class="hero-description">La vista inicial usa solo dashboard cacheado. El boton principal dispara la unica llamada costosa del flujo.</p>
+                <section class="app-view dashboard-view is-active" id="dashboard" data-app-view="dashboard">
+                    <div class="hero-panel slate-desk-hero desk-panel glass-card">
+                        <div class="slate-desk-head">
+                            <p class="hero-kicker">Daily Slate Desk</p>
+                            <h2>Resumen ejecutivo premium para abrir, decidir y saltar a la vista correcta sin recorrer una página eterna.</h2>
+                            <p class="hero-description">Dashboard compacto con estado, ticket resumido y accesos rápidos. Scoreboard, ticket completo, historial y tareas viven en vistas separadas.</p>
                             <div class="hero-badges" id="daily-ticket-ticket-flags"></div>
                         </div>
-                        <div class="hero-actions">
+                        <div class="slate-desk-metrics" id="dashboard-slate-metrics"></div>
+                        <div class="slate-desk-note" id="dashboard-slate-note">Desk ready.</div>
+                        <div class="hero-actions slate-desk-actions">
                             <button type="button" class="btn btn-primary btn-ticket" id="generate-daily-ticket-btn">Generar Ticket del Dia</button>
                             <button type="button" class="btn btn-secondary" id="view-daily-ticket-btn">Ver Ticket Guardado</button>
                             <button type="button" class="btn btn-ghost" id="retry-daily-ticket-btn" style="display: none;">Intentar mas tarde</button>
@@ -95,12 +150,65 @@
 
                     <div id="daily-ticket-api-status" class="status-grid"></div>
 
+                    <div class="dashboard-summary-grid">
+                        <section class="ticket-panel desk-panel glass-card compact-panel dashboard-focus-card">
+                            <div class="panel-header">
+                                <div>
+                                    <p class="panel-kicker">Ticket disponible</p>
+                                    <h3>Glance del ticket</h3>
+                                </div>
+                            </div>
+                            <div id="daily-ticket-dashboard-glance"></div>
+                        </section>
+                        <section class="ticket-panel desk-panel glass-card compact-panel dashboard-focus-card">
+                            <div class="panel-header">
+                                <div>
+                                    <p class="panel-kicker">Lectura rápida</p>
+                                    <h3>Resumen ejecutivo</h3>
+                                </div>
+                            </div>
+                            <div id="daily-ticket-side-summary"></div>
+                        </section>
+                        <section class="ticket-panel desk-panel glass-card compact-panel dashboard-focus-card">
+                            <div class="panel-header">
+                                <div>
+                                    <p class="panel-kicker">Navegación rápida</p>
+                                    <h3>Ir directo</h3>
+                                </div>
+                            </div>
+                            <div class="quick-links-grid">
+                                <a href="#daily-ticket" class="quick-link-card" data-nav-view="daily-ticket">
+                                    <strong>Ticket del día</strong>
+                                    <span>Ver los 3 tickets completos.</span>
+                                </a>
+                                <a href="#scoreboard" class="quick-link-card" data-nav-view="scoreboard">
+                                    <strong>Scoreboard</strong>
+                                    <span>Abrir juegos, tabs y linescore full-width.</span>
+                                </a>
+                                <a href="#history" class="quick-link-card" data-nav-view="history">
+                                    <strong>Historial</strong>
+                                    <span>Revisar tickets recientes guardados.</span>
+                                </a>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+
+                <section class="app-view daily-ticket-section" id="daily-ticket" data-app-view="daily-ticket" hidden>
+                    <div class="view-intro-panel glass-card">
+                        <div>
+                            <p class="panel-kicker">Ticket del día</p>
+                            <h3>Detalle completo de los 3 tickets</h3>
+                            <p class="panel-subtitle">Vista dedicada para revisar picks, warnings compactos y el contexto del ticket actual.</p>
+                        </div>
+                    </div>
+
                     <div class="daily-ticket-grid">
                         <section class="ticket-panel ticket-panel-main glass-card" id="daily-ticket-current-panel">
                             <div class="panel-header">
                                 <div>
                                     <p class="panel-kicker">Ticket disponible</p>
-                                    <h3>Ticket del dia</h3>
+                                    <h3>Ticket del día</h3>
                                 </div>
                                 <p id="daily-ticket-summary" class="panel-subtitle">Sin ticket guardado.</p>
                             </div>
@@ -108,17 +216,17 @@
                         </section>
 
                         <aside class="daily-ticket-side">
-                            <section class="ticket-panel glass-card">
+                            <section class="ticket-panel glass-card compact-panel">
                                 <div class="panel-header">
                                     <div>
-                                        <p class="panel-kicker">Lectura rapida</p>
-                                        <h3>Resumen ejecutivo</h3>
+                                        <p class="panel-kicker">Contexto</p>
+                                        <h3>Estado del ticket</h3>
                                     </div>
                                 </div>
-                                <div id="daily-ticket-side-summary"></div>
+                                <div id="daily-ticket-ticket-meta"></div>
                             </section>
 
-                            <section class="ticket-panel glass-card">
+                            <section class="ticket-panel glass-card compact-panel">
                                 <div class="panel-header">
                                     <div>
                                         <p class="panel-kicker">Riesgo controlado</p>
@@ -129,21 +237,41 @@
                             </section>
                         </aside>
                     </div>
+                </section>
 
-                    <div class="secondary-grid">
-                        <section class="ticket-panel glass-card scoreboard-panel" id="daily-ticket-games-panel">
-                            <div class="panel-header">
-                                <div>
-                                    <p class="panel-kicker">Scoreboard</p>
-                                    <h3>MLB Scoreboard</h3>
-                                </div>
-                                <div class="scoreboard-panel-badges">
-                                    <span class="ui-badge subtle">ESPN cacheado</span>
-                                    <span class="ui-badge subtle" id="daily-ticket-games-live-refresh" hidden>Actualizando en vivo cada 60s</span>
-                                </div>
+                <section class="app-view scoreboard-view" id="scoreboard" data-app-view="scoreboard" hidden>
+                    <section class="ticket-panel glass-card scoreboard-panel scoreboard-panel-full" id="daily-ticket-games-panel">
+                        <div class="panel-header">
+                            <div>
+                                <p class="panel-kicker">Scoreboard</p>
+                                <h3>MLB Scoreboard</h3>
                             </div>
-                            <div id="daily-ticket-games-meta"></div>
-                            <section class="scoreboard-group" id="daily-ticket-live-panel">
+                            <div class="scoreboard-panel-badges">
+                                <span class="ui-badge subtle">ESPN cacheado</span>
+                                <span class="ui-badge subtle" id="daily-ticket-games-live-refresh" hidden>Actualizando en vivo cada 60s</span>
+                            </div>
+                        </div>
+                        <div id="daily-ticket-games-meta"></div>
+                        <div class="scoreboard-tabs" id="daily-ticket-scoreboard-tabs" role="tablist" aria-label="Secciones del scoreboard">
+                            <button type="button" class="scoreboard-tab is-active" data-scoreboard-tab="live" role="tab" aria-controls="daily-ticket-live-panel" aria-selected="true">
+                                <span class="scoreboard-tab-label">En vivo</span>
+                                <span class="scoreboard-tab-count">0</span>
+                            </button>
+                            <button type="button" class="scoreboard-tab" data-scoreboard-tab="today" role="tab" aria-controls="daily-ticket-today-panel" aria-selected="false">
+                                <span class="scoreboard-tab-label">Hoy</span>
+                                <span class="scoreboard-tab-count">0</span>
+                            </button>
+                            <button type="button" class="scoreboard-tab" data-scoreboard-tab="upcoming" role="tab" aria-controls="daily-ticket-upcoming-panel" aria-selected="false">
+                                <span class="scoreboard-tab-label">Próximos</span>
+                                <span class="scoreboard-tab-count">0</span>
+                            </button>
+                            <button type="button" class="scoreboard-tab" data-scoreboard-tab="recent" role="tab" aria-controls="daily-ticket-recent-results-panel" aria-selected="false">
+                                <span class="scoreboard-tab-label">Resultados recientes</span>
+                                <span class="scoreboard-tab-count">0</span>
+                            </button>
+                        </div>
+                        <div class="scoreboard-sections">
+                            <section class="scoreboard-group scoreboard-section-shell" id="daily-ticket-live-panel" data-scoreboard-section="live">
                                 <div class="scoreboard-group-header">
                                     <div>
                                         <p class="panel-kicker">Live</p>
@@ -152,7 +280,7 @@
                                 </div>
                                 <div id="daily-ticket-live-games"></div>
                             </section>
-                            <section class="scoreboard-group" id="daily-ticket-today-panel">
+                            <section class="scoreboard-group scoreboard-section-shell" id="daily-ticket-today-panel" data-scoreboard-section="today" hidden>
                                 <div class="scoreboard-group-header">
                                     <div>
                                         <p class="panel-kicker">Hoy</p>
@@ -161,28 +289,54 @@
                                 </div>
                                 <div id="daily-ticket-games"></div>
                             </section>
-                            <section class="scoreboard-group" id="daily-ticket-upcoming-panel">
+                            <section class="scoreboard-group scoreboard-section-shell" id="daily-ticket-upcoming-panel" data-scoreboard-section="upcoming" hidden>
                                 <div class="scoreboard-group-header">
                                     <div>
-                                        <p class="panel-kicker">Manana</p>
-                                        <h4>Proximos juegos</h4>
+                                        <p class="panel-kicker">Mañana</p>
+                                        <h4>Próximos juegos</h4>
                                     </div>
                                 </div>
                                 <div id="daily-ticket-upcoming-games"></div>
                             </section>
-                        </section>
-
-                        <section class="ticket-panel glass-card" id="daily-ticket-history-panel">
-                            <div class="panel-header">
-                                <div>
-                                    <p class="panel-kicker">Memoria local</p>
-                                    <h3>Historial reciente</h3>
+                            <section class="scoreboard-group scoreboard-section-shell" id="daily-ticket-recent-results-panel" data-scoreboard-section="recent" hidden>
+                                <div class="scoreboard-group-header">
+                                    <div>
+                                        <p class="panel-kicker">Cierre reciente</p>
+                                        <h4>Resultados recientes</h4>
+                                    </div>
                                 </div>
-                            </div>
-                            <div id="daily-ticket-history"></div>
-                        </section>
-                    </div>
+                                <div id="daily-ticket-recent-results-meta"></div>
+                                <div id="daily-ticket-recent-results"></div>
+                            </section>
+                        </div>
+                    </section>
+                </section>
 
+                <section class="app-view history-view" id="history" data-app-view="history" hidden>
+                    <section class="ticket-panel glass-card compact-panel history-panel-full" id="daily-ticket-history-panel">
+                        <div class="panel-header">
+                            <div>
+                                <p class="panel-kicker">Memoria local</p>
+                                <h3>Historial reciente</h3>
+                            </div>
+                        </div>
+                        <div id="daily-ticket-history"></div>
+                    </section>
+                </section>
+
+                <section class="app-view debug-view" id="debug-props" data-app-view="debug-props" hidden>
+                    <section class="ticket-panel glass-card compact-panel debug-empty-panel" id="debug-props-empty-panel">
+                        <div class="panel-header">
+                            <div>
+                                <p class="panel-kicker">Dev Debug</p>
+                                <h3>Player Props Pipeline</h3>
+                            </div>
+                        </div>
+                        <div class="empty-inline rich">
+                            <strong>Debug props disponible solo en desarrollo.</strong>
+                            <p>Cuando esta vista se habilita, aquí aparece el pipeline completo de props, filtros y ticket final.</p>
+                        </div>
+                    </section>
                     <section class="ticket-panel glass-card diagnostics-panel" id="player-props-diagnostics-panel" hidden>
                         <div class="panel-header">
                             <div>
@@ -214,7 +368,7 @@
                     </section>
                 </section>
 
-                <section class="tasks-section" id="tasks-section">
+                <section class="tasks-section app-view" id="tasks" data-app-view="tasks" hidden>
                     <div class="tasks-header glass-card">
                         <div>
                             <p class="panel-kicker">Task Manager</p>
@@ -276,10 +430,36 @@
     </div>
 
     <nav class="mobile-nav">
-        <a href="#daily-ticket-section">Ticket</a>
-        <a href="#daily-ticket-games-panel">Juegos</a>
-        <a href="#daily-ticket-history-panel">Historial</a>
-        <a href="#tasks-section">Tareas</a>
+        <a href="#dashboard" class="mobile-nav-link" data-nav-view="dashboard" aria-label="Dashboard">
+            <span class="mobile-nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4" width="7" height="6.5" rx="2" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="4" width="7" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13.5" width="7" height="6.5" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M14.5 18.5h5.5M14.5 15.5h3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </span>
+            <span>Home</span>
+        </a>
+        <a href="#daily-ticket" class="mobile-nav-link" data-nav-view="daily-ticket" aria-label="Ticket">
+            <span class="mobile-nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4.5 8.5A2.5 2.5 0 0 1 7 6h10a2.5 2.5 0 0 1 2.5 2.5v2a2 2 0 0 0 0 4v1.5A2.5 2.5 0 0 1 17 18.5H7A2.5 2.5 0 0 1 4.5 16v-1.5a2 2 0 0 0 0-4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 9h6M9 12.5h6M9 16h3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </span>
+            <span>Ticket</span>
+        </a>
+        <a href="#scoreboard" class="mobile-nav-link" data-nav-view="scoreboard" aria-label="Scoreboard">
+            <span class="mobile-nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="10.5" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M7.2 9h3M7.2 12h3M12 8.3v4.9M15.6 8.3v4.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16.2 18.3 18.6 20.7 21 18.3 18.6 15.9 16.2 18.3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            </span>
+            <span>Board</span>
+        </a>
+        <a href="#history" class="mobile-nav-link" data-nav-view="history" aria-label="Historial">
+            <span class="mobile-nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M5 6.5H3.5V4m1.5 2.5a8.5 8.5 0 1 1-1.1 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8v4l3 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16.5 17.5 20 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </span>
+            <span>Historial</span>
+        </a>
+        <a href="#tasks" class="mobile-nav-link" data-nav-view="tasks" aria-label="Tareas">
+            <span class="mobile-nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4.5" width="16" height="15" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="m8 10 1.8 1.8L13 8.8M8 15h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span>Tareas</span>
+        </a>
     </nav>
 
     <div id="loading-spinner" class="spinner" style="display: none;">

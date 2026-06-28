@@ -581,3 +581,93 @@
     min-width: 160px;
   }
 }
+
+/* --- React Migration v3.1: Daily Ticket Read Only ------------------------ */
+
+.react-ticket-intro {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.react-ticket-intro-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.react-ticket-grid {
+  align-items: start;
+}
+
+.react-ticket-state {
+  padding: 28px;
+  display: grid;
+  gap: 12px;
+  max-width: 860px;
+}
+
+.react-ticket-state h3 {
+  font-size: clamp(1.3rem, 2vw, 1.9rem);
+  line-height: 1.08;
+}
+
+.react-ticket-state p,
+.react-ticket-state small {
+  color: var(--text-secondary);
+}
+
+.react-ticket-state.error {
+  border-color: rgba(196, 100, 87, 0.28);
+}
+
+.react-ticket-summary {
+  margin-bottom: 16px;
+}
+
+.react-ticket-selector {
+  margin-bottom: 16px;
+}
+
+.react-ticket-selector .ticket-selector-card {
+  min-height: 158px;
+}
+
+.react-ticket-selector .ticket-selector-card.active {
+  border-color: rgba(216, 162, 79, 0.4);
+  background: linear-gradient(180deg, rgba(216, 162, 79, 0.14), rgba(247, 241, 224, 0.025));
+}
+
+.react-leg-row {
+  background: rgba(247, 241, 224, 0.026);
+}
+
+.react-leg-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, rgba(216, 162, 79, 0.18), rgba(79, 134, 187, 0.11));
+  border: 1px solid rgba(233, 226, 205, 0.14);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.react-foundation .bet-leg-meta .ui-badge {
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .react-ticket-intro {
+    display: grid;
+  }
+
+  .react-ticket-intro-badges {
+    justify-content: flex-start;
+  }
+}

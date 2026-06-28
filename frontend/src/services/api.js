@@ -48,6 +48,28 @@ export async function fetchToday() {
 }
 
 /**
+ * GET /api/daily-ticket/today
+ * Read-only ticket lookup for the React Daily Ticket view.
+ * This endpoint is cache-safe and must not generate tickets.
+ */
+export async function getTodayTicket() {
+  try {
+    const res = await fetch(apiUrl('/api/daily-ticket/today'), {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+
+    if (!res.ok) {
+      throw new Error(`getTodayTicket: ${res.status}`);
+    }
+
+    return await res.json();
+  } catch (error) {
+    throw new Error(error?.message || 'getTodayTicket: request failed');
+  }
+}
+
+/**
  * GET /api/daily-ticket/dashboard
  * Dashboard summary — always cache-first, never calls Bedrock or Odds API.
  */

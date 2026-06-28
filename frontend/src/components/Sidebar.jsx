@@ -1,7 +1,9 @@
 /**
  * Sidebar.jsx
- * Phase: React Migration v1 - Foundation
+ * Phase: React Migration v2 — App Shell Premium
+ * Enhanced sidebar with functional collapse and improved states.
  */
+import { useState } from 'react';
 
 const NAV_ITEMS = [
   {
@@ -78,7 +80,7 @@ const NAV_ITEMS = [
   },
 ];
 
-export default function Sidebar({ activeView, onNavigate }) {
+export default function Sidebar({ activeView, onNavigate, isCollapsed, onToggleCollapse }) {
   return (
     <aside className="app-sidebar" id="app-sidebar">
       <div className="sidebar-top">
@@ -99,14 +101,15 @@ export default function Sidebar({ activeView, onNavigate }) {
           type="button"
           className="sidebar-toggle"
           id="sidebar-toggle-btn"
-          aria-label="Colapsar sidebar"
-          aria-expanded="true"
+          aria-label={isCollapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+          aria-expanded={!isCollapsed}
+          onClick={onToggleCollapse}
         >
           &lt;
         </button>
       </div>
 
-      <nav className="sidebar-nav">
+      <nav className="sidebar-nav" aria-label="Navegación principal">
         {NAV_ITEMS.map((item) => (
           <a
             key={item.view}
@@ -114,6 +117,7 @@ export default function Sidebar({ activeView, onNavigate }) {
             className={`nav-link${activeView === item.view ? ' is-active' : ''}`}
             data-nav-view={item.view}
             aria-label={item.label}
+            aria-current={activeView === item.view ? 'page' : undefined}
             id={item.id}
             onClick={() => onNavigate(item.view)}
           >

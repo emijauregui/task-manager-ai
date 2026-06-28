@@ -1,6 +1,7 @@
 /**
  * AppShell.jsx
- * Phase: React Migration v1 - Foundation
+ * Phase: React Migration v2 — App Shell Premium
+ * Enhanced shell with functional collapse and improved layout.
  */
 import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
@@ -50,6 +51,7 @@ function isValidView(view) {
 
 export default function AppShell() {
   const [activeView, setActiveView] = useState(() => getViewFromHash());
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const ActiveView = VIEW_COMPONENTS[activeView] ?? DashboardView;
 
   useEffect(() => {
@@ -66,9 +68,21 @@ export default function AppShell() {
     setActiveView(isValidView(view) ? view : DEFAULT_VIEW);
   }
 
+  function handleToggleCollapse() {
+    setIsCollapsed((prev) => !prev);
+  }
+
   return (
-    <div className="app-shell react-foundation" id="app-shell">
-      <Sidebar activeView={activeView} onNavigate={handleNavigate} />
+    <div
+      className={`app-shell react-foundation${isCollapsed ? ' is-collapsed' : ''}`}
+      id="app-shell"
+    >
+      <Sidebar
+        activeView={activeView}
+        onNavigate={handleNavigate}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={handleToggleCollapse}
+      />
 
       <div className="app-main">
         <DeskChrome />

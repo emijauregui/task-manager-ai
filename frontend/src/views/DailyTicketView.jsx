@@ -1,6 +1,7 @@
 /**
  * DailyTicketView.jsx
- * Phase: React Migration v1 - Foundation
+ * Phase: React Migration v2 — App Shell Premium
+ * Enhanced daily ticket shell with improved cards and layout.
  */
 export default function DailyTicketView() {
   return (

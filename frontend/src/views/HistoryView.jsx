@@ -1,6 +1,7 @@
 /**
  * HistoryView.jsx
- * Phase: React Migration v1 - Foundation
+ * Phase: React Migration v2 — App Shell Premium
+ * Enhanced history shell with improved archive cards.
  */
 export default function HistoryView() {
   return (
@@ -9,11 +10,25 @@ export default function HistoryView() {
       id="history"
       data-app-view="history"
     >
+      <div className="view-intro-panel glass-card">
+        <div>
+          <p className="panel-kicker">Historial</p>
+          <h3>Archivo de tickets y tendencias</h3>
+          <p className="panel-subtitle">
+            Vista dedicada para revisar slips históricos, patrones y métricas del archivo local cache-first.
+          </p>
+        </div>
+      </div>
+
       <section className="ticket-panel glass-card compact-panel history-panel-full">
         <div className="panel-header">
           <div>
             <p className="panel-kicker">Memoria local</p>
             <h3>Historial reciente</h3>
+          </div>
+          <div className="hero-badges">
+            <span className="ui-badge cache">Cache-first</span>
+            <span className="ui-badge subtle">Sin live calls</span>
           </div>
         </div>
         <div className="status-grid foundation-history-metrics">
@@ -37,7 +52,7 @@ export default function HistoryView() {
           <article className="ticket-panel glass-card compact-panel">
             <p className="panel-kicker">Archive slip</p>
             <h4>Ticket Seguro - placeholder</h4>
-            <p className="panel-subtitle">Aqui viviran slips historicos con metricas y filtros.</p>
+            <p className="panel-subtitle">Aquí vivirán slips históricos con métricas y filtros.</p>
           </article>
           <article className="ticket-panel glass-card compact-panel">
             <p className="panel-kicker">Patterns</p>

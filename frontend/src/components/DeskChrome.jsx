@@ -1,8 +1,8 @@
 /**
  * DeskChrome.jsx
- * Phase: React Migration v1 — Foundation
+ * Phase: React Migration v2 — App Shell Premium
  *
- * The top scorebar / desk chrome that shows:
+ * Enhanced scorebar showing:
  *   - Slate MLB title
  *   - Current date (Mazatlán timezone)
  *   - Current time (Mazatlán timezone)

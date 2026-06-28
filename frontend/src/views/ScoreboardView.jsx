@@ -1,6 +1,7 @@
 /**
  * ScoreboardView.jsx
- * Phase: React Migration v1 - Foundation
+ * Phase: React Migration v2 — App Shell Premium
+ * Enhanced scoreboard shell with improved tabs and game cards.
  */
 export default function ScoreboardView() {
   return (

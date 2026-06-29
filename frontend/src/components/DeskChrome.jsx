@@ -9,38 +9,10 @@
  *   - Cache status
  *   - API call status
  */
-import { useEffect, useState } from 'react';
-
-const MAZATLAN_TZ = 'America/Mazatlan';
-
-function getMazatlanDate() {
-  return new Intl.DateTimeFormat('es-MX', {
-    timeZone: MAZATLAN_TZ,
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(new Date());
-}
-
-function getMazatlanTime() {
-  return new Intl.DateTimeFormat('es-MX', {
-    timeZone: MAZATLAN_TZ,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).format(new Date());
-}
+import { useMazatlanTime } from '../hooks';
 
 export default function DeskChrome() {
-  const [time, setTime] = useState(getMazatlanTime);
-  const date = getMazatlanDate();
-
-  useEffect(() => {
-    const interval = setInterval(() => setTime(getMazatlanTime()), 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const { date, time } = useMazatlanTime();
 
   return (
     <header className="topbar desk-scorebar">

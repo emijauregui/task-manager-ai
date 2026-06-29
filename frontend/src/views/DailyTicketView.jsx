@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { generateDailyTicket, getTodayTicket } from '../services/api';
 import BetSlip from '../components/BetSlip';
 import TicketSelector from '../components/TicketSelector';
+import ViewState from '../components/ViewState';
 
 function normalizeTodayTicketResponse(data) {
   if (!data || typeof data !== 'object') {
@@ -97,54 +98,6 @@ function formatTicketTimestamp(value) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(parsed);
-}
-
-function LoadingState() {
-  return (
-    <div className="ticket-panel ticket-panel-main glass-card react-ticket-state">
-      <span className="ui-badge subtle">GET /today</span>
-      <h3>Cargando ticket cacheado</h3>
-      <p>Consultando cache read-only. No se genera ticket ni se refrescan odds.</p>
-    </div>
-  );
-}
-
-function ErrorState({ message, mode = 'read' }) {
-  return (
-    <div className="ticket-panel ticket-panel-main glass-card react-ticket-state error">
-      <span className="ui-badge warning">Error</span>
-      <h3>{mode === 'generate' ? 'No se pudo generar el Ticket del Dia' : 'No se pudo leer el Ticket del Dia'}</h3>
-      <p>{message || 'El backend no respondio el cache de hoy.'}</p>
-      <small>
-        {mode === 'generate'
-          ? 'Generate se intento solo por click manual. No se llamo odds refresh.'
-          : 'Solo se intento GET /api/daily-ticket/today.'}
-      </small>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="ticket-panel ticket-panel-main glass-card react-ticket-state">
-      <span className="ui-badge subtle">Cache vacio</span>
-      <h3>Todavia no hay ticket guardado para hoy</h3>
-      <p>
-        Esta fase no genera tickets automaticamente. Cuando exista un ticket cacheado,
-        aqui apareceran sus slips y legs en modo lectura.
-      </p>
-    </div>
-  );
-}
-
-function GeneratingState() {
-  return (
-    <div className="ticket-panel ticket-panel-main glass-card react-ticket-state generating">
-      <span className="ui-badge pending">POST /generate</span>
-      <h3>Generando Ticket del Dia</h3>
-      <p>Generacion manual en curso. Puede usar IA configurada, pero no hace live odds ni refresh.</p>
-    </div>
-  );
 }
 
 function GenerateManualPanel({ disabled, isGenerating, generatedManually, onGenerate }) {
@@ -309,10 +262,49 @@ export default function DailyTicketView() {
         onGenerate={handleGenerateTicket}
       />
 
-      {status === 'loading' ? <LoadingState /> : null}
-      {status === 'generating' ? <GeneratingState /> : null}
-      {status === 'error' ? <ErrorState message={error} mode={errorMode} /> : null}
-      {status === 'empty' ? <EmptyState /> : null}
+      {status === 'loading' ? (
+        <ViewState
+          as="div"
+          className="ticket-panel ticket-panel-main glass-card react-ticket-state"
+          badge="GET /today"
+          title="Cargando ticket cacheado"
+          copy="Consultando cache read-only. No se genera ticket ni se refrescan odds."
+        />
+      ) : null}
+      {status === 'generating' ? (
+        <ViewState
+          as="div"
+          className="ticket-panel ticket-panel-main glass-card react-ticket-state generating"
+          badge="POST /generate"
+          badgeTone="pending"
+          title="Generando Ticket del Dia"
+          copy="Generacion manual en curso. Puede usar IA configurada, pero no hace live odds ni refresh."
+        />
+      ) : null}
+      {status === 'error' ? (
+        <ViewState
+          as="div"
+          className="ticket-panel ticket-panel-main glass-card react-ticket-state error"
+          badge="Error"
+          badgeTone="warning"
+          title={errorMode === 'generate' ? 'No se pudo generar el Ticket del Dia' : 'No se pudo leer el Ticket del Dia'}
+          copy={error || 'El backend no respondio el cache de hoy.'}
+          detail={
+            errorMode === 'generate'
+              ? 'Generate se intento solo por click manual. No se llamo odds refresh.'
+              : 'Solo se intento GET /api/daily-ticket/today.'
+          }
+        />
+      ) : null}
+      {status === 'empty' ? (
+        <ViewState
+          as="div"
+          className="ticket-panel ticket-panel-main glass-card react-ticket-state"
+          badge="Cache vacio"
+          title="Todavia no hay ticket guardado para hoy"
+          copy="Esta fase no genera tickets automaticamente. Cuando exista un ticket cacheado, aqui apareceran sus slips y legs en modo lectura."
+        />
+      ) : null}
 
       {status === 'success' ? (
         <div className="daily-ticket-grid react-ticket-grid">

@@ -3,7 +3,9 @@
  * Phase: React Migration v4 - Scoreboard Read-Only
  */
 import { useEffect, useMemo, useState } from 'react';
+import ViewState from '../components/ViewState';
 import { getMlbScoreboard } from '../services/api';
+import { asArray } from '../services/dataUtils';
 
 const SCOREBOARD_TABS = [
   { key: 'live', label: 'En vivo' },
@@ -11,10 +13,6 @@ const SCOREBOARD_TABS = [
   { key: 'upcoming', label: 'Próximos' },
   { key: 'recent', label: 'Recientes' },
 ];
-
-function asArray(value) {
-  return Array.isArray(value) ? value.filter(Boolean) : [];
-}
 
 function getGameId(game, index) {
   return String(game?.id || game?.gameId || `${game?.awayTeam || 'away'}-${game?.homeTeam || 'home'}-${index}`);
@@ -390,37 +388,6 @@ function GameCard({ game }) {
   );
 }
 
-function LoadingState() {
-  return (
-    <section className="ticket-panel glass-card react-scoreboard-state">
-      <span className="ui-badge subtle">GET /scoreboard</span>
-      <h3>Cargando scoreboard</h3>
-      <p>Lectura cache-first desde ESPN backend. Sin ticket, generate, odds refresh ni Bedrock.</p>
-    </section>
-  );
-}
-
-function ErrorState({ message }) {
-  return (
-    <section className="ticket-panel glass-card react-scoreboard-state error">
-      <span className="ui-badge warning">Error</span>
-      <h3>Error de lectura</h3>
-      <p>{message || 'No se pudo cargar el scoreboard cacheado.'}</p>
-      <small>Solo se intento GET /api/mlb/scoreboard.</small>
-    </section>
-  );
-}
-
-function EmptyState() {
-  return (
-    <section className="ticket-panel glass-card react-scoreboard-state">
-      <span className="ui-badge subtle">Cache vacio</span>
-      <h3>Sin juegos disponibles</h3>
-      <p>El endpoint respondio sin juegos renderizables. La mesa queda en modo read-only.</p>
-    </section>
-  );
-}
-
 function GamesPanel({ games, tabKey, tabLabel }) {
   if (!games.length) {
     return (
@@ -535,9 +502,32 @@ export default function ScoreboardView() {
           })}
         </div>
 
-        {status === 'loading' ? <LoadingState /> : null}
-        {status === 'error' ? <ErrorState message={error} /> : null}
-        {status === 'empty' ? <EmptyState /> : null}
+        {status === 'loading' ? (
+          <ViewState
+            className="ticket-panel glass-card react-scoreboard-state"
+            badge="GET /scoreboard"
+            title="Cargando scoreboard"
+            copy="Lectura cache-first desde ESPN backend. Sin ticket, generate, odds refresh ni Bedrock."
+          />
+        ) : null}
+        {status === 'error' ? (
+          <ViewState
+            className="ticket-panel glass-card react-scoreboard-state error"
+            badge="Error"
+            badgeTone="warning"
+            title="Error de lectura"
+            copy={error || 'No se pudo cargar el scoreboard cacheado.'}
+            detail="Solo se intento GET /api/mlb/scoreboard."
+          />
+        ) : null}
+        {status === 'empty' ? (
+          <ViewState
+            className="ticket-panel glass-card react-scoreboard-state"
+            badge="Cache vacio"
+            title="Sin juegos disponibles"
+            copy="El endpoint respondio sin juegos renderizables. La mesa queda en modo read-only."
+          />
+        ) : null}
 
         {status === 'success' ? (
           <section className="scoreboard-group scoreboard-section-shell react-scoreboard-tab-panel">

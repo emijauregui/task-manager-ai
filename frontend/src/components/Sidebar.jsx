@@ -1,84 +1,58 @@
 /**
  * Sidebar.jsx
- * Phase: React Migration v2 — App Shell Premium
- * Enhanced sidebar with functional collapse and improved states.
+ * Phase: React Migration v6 - shared navigation metadata.
  */
-import { useState } from 'react';
+import { ROUTES } from '../hooks';
 
-const NAV_ITEMS = [
-  {
-    hash: '#dashboard',
-    view: 'dashboard',
-    label: 'Dashboard',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <rect x="3.5" y="4" width="7" height="6.5" rx="2" stroke="currentColor" strokeWidth="1.8" />
-        <rect x="13.5" y="4" width="7" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" />
-        <rect x="3.5" y="13.5" width="7" height="6.5" rx="2" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M14.5 18.5h5.5M14.5 15.5h3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    hash: '#daily-ticket',
-    view: 'daily-ticket',
-    label: 'Ticket del dia',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M4.5 8.5A2.5 2.5 0 0 1 7 6h10a2.5 2.5 0 0 1 2.5 2.5v2a2 2 0 0 0 0 4v1.5A2.5 2.5 0 0 1 17 18.5H7A2.5 2.5 0 0 1 4.5 16v-1.5a2 2 0 0 0 0-4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M9 9h6M9 12.5h6M9 16h3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    hash: '#scoreboard',
-    view: 'scoreboard',
-    label: 'Scoreboard',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <rect x="3.5" y="5" width="17" height="10.5" rx="3" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M7.2 9h3M7.2 12h3M12 8.3v4.9M15.6 8.3v4.9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M16.2 18.3 18.6 20.7 21 18.3 18.6 15.9 16.2 18.3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    hash: '#history',
-    view: 'history',
-    label: 'Historial',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M5 6.5H3.5V4m1.5 2.5a8.5 8.5 0 1 1-1.1 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M12 8v4l3 1.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M16.5 17.5 20 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    hash: '#debug-props',
-    view: 'debug-props',
-    label: 'Debug props',
-    id: 'nav-debug-props',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M12 4.5a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15Z" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M12 7.5v9M7.5 12h9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <circle cx="12" cy="12" r="2" fill="currentColor" />
-      </svg>
-    ),
-  },
-  {
-    hash: '#tasks',
-    view: 'tasks',
-    label: 'Tareas',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <rect x="4" y="4.5" width="16" height="15" rx="3" stroke="currentColor" strokeWidth="1.8" />
-        <path d="m8 10 1.8 1.8L13 8.8M8 15h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-];
+const NAV_ICONS = {
+  dashboard: (
+    <svg viewBox="0 0 24 24" fill="none">
+      <rect x="3.5" y="4" width="7" height="6.5" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="13.5" y="4" width="7" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="3.5" y="13.5" width="7" height="6.5" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M14.5 18.5h5.5M14.5 15.5h3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  ),
+  'daily-ticket': (
+    <svg viewBox="0 0 24 24" fill="none">
+      <path d="M4.5 8.5A2.5 2.5 0 0 1 7 6h10a2.5 2.5 0 0 1 2.5 2.5v2a2 2 0 0 0 0 4v1.5A2.5 2.5 0 0 1 17 18.5H7A2.5 2.5 0 0 1 4.5 16v-1.5a2 2 0 0 0 0-4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M9 9h6M9 12.5h6M9 16h3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  ),
+  scoreboard: (
+    <svg viewBox="0 0 24 24" fill="none">
+      <rect x="3.5" y="5" width="17" height="10.5" rx="3" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M7.2 9h3M7.2 12h3M12 8.3v4.9M15.6 8.3v4.9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M16.2 18.3 18.6 20.7 21 18.3 18.6 15.9 16.2 18.3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  ),
+  history: (
+    <svg viewBox="0 0 24 24" fill="none">
+      <path d="M5 6.5H3.5V4m1.5 2.5a8.5 8.5 0 1 1-1.1 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 8v4l3 1.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M16.5 17.5 20 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  ),
+  'debug-props': (
+    <svg viewBox="0 0 24 24" fill="none">
+      <path d="M12 4.5a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15Z" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 7.5v9M7.5 12h9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+    </svg>
+  ),
+  tasks: (
+    <svg viewBox="0 0 24 24" fill="none">
+      <rect x="4" y="4.5" width="16" height="15" rx="3" stroke="currentColor" strokeWidth="1.8" />
+      <path d="m8 10 1.8 1.8L13 8.8M8 15h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+};
+
+const NAV_ITEMS = ROUTES.map((route) => ({
+  ...route,
+  label: route.sidebarLabel,
+  icon: NAV_ICONS[route.view],
+}));
 
 export default function Sidebar({ activeView, onNavigate, isCollapsed, onToggleCollapse }) {
   return (
@@ -109,7 +83,7 @@ export default function Sidebar({ activeView, onNavigate, isCollapsed, onToggleC
         </button>
       </div>
 
-      <nav className="sidebar-nav" aria-label="Navegación principal">
+      <nav className="sidebar-nav" aria-label="Navegacion principal">
         {NAV_ITEMS.map((item) => (
           <a
             key={item.view}

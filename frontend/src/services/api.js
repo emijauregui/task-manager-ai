@@ -139,6 +139,24 @@ export async function fetchHistorySummary() {
   return res.json();
 }
 
+export async function getHistorySummary() {
+  try {
+    const res = await fetch(apiUrl('/api/daily-ticket/history/summary'), {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+
+    if (!res.ok) {
+      throw new Error(`getHistorySummary: ${res.status}`);
+    }
+
+    const data = await res.json().catch(() => ({}));
+    return data && typeof data === 'object' ? data : {};
+  } catch (error) {
+    throw new Error(error?.message || 'getHistorySummary: request failed');
+  }
+}
+
 /**
  * GET /api/daily-ticket/history/patterns
  */

@@ -3,11 +3,11 @@
  * Phase: React Migration v3.2 - Dashboard Data
  */
 import { useEffect, useMemo, useState } from 'react';
+import MetricCard from '../components/MetricCard';
+import ViewState from '../components/ViewState';
+import WarningBanner from '../components/WarningBanner';
 import { getDailyTicketDashboard } from '../services/api';
-
-function asArray(value) {
-  return Array.isArray(value) ? value.filter(Boolean) : [];
-}
+import { asArray } from '../services/dataUtils';
 
 function firstObject(...values) {
   return values.find((value) => value && typeof value === 'object') || null;
@@ -80,47 +80,6 @@ function hasUsefulDashboardData(dashboard) {
         dashboard.summary ||
         dashboard.metrics
       )
-  );
-}
-
-function LoadingState() {
-  return (
-    <section className="ticket-panel glass-card react-dashboard-state">
-      <span className="ui-badge subtle">GET /dashboard</span>
-      <h3>Cargando dashboard cacheado</h3>
-      <p>Lectura read-only. No se genera ticket, no se refrescan odds y no se abre scoreboard real.</p>
-    </section>
-  );
-}
-
-function ErrorState({ message }) {
-  return (
-    <section className="ticket-panel glass-card react-dashboard-state error">
-      <span className="ui-badge warning">Error</span>
-      <h3>No se pudo cargar el Dashboard</h3>
-      <p>{message || 'El backend no respondio el resumen cacheado.'}</p>
-      <small>Solo se intento GET /api/daily-ticket/dashboard.</small>
-    </section>
-  );
-}
-
-function EmptyState() {
-  return (
-    <section className="ticket-panel glass-card react-dashboard-state">
-      <span className="ui-badge subtle">Cache vacio</span>
-      <h3>Dashboard sin datos disponibles</h3>
-      <p>La respuesta llego vacia o incompleta. La UI queda estable y protegida.</p>
-    </section>
-  );
-}
-
-function MetricCard({ label, value, note, tone = 'neutral' }) {
-  return (
-    <article className={`slate-desk-metric ${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{note}</small>
-    </article>
   );
 }
 
@@ -255,9 +214,32 @@ export default function DashboardView() {
         </div>
       </div>
 
-      {status === 'loading' ? <LoadingState /> : null}
-      {status === 'error' ? <ErrorState message={error} /> : null}
-      {status === 'empty' ? <EmptyState /> : null}
+      {status === 'loading' ? (
+        <ViewState
+          className="ticket-panel glass-card react-dashboard-state"
+          badge="GET /dashboard"
+          title="Cargando dashboard cacheado"
+          copy="Lectura read-only. No se genera ticket, no se refrescan odds y no se abre scoreboard real."
+        />
+      ) : null}
+      {status === 'error' ? (
+        <ViewState
+          className="ticket-panel glass-card react-dashboard-state error"
+          badge="Error"
+          badgeTone="warning"
+          title="No se pudo cargar el Dashboard"
+          copy={error || 'El backend no respondio el resumen cacheado.'}
+          detail="Solo se intento GET /api/daily-ticket/dashboard."
+        />
+      ) : null}
+      {status === 'empty' ? (
+        <ViewState
+          className="ticket-panel glass-card react-dashboard-state"
+          badge="Cache vacio"
+          title="Dashboard sin datos disponibles"
+          copy="La respuesta llego vacia o incompleta. La UI queda estable y protegida."
+        />
+      ) : null}
 
       {status === 'success' ? (
         <>
@@ -309,23 +291,11 @@ export default function DashboardView() {
             </section>
           </div>
 
-          {derived.warnings.length ? (
-            <section className="ticket-panel glass-card compact-panel react-dashboard-warnings">
-              <div className="panel-header">
-                <div>
-                  <p className="panel-kicker">Warnings</p>
-                  <h3>Notas del cache</h3>
-                </div>
-              </div>
-              <div className="warning-chip-row">
-                {derived.warnings.map((warning, index) => (
-                  <span className="warning-chip" key={`${warning}-${index}`}>
-                    {warning}
-                  </span>
-                ))}
-              </div>
-            </section>
-          ) : null}
+          <WarningBanner
+            className="react-dashboard-warnings"
+            title="Notas del cache"
+            warnings={derived.warnings}
+          />
         </>
       ) : null}
     </section>

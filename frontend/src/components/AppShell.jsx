@@ -3,7 +3,6 @@
  * Phase: React Migration v2 — App Shell Premium
  * Enhanced shell with functional collapse and improved layout.
  */
-import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import DeskChrome from './DeskChrome';
 import DashboardView from '../views/DashboardView';
@@ -12,21 +11,8 @@ import ScoreboardView from '../views/ScoreboardView';
 import HistoryView from '../views/HistoryView';
 import DebugPropsView from '../views/DebugPropsView';
 import TasksView from '../views/TasksView';
-
-const DEFAULT_VIEW = 'dashboard';
-const ROUTES = [
-  { hash: '#dashboard', view: 'dashboard', label: 'Home' },
-  { hash: '#daily-ticket', view: 'daily-ticket', label: 'Ticket' },
-  { hash: '#scoreboard', view: 'scoreboard', label: 'Board' },
-  { hash: '#history', view: 'history', label: 'Historial' },
-  { hash: '#debug-props', view: 'debug-props', label: 'Debug' },
-  { hash: '#tasks', view: 'tasks', label: 'Tareas' },
-];
-
-const HASH_TO_VIEW = ROUTES.reduce((map, route) => {
-  map[route.hash] = route.view;
-  return map;
-}, {});
+import { useHashNavigation } from '../hooks';
+import { useState } from 'react';
 
 const VIEW_COMPONENTS = {
   dashboard: DashboardView,
@@ -37,36 +23,10 @@ const VIEW_COMPONENTS = {
   tasks: TasksView,
 };
 
-function getViewFromHash() {
-  if (typeof window === 'undefined') {
-    return DEFAULT_VIEW;
-  }
-
-  return HASH_TO_VIEW[window.location.hash] ?? DEFAULT_VIEW;
-}
-
-function isValidView(view) {
-  return Object.prototype.hasOwnProperty.call(VIEW_COMPONENTS, view);
-}
-
 export default function AppShell() {
-  const [activeView, setActiveView] = useState(() => getViewFromHash());
+  const { activeView, navigate, routes } = useHashNavigation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const ActiveView = VIEW_COMPONENTS[activeView] ?? DashboardView;
-
-  useEffect(() => {
-    const handleHashChange = () => {
-      setActiveView(getViewFromHash());
-    };
-
-    handleHashChange();
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  function handleNavigate(view) {
-    setActiveView(isValidView(view) ? view : DEFAULT_VIEW);
-  }
 
   function handleToggleCollapse() {
     setIsCollapsed((prev) => !prev);
@@ -79,7 +39,7 @@ export default function AppShell() {
     >
       <Sidebar
         activeView={activeView}
-        onNavigate={handleNavigate}
+        onNavigate={navigate}
         isCollapsed={isCollapsed}
         onToggleCollapse={handleToggleCollapse}
       />
@@ -93,14 +53,14 @@ export default function AppShell() {
       </div>
 
       <nav className="mobile-nav">
-        {ROUTES.map((item) => (
+        {routes.map((item) => (
           <a
             key={item.view}
             href={item.hash}
             className={`mobile-nav-link${activeView === item.view ? ' is-active' : ''}`}
             data-nav-view={item.view}
             aria-label={item.label}
-            onClick={() => handleNavigate(item.view)}
+            onClick={() => navigate(item.view)}
           >
             <span className="mobile-nav-icon" aria-hidden="true" />
             <span>{item.label}</span>

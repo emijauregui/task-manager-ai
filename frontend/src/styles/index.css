@@ -919,6 +919,42 @@
   gap: 18px;
 }
 
+.history-ledger-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.history-ledger-strip article {
+  min-width: 0;
+  border: 1px solid rgba(233, 226, 205, 0.1);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(180deg, rgba(247, 241, 224, 0.055), rgba(247, 241, 224, 0.018)),
+    rgba(10, 18, 32, 0.62);
+  padding: 16px;
+}
+
+.history-ledger-strip span,
+.history-ledger-strip small {
+  display: block;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.history-ledger-strip strong {
+  display: block;
+  margin: 7px 0 4px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2vw, 2rem);
+  line-height: 1;
+}
+
 .react-history-metrics {
   margin-bottom: 0;
 }
@@ -949,6 +985,41 @@
   min-width: 0;
 }
 
+.history-settlement-panel,
+.history-pattern-panel,
+.history-type-panel {
+  overflow: hidden;
+}
+
+.history-pattern-panel {
+  align-self: start;
+  max-height: 620px;
+}
+
+.history-settlement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.history-settlement-chip {
+  min-width: 0;
+  border: 1px solid rgba(233, 226, 205, 0.1);
+  border-radius: var(--radius-sm);
+  background: rgba(247, 241, 224, 0.035);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+}
+
+.history-settlement-chip strong {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+}
+
 .react-history-breakdown .foundation-list span {
   display: flex;
   justify-content: space-between;
@@ -964,10 +1035,150 @@
 .react-history-pattern-list {
   display: grid;
   gap: 10px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-color: rgba(216, 162, 79, 0.34) rgba(247, 241, 224, 0.06);
+  scrollbar-width: thin;
 }
 
-.react-history-pattern-list .foundation-debug-item p {
-  margin: 0;
+.react-history-pattern-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.react-history-pattern-list::-webkit-scrollbar-track {
+  background: rgba(247, 241, 224, 0.05);
+  border-radius: 999px;
+}
+
+.react-history-pattern-list::-webkit-scrollbar-thumb {
+  background: rgba(216, 162, 79, 0.34);
+  border-radius: 999px;
+}
+
+.history-pattern-card {
+  min-width: 0;
+  border: 1px solid rgba(233, 226, 205, 0.1);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(180deg, rgba(247, 241, 224, 0.05), rgba(247, 241, 224, 0.018)),
+    rgba(10, 18, 32, 0.58);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.history-pattern-card.is-group {
+  gap: 10px;
+}
+
+.history-pattern-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.history-pattern-head strong {
+  min-width: 0;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-pattern-head em {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.history-pattern-metric-grid {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.history-pattern-card > .history-pattern-metric-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.history-pattern-row {
+  min-width: 0;
+  border: 1px solid rgba(233, 226, 205, 0.09);
+  border-radius: 12px;
+  background: rgba(247, 241, 224, 0.035);
+  display: grid;
+  gap: 8px;
+  padding: 9px 10px;
+}
+
+.history-pattern-row-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.history-pattern-row-main span {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-pattern-row-main strong {
+  border: 1px solid rgba(216, 162, 79, 0.2);
+  border-radius: 999px;
+  background: rgba(216, 162, 79, 0.08);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.history-pattern-row.has-children > .history-pattern-metric-grid {
+  border-left: 1px dashed rgba(233, 226, 205, 0.16);
+  margin-left: 3px;
+  padding-left: 10px;
+}
+
+.history-pattern-toggle {
+  justify-self: start;
+  border: 1px solid rgba(216, 162, 79, 0.2);
+  border-radius: 999px;
+  background: rgba(216, 162, 79, 0.08);
+  color: var(--accent-amber);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 7px 10px;
+}
+
+.history-pattern-toggle:hover,
+.history-pattern-toggle:focus-visible {
+  background: rgba(216, 162, 79, 0.14);
+  border-color: rgba(216, 162, 79, 0.34);
+  outline: none;
+}
+
+.history-pattern-details {
+  border-top: 1px dashed rgba(233, 226, 205, 0.13);
+  padding-top: 10px;
 }
 
 .react-history-warnings {
@@ -996,9 +1207,61 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.history-type-grid {
+  margin-top: 0;
+}
+
+.history-archive-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
 .react-history-slip {
   display: grid;
   gap: 12px;
+}
+
+.history-premium-slip {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(180deg, rgba(247, 241, 224, 0.058), rgba(247, 241, 224, 0.018)),
+    rgba(10, 18, 32, 0.72);
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.history-premium-slip:hover {
+  border-color: rgba(216, 162, 79, 0.28);
+  background:
+    linear-gradient(180deg, rgba(216, 162, 79, 0.075), rgba(247, 241, 224, 0.02)),
+    rgba(10, 18, 32, 0.76);
+  transform: translateY(-2px);
+}
+
+.history-slip-stub {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 7px;
+  border-right: 1px dashed rgba(233, 226, 205, 0.2);
+  background: rgba(216, 162, 79, 0.2);
+}
+
+.history-premium-slip.safe .history-slip-stub {
+  background: rgba(105, 196, 141, 0.24);
+}
+
+.history-premium-slip.emi .history-slip-stub {
+  background: rgba(216, 162, 79, 0.26);
+}
+
+.history-premium-slip.free_bet .history-slip-stub,
+.history-premium-slip.freebet .history-slip-stub,
+.history-premium-slip.free .history-slip-stub {
+  background: rgba(79, 134, 187, 0.26);
 }
 
 .react-history-slip .history-ticket-top {
@@ -1010,6 +1273,15 @@
 
 .react-history-slip .history-ticket-top h4 {
   margin-top: 6px;
+  line-height: 1.15;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.react-history-slip p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.55;
 }
 
 .react-history-slip .history-ticket-badges,
@@ -1020,16 +1292,20 @@
   gap: 6px;
 }
 
+.history-slip-ledger,
 .react-history-slip .history-ticket-metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
+.history-slip-ledger span,
 .react-history-slip .history-ticket-metrics span,
-.react-history-slip .history-preview-pill {
+.react-history-slip .history-preview-pill,
+.history-leg-strip span {
+  min-width: 0;
   border: 1px solid rgba(233, 226, 205, 0.1);
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   background: rgba(247, 241, 224, 0.045);
   color: var(--text-secondary);
   font-family: var(--font-mono);
@@ -1038,8 +1314,47 @@
   padding: 7px 9px;
 }
 
+.history-slip-ledger span {
+  display: grid;
+  gap: 3px;
+}
+
+.history-slip-ledger small {
+  color: var(--text-dim);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+}
+
+.history-slip-ledger strong {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .react-history-slip .history-preview-row {
   justify-content: flex-start;
+}
+
+.history-leg-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.history-leg-strip span {
+  border-radius: 999px;
+  max-width: 100%;
+}
+
+.history-leg-strip.is-empty span {
+  border-style: dashed;
+  color: var(--text-dim);
+}
+
+.history-empty-slip {
+  border-style: dashed;
 }
 
 .react-foundation .ui-badge.won {
@@ -1067,18 +1382,22 @@
     display: grid;
   }
 
+  .history-ledger-strip,
   .react-history-archive {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 640px) {
+  .history-archive-heading,
   .react-history-slip .history-ticket-top,
   .react-history-slip .history-ticket-badges {
     display: grid;
     justify-content: stretch;
   }
 
+  .history-settlement-grid,
+  .history-slip-ledger,
   .react-history-slip .history-ticket-metrics {
     grid-template-columns: 1fr;
   }

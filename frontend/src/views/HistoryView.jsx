@@ -3,12 +3,69 @@
  * Phase: React Migration v5.1 - History Summary Read Only
  */
 import { useEffect, useMemo, useState } from 'react';
-import Badge from '../components/Badge';
+import HistorySlipCard from '../components/HistorySlipCard';
 import SharedMetricCard from '../components/MetricCard';
+import SettlementBreakdown from '../components/SettlementBreakdown';
 import ViewState from '../components/ViewState';
 import WarningBanner from '../components/WarningBanner';
 import { getHistorySummary } from '../services/api';
 import { asArray, firstValue, getNumber, getText, isObject, objectEntries } from '../services/dataUtils';
+
+const TICKET_NAME_BY_TYPE = {
+  emi: 'Estilo Emi',
+  free: 'Free Bet',
+  free_bet: 'Free Bet',
+  freebet: 'Free Bet',
+  safe: 'Ticket Seguro',
+  h2h: 'H2H',
+  spreads: 'Spreads',
+};
+
+const PATTERN_TITLE_BY_KEY = {
+  emi: 'Estilo Emi',
+  free_bet: 'Free Bet',
+  freebet: 'Free Bet',
+  free: 'Free Bet',
+  h2h: 'H2H',
+  safe: 'Ticket Seguro',
+  spreads: 'Spreads',
+};
+
+const PATTERN_METRIC_LABEL_BY_KEY = {
+  count: 'Count',
+  lost: 'Lost',
+  losses: 'Lost',
+  netProfit: 'Net Profit',
+  older: 'Older',
+  partial: 'Partial',
+  payout: 'Payout',
+  pending: 'Pending',
+  push: 'Push',
+  roi: 'ROI',
+  special: 'Special',
+  stake: 'Stake',
+  total: 'Total',
+  totalPayout: 'Payout',
+  totalStake: 'Stake',
+  void: 'Void',
+  voids: 'Void',
+  won: 'Won',
+  wins: 'Won',
+};
+
+const PRIMARY_PATTERN_METRICS = new Set([
+  'count',
+  'lost',
+  'losses',
+  'netprofit',
+  'pending',
+  'roi',
+  'total',
+  'void',
+  'voids',
+  'won',
+  'wins',
+]);
 
 function formatNumber(value, fallback = 'n/d') {
   const numeric = getNumber(value);
@@ -34,6 +91,107 @@ function formatPercent(value) {
   const numeric = getNumber(value);
   if (numeric === null) return 'Pendiente';
   return `${formatNumber(numeric)}%`;
+}
+
+function humanizeKey(value) {
+  const key = String(value || '').trim();
+  if (!key) return 'Metric';
+
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function getPatternTitle(key) {
+  const normalized = String(key || '').trim();
+  const lookupKey = normalized.toLowerCase();
+  return PATTERN_TITLE_BY_KEY[lookupKey] || humanizeKey(normalized);
+}
+
+function getPatternMetricLabel(key) {
+  const normalized = String(key || '').trim();
+  return PATTERN_METRIC_LABEL_BY_KEY[normalized] || PATTERN_METRIC_LABEL_BY_KEY[normalized.toLowerCase()] || humanizeKey(normalized);
+}
+
+function formatPatternMetricValue(key, value) {
+  if (value === null || value === undefined || value === '') {
+    return 'n/d';
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? 'Yes' : 'No';
+  }
+
+  const normalizedKey = String(key || '').toLowerCase();
+  if (normalizedKey.includes('stake') || normalizedKey.includes('payout') || normalizedKey.includes('profit')) {
+    return formatMoney(value);
+  }
+
+  if (normalizedKey === 'roi' || normalizedKey.includes('percent')) {
+    return formatPercent(value);
+  }
+
+  const numeric = getNumber(value);
+  if (numeric !== null) {
+    return formatNumber(numeric);
+  }
+
+  return String(value);
+}
+
+function normalizePatternMetric(key, value, index = 0) {
+  if (Array.isArray(value)) {
+    return {
+      key: `${key}-${index}`,
+      rawKey: String(key || ''),
+      label: getPatternMetricLabel(key),
+      value: `${value.length} items`,
+      children: value.slice(0, 8).map((item, childIndex) => {
+        if (isObject(item)) {
+          return {
+            key: `${key}-${childIndex}`,
+            rawKey: String(item.key || item.type || item.label || ''),
+            label: getPatternTitle(item.label || item.key || item.type || `Item ${childIndex + 1}`),
+            value: '',
+            children: objectEntries(item, 8)
+              .filter(([childKey]) => !['key', 'label', 'type', 'title', 'name'].includes(String(childKey)))
+              .map(([childKey, childValue], nestedIndex) => normalizePatternMetric(childKey, childValue, nestedIndex)),
+          };
+        }
+
+        return {
+          key: `${key}-${childIndex}`,
+          rawKey: String(key || ''),
+          label: `Item ${childIndex + 1}`,
+          value: formatPatternMetricValue(key, item),
+          children: [],
+        };
+      }),
+    };
+  }
+
+  if (isObject(value)) {
+    return {
+      key: `${key}-${index}`,
+      rawKey: String(key || ''),
+      label: getPatternMetricLabel(key),
+      value: '',
+      children: objectEntries(value, 10).map(([childKey, childValue], childIndex) =>
+        normalizePatternMetric(childKey, childValue, childIndex)
+      ),
+    };
+  }
+
+  return {
+    key: `${key}-${index}`,
+    rawKey: String(key || ''),
+    label: getPatternMetricLabel(key),
+    value: formatPatternMetricValue(key, value),
+    children: [],
+  };
 }
 
 function formatDate(value) {
@@ -79,47 +237,6 @@ function getRecentTickets(summary) {
     .slice(0, 6);
 }
 
-function getTicketDate(ticket) {
-  return getText(ticket.date, ticket.ticketDate, ticket.createdAt, ticket.generatedAt);
-}
-
-function getTicketTitle(ticket, index) {
-  return getText(ticket.title, ticket.name, ticket.type, `Archive slip ${index + 1}`);
-}
-
-function getTicketStatus(ticket) {
-  const status = getText(ticket.status, ticket.result, ticket.computedResult, ticket.settlementType).toLowerCase();
-
-  if (status.includes('won') || status.includes('win') || status.includes('gan')) {
-    return { key: 'won', label: 'Win' };
-  }
-  if (status.includes('lost') || status.includes('loss') || status.includes('perd')) {
-    return { key: 'lost', label: 'Loss' };
-  }
-  if (status.includes('push')) {
-    return { key: 'push', label: 'Push' };
-  }
-  if (status.includes('void') || status.includes('refund') || status.includes('cancel')) {
-    return { key: 'void', label: 'Void' };
-  }
-
-  return { key: 'pending', label: 'Pending' };
-}
-
-function getTicketLegs(ticket) {
-  const directLegs = asArray(ticket.legs);
-  if (directLegs.length) return directLegs;
-
-  return asArray(ticket.tickets).flatMap((item) => asArray(item?.legs));
-}
-
-function getTicketPreviewPicks(ticket) {
-  return getTicketLegs(ticket)
-    .map((leg) => getText(leg?.pick, leg?.selection, leg?.market))
-    .filter(Boolean)
-    .slice(0, 3);
-}
-
 function normalizeWarnings(summary) {
   return [
     ...asArray(summary?.warnings),
@@ -149,18 +266,45 @@ function normalizePatterns(summary) {
 
   const fromObjects = patternObjects.flatMap((item) =>
     objectEntries(item).map(([key, value]) => ({
-      label: key,
-      value: isObject(value) ? JSON.stringify(value) : String(value),
+      id: `pattern-${key}`,
+      label: getPatternTitle(key),
+      value: Array.isArray(value) || isObject(value) ? '' : formatPatternMetricValue(key, value),
+      metrics: Array.isArray(value)
+        ? value.slice(0, 8).map((entry, index) => normalizePatternMetric(`${key}_${index + 1}`, entry, index))
+        : isObject(value)
+          ? objectEntries(value, 12).map(([metricKey, metricValue], index) => normalizePatternMetric(metricKey, metricValue, index))
+          : [],
     }))
   );
 
   return [
-    ...directPatterns.map((item, index) => ({
+    ...directPatterns.map((item, index) => {
+      const value = isObject(item) || Array.isArray(item) ? '' : formatPatternMetricValue(`pattern_${index + 1}`, item);
+      return {
+        id: `direct-pattern-${index + 1}`,
       label: `Pattern ${index + 1}`,
-      value: String(item),
-    })),
+        value,
+        metrics: isObject(item)
+          ? objectEntries(item, 12).map(([metricKey, metricValue], metricIndex) => normalizePatternMetric(metricKey, metricValue, metricIndex))
+          : Array.isArray(item)
+            ? item.slice(0, 8).map((metricValue, metricIndex) => normalizePatternMetric(`item_${metricIndex + 1}`, metricValue, metricIndex))
+            : [],
+      };
+    }),
     ...fromObjects,
   ].slice(0, 6);
+}
+
+function normalizeTicketTypeSummaries(summary) {
+  const source =
+    firstValue(summary, ['recordByTicketType', 'byTicketType', ['metrics', 'recordByTicketType']]) || {};
+
+  return objectEntries(source, 6).map(([type, value]) => ({
+    ...(isObject(value) ? value : { total: value }),
+    key: type,
+    type,
+    typeLabel: TICKET_NAME_BY_TYPE[String(type).toLowerCase()] || String(type).replace(/[_-]/g, ' '),
+  }));
 }
 
 function getDerivedSummary(summary) {
@@ -187,7 +331,8 @@ function getDerivedSummary(summary) {
     totalStake: getNumber(summary?.totalStake, summary?.stake),
     totalPayout: getNumber(summary?.totalPayout, summary?.payout),
     recentTickets,
-    settlement: objectEntries(summary?.settlementBreakdown),
+    ticketTypeSummaries: normalizeTicketTypeSummaries(summary),
+    settlementBreakdown: firstValue(summary, ['settlementBreakdown', ['metrics', 'settlementBreakdown']]),
     patterns: normalizePatterns(summary),
     warnings: normalizeWarnings(summary),
     dateRange: {
@@ -201,74 +346,91 @@ function MetricCard({ label, value, note, tone = 'neutral' }) {
   return <SharedMetricCard baseClass="history-stat-card react-history-metric" label={label} value={value} note={note} tone={tone} />;
 }
 
-function StatusBadge({ status }) {
-  return <Badge tone={status.key}>{status.label}</Badge>;
+function isPrimaryPatternMetric(metric) {
+  return PRIMARY_PATTERN_METRICS.has(String(metric?.rawKey || metric?.label || '').replace(/\s+/g, '').toLowerCase());
 }
 
-function ArchiveSlipCard({ ticket, index }) {
-  const status = getTicketStatus(ticket);
-  const previewPicks = getTicketPreviewPicks(ticket);
-  const legsCount = getTicketLegs(ticket).length;
-  const netProfit = getNumber(ticket.netProfit, ticket.profit, ticket.net);
-  const stake = getNumber(ticket.stake, ticket.totalStake);
+function getPatternSummaryMetrics(pattern) {
+  const metrics = asArray(pattern?.metrics);
+  const primary = metrics.filter(isPrimaryPatternMetric);
 
+  if (primary.length) {
+    return primary.slice(0, 6);
+  }
+
+  if (!metrics.length) {
+    return [];
+  }
+
+  return [{
+    key: `${pattern.id || pattern.label}-metric-count`,
+    rawKey: 'count',
+    label: 'Metrics',
+    value: formatNumber(metrics.length),
+    children: [],
+  }];
+}
+
+function getPatternDetailMetrics(pattern, summaryMetrics) {
+  const summaryKeys = new Set(summaryMetrics.map((metric) => metric.key));
+  return asArray(pattern?.metrics)
+    .filter((metric) => !summaryKeys.has(metric.key))
+    .slice(0, 8);
+}
+
+function PatternMetricRows({ metrics, allowChildren = false }) {
   return (
-    <article className={`history-ticket-card archive-slip-card react-history-slip ${status.key}`}>
-      <div className="history-ticket-top">
-        <div>
-          <span className="history-ticket-serial">ARC-{String(index + 1).padStart(3, '0')}</span>
-          <strong>{formatDate(getTicketDate(ticket))}</strong>
-          <h4>{getTicketTitle(ticket, index)}</h4>
-        </div>
-        <div className="history-ticket-badges">
-          <StatusBadge status={status} />
-          <span className="ui-badge subtle">Read-only</span>
-        </div>
-      </div>
-
-      <div className="history-ticket-metrics">
-        <span>{legsCount || formatNumber(ticket.totalPicks, '0')} picks</span>
-        <span>{stake === null ? 'Stake n/d' : formatMoney(stake)}</span>
-        <span>{netProfit === null ? 'Profit n/d' : formatMoney(netProfit)}</span>
-      </div>
-
-      <p>{getText(ticket.summary, ticket.note, ticket.description, 'Slip historico del archivo cacheado.')}</p>
-
-      {previewPicks.length ? (
-        <div className="history-preview-row">
-          {previewPicks.map((pick) => (
-            <span className="history-preview-pill" key={pick}>{pick}</span>
-          ))}
-        </div>
-      ) : null}
-    </article>
+    <div className="history-pattern-metric-grid">
+      {metrics.map((metric, index) => (
+        <article
+          className={`history-pattern-row ${metric.children?.length ? 'has-children' : ''}`}
+          key={`${metric.key || metric.label}-${index}`}
+        >
+          <div className="history-pattern-row-main">
+            <span>{metric.label}</span>
+            {metric.value ? <strong>{metric.value}</strong> : null}
+          </div>
+          {allowChildren && metric.children?.length ? (
+            <PatternMetricRows metrics={metric.children.slice(0, 6)} allowChildren />
+          ) : null}
+        </article>
+      ))}
+    </div>
   );
 }
 
-function BreakdownPanel({ title, kicker, entries, emptyCopy }) {
+function PatternCard({ pattern }) {
+  const [expanded, setExpanded] = useState(false);
+  const summaryMetrics = getPatternSummaryMetrics(pattern);
+  const detailMetrics = getPatternDetailMetrics(pattern, summaryMetrics);
+  const hasDetails = detailMetrics.length > 0;
+
   return (
-    <section className="ticket-panel glass-card compact-panel react-history-breakdown">
-      <div className="panel-header">
-        <div>
-          <p className="panel-kicker">{kicker}</p>
-          <h3>{title}</h3>
-        </div>
+    <article className={`history-pattern-card ${pattern.metrics.length ? 'is-group' : 'is-single'}`}>
+      <div className="history-pattern-head">
+        <span className="ui-badge subtle">{pattern.metrics.length ? 'Summary' : 'Metric'}</span>
+        <strong>{pattern.label}</strong>
+        {!pattern.metrics.length ? <em>{pattern.value || 'n/d'}</em> : null}
       </div>
-      {entries.length ? (
-        <div className="foundation-list">
-          {entries.map(([key, value]) => (
-            <span key={key}>
-              <strong>{key}</strong> {isObject(value) ? JSON.stringify(value) : String(value)}
-            </span>
-          ))}
-        </div>
-      ) : (
-        <div className="empty-inline rich">
-          <strong>{emptyCopy}</strong>
-          <p>El summary no incluyo este bloque.</p>
-        </div>
-      )}
-    </section>
+      {summaryMetrics.length ? <PatternMetricRows metrics={summaryMetrics} /> : null}
+      {hasDetails ? (
+        <>
+          <button
+            type="button"
+            className="history-pattern-toggle"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {expanded ? 'Ocultar detalles' : 'Ver detalles'}
+          </button>
+          {expanded ? (
+            <div className="history-pattern-details">
+              <PatternMetricRows metrics={detailMetrics} allowChildren />
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </article>
   );
 }
 
@@ -352,8 +514,8 @@ export default function HistoryView() {
         <ViewState
           className="ticket-panel glass-card react-history-state"
           badge="Archivo vacio"
-          title="Sin historial disponible"
-          copy="El endpoint respondio sin metricas ni slips renderizables. La vista queda estable en modo read-only."
+          title="Archivo sin tickets todavia"
+          copy="El endpoint respondio sin metricas ni slips renderizables. La mesa queda estable en modo read-only."
         />
       ) : null}
 
@@ -362,7 +524,7 @@ export default function HistoryView() {
           <div className="panel-header">
             <div>
               <p className="panel-kicker">Ticket archive</p>
-              <h3>Resumen cacheado</h3>
+              <h3>Archivo premium cacheado</h3>
             </div>
             <div className="hero-badges">
               <span className="ui-badge cache">Summary read</span>
@@ -372,6 +534,24 @@ export default function HistoryView() {
                   : 'Fechas n/d'}
               </span>
             </div>
+          </div>
+
+          <div className="history-ledger-strip">
+            <article>
+              <span>Resultado neto</span>
+              <strong>{formatMoney(derived.netProfit)}</strong>
+              <small>{formatPercent(derived.roi)} ROI</small>
+            </article>
+            <article>
+              <span>Volumen</span>
+              <strong>{formatNumber(derived.totalTickets, '0')}</strong>
+              <small>{formatNumber(derived.totalStake, '0')} stake total</small>
+            </article>
+            <article>
+              <span>Boletos vivos</span>
+              <strong>{formatNumber(derived.pending, '0')}</strong>
+              <small>{formatNumber(derived.void, '0')} void/refund</small>
+            </article>
           </div>
 
           <div className="history-stats-grid react-history-metrics">
@@ -399,13 +579,8 @@ export default function HistoryView() {
           </div>
 
           <div className="react-history-grid">
-            <BreakdownPanel
-              title="Settlement"
-              kicker="Breakdown"
-              entries={derived.settlement}
-              emptyCopy="Sin settlementBreakdown."
-            />
-            <section className="ticket-panel glass-card compact-panel react-history-breakdown">
+            <SettlementBreakdown breakdown={derived.settlementBreakdown} />
+            <section className="ticket-panel glass-card compact-panel react-history-breakdown history-pattern-panel">
               <div className="panel-header">
                 <div>
                   <p className="panel-kicker">Patterns</p>
@@ -415,10 +590,7 @@ export default function HistoryView() {
               {derived.patterns.length ? (
                 <div className="react-history-pattern-list">
                   {derived.patterns.map((pattern) => (
-                    <article className="foundation-debug-item" key={`${pattern.label}-${pattern.value}`}>
-                      <strong>{pattern.label}</strong>
-                      <p>{pattern.value}</p>
-                    </article>
+                    <PatternCard pattern={pattern} key={pattern.id || pattern.label} />
                   ))}
                 </div>
               ) : (
@@ -436,16 +608,49 @@ export default function HistoryView() {
             warnings={derived.warnings}
           />
 
+          <section className="ticket-panel glass-card compact-panel history-type-panel">
+            <div className="panel-header">
+              <div>
+                <p className="panel-kicker">Ticket types</p>
+                <h3>Rendimiento por boleto</h3>
+              </div>
+              <span className="ui-badge subtle">Ticket Seguro / Estilo Emi / Free Bet</span>
+            </div>
+            {derived.ticketTypeSummaries.length ? (
+              <div className="foundation-archive-grid react-history-archive history-type-grid">
+                {derived.ticketTypeSummaries.map((ticket, index) => (
+                  <HistorySlipCard ticket={ticket} index={index} variant="type" key={ticket.key || index} />
+                ))}
+              </div>
+            ) : (
+              <div className="empty-inline rich">
+                <strong>Sin resumen por tipo.</strong>
+                <p>El summary no incluyo recordByTicketType/byTicketType.</p>
+              </div>
+            )}
+          </section>
+
+          <div className="history-archive-heading">
+            <div>
+              <p className="panel-kicker">Archive slips</p>
+              <h3>Boletos recientes</h3>
+            </div>
+            <span className="ui-badge subtle">{derived.recentTickets.length || 0} slips</span>
+          </div>
+
           <div className="foundation-archive-grid react-history-archive">
             {derived.recentTickets.length ? (
               derived.recentTickets.map((ticket, index) => (
-                <ArchiveSlipCard ticket={ticket} index={index} key={`${getTicketDate(ticket)}-${getTicketTitle(ticket, index)}-${index}`} />
+                <HistorySlipCard ticket={ticket} index={index} key={`${getText(ticket.date, ticket.ticketDate, ticket.createdAt)}-${getText(ticket.title, ticket.name, ticket.type)}-${index}`} />
               ))
             ) : (
-              <article className="ticket-panel glass-card compact-panel react-history-slip">
+              <article className="ticket-panel glass-card compact-panel react-history-slip history-premium-slip history-empty-slip">
                 <p className="panel-kicker">Archive slip</p>
                 <h4>Sin slips recientes incluidos</h4>
-                <p className="panel-subtitle">El summary trae metricas, pero no incluyo recent tickets/slips renderizables.</p>
+                <p className="panel-subtitle">El summary trae metricas de archivo, pero no incluyo recent tickets/slips renderizables.</p>
+                <div className="history-leg-strip is-empty">
+                  <span>Usa el panel de tipos para revisar rendimiento agregado.</span>
+                </div>
               </article>
             )}
           </div>

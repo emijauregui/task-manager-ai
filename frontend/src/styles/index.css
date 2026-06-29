@@ -640,8 +640,76 @@
   background: linear-gradient(180deg, rgba(216, 162, 79, 0.14), rgba(247, 241, 224, 0.025));
 }
 
+.ticket-selector-warnings,
+.react-ticket-warning-row,
+.react-leg-warning-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ticket-selector-warnings {
+  margin-top: 8px;
+}
+
+.react-ticket-selector .warning-chip,
+.react-ticket-warning-row .warning-chip,
+.react-leg-warning-row .warning-chip {
+  max-width: 100%;
+  border: 1px solid rgba(216, 162, 79, 0.18);
+  border-radius: 999px;
+  background: rgba(216, 162, 79, 0.085);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  font-weight: 800;
+  line-height: 1.25;
+  padding: 5px 8px;
+}
+
 .react-leg-row {
   background: rgba(247, 241, 224, 0.026);
+}
+
+.react-leg-row.is-expanded {
+  border-color: rgba(216, 162, 79, 0.24);
+}
+
+.react-foundation .bet-leg-toggle {
+  border: 1px solid rgba(233, 226, 205, 0.16);
+  border-radius: 999px;
+  background: rgba(247, 241, 224, 0.055);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 7px 10px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.react-foundation .bet-leg-toggle:hover,
+.react-foundation .bet-leg-toggle:focus-visible {
+  border-color: rgba(216, 162, 79, 0.38);
+  outline: none;
+}
+
+.react-leg-details {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.react-leg-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.react-leg-detail-grid .bet-leg-detail-block.compact p {
+  margin-top: 4px;
 }
 
 .react-leg-avatar {
@@ -660,6 +728,12 @@
 
 .react-foundation .bet-leg-meta .ui-badge {
   justify-content: center;
+}
+
+@media (max-width: 780px) {
+  .react-leg-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 900px) {

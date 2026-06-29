@@ -4,34 +4,24 @@
  * Centralized API helper for Daily Ticket AI.
  *
  * Rules enforced here:
- *  - In development (localhost) calls go to http://localhost:3000
- *  - In production, paths are relative (/api/…) so Netlify's
- *    proxy redirect forwards them to the Render backend.
+ *  - In development, paths are relative (/api/...) so Vite's
+ *    proxy forwards them to the local backend.
+ *  - In production, paths stay relative so Netlify's proxy
+ *    forwards them to the Render backend.
  *  - No live Odds API or Bedrock calls are made automatically.
  *  - Only explicit user actions should trigger generate/expensive endpoints.
  * ─────────────────────────────────────────────────────────────
  */
 
-const IS_LOCAL =
-  typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1');
-
 /**
  * Build a full URL for the given API path.
- * - Local dev  → http://localhost:3000/api/…
- * - Production → /api/…  (Netlify proxy handles the rest)
+ * - Local dev  -> /api/... (Vite proxy handles the rest)
+ * - Production -> /api/... (Netlify proxy handles the rest)
  *
  * @param {string} path  e.g. "/api/daily-ticket/today"
  * @returns {string}
  */
 export function apiUrl(path) {
-  if (IS_LOCAL) {
-    // Vite dev server proxies /api to localhost:3000, but we can also
-    // use the direct URL to make the intent explicit.
-    return `http://localhost:3000${path}`;
-  }
-  // In production, use relative path — Netlify rewrites /api/* → backend
   return path;
 }
 
@@ -63,7 +53,8 @@ export async function getTodayTicket() {
       throw new Error(`getTodayTicket: ${res.status}`);
     }
 
-    return await res.json();
+    const data = await res.json().catch(() => ({}));
+    return data && typeof data === 'object' ? data : {};
   } catch (error) {
     throw new Error(error?.message || 'getTodayTicket: request failed');
   }

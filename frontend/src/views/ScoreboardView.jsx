@@ -14,6 +14,34 @@ const SCOREBOARD_TABS = [
   { key: 'recent', label: 'Recientes' },
 ];
 
+const SCOREBOARD_TIME_ZONE = 'America/Mazatlan';
+const SLATE_ONLY_EMPTY_COPY =
+  'Este endpoint actualmente entrega el slate de hoy. Próximos/recientes quedan pendientes para soporte de fechas.';
+
+function isDateKey(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
+}
+
+function getDateKey(value) {
+  if (!value) return '';
+
+  const text = String(value).trim();
+  if (isDateKey(text)) return text;
+
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return '';
+
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: SCOREBOARD_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(parsed);
+
+  const partMap = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${partMap.year}-${partMap.month}-${partMap.day}`;
+}
+
 function getGameId(game, index) {
   return String(game?.id || game?.gameId || `${game?.awayTeam || 'away'}-${game?.homeTeam || 'home'}-${index}`);
 }
@@ -30,38 +58,108 @@ function uniqueGames(games) {
   });
 }
 
+function getStatusText(game) {
+  return [
+    game?.statusType,
+    game?.statusDescription,
+    game?.status,
+    game?.state,
+  ].filter(Boolean).join(' ').toUpperCase();
+}
+
 function isLiveGame(game) {
-  return game?.isLive === true || String(game?.statusType || '').toUpperCase().includes('IN_PROGRESS');
+  const status = getStatusText(game);
+  return game?.isLive === true || status.includes('IN_PROGRESS') || status.includes('LIVE');
 }
 
 function isFinalGame(game) {
-  return game?.isFinal === true || String(game?.statusType || '').toUpperCase().includes('FINAL');
+  const status = getStatusText(game);
+  return game?.isFinal === true || status.includes('FINAL') || status.includes('COMPLETED');
 }
 
 function isScheduledGame(game) {
-  return game?.isScheduled === true || String(game?.statusType || '').toUpperCase().includes('SCHEDULED');
+  const status = getStatusText(game);
+  return game?.isScheduled === true || status.includes('SCHEDULED') || status.includes('PRE');
+}
+
+function getSlateDate(scoreboard, games) {
+  const directDate = getDateKey(scoreboard?.date || scoreboard?.today?.date);
+  if (directDate) return directDate;
+
+  const datedGame = asArray(games).find((game) => getDateKey(game?.sourceDate || game?.date || game?.startTime));
+  return getDateKey(datedGame?.sourceDate || datedGame?.date || datedGame?.startTime);
+}
+
+function getGameSlateDate(game) {
+  return getDateKey(game?.sourceDate || game?.date || game?.startTime);
+}
+
+function isSameSlateDate(game, slateDate) {
+  const gameDate = getGameSlateDate(game);
+  return Boolean(slateDate && gameDate && gameDate === slateDate);
+}
+
+function isAfterSlateDate(game, slateDate) {
+  const gameDate = getGameSlateDate(game);
+  return Boolean(slateDate && gameDate && gameDate > slateDate);
+}
+
+function isBeforeSlateDate(game, slateDate) {
+  const gameDate = getGameSlateDate(game);
+  return Boolean(slateDate && gameDate && gameDate < slateDate);
 }
 
 function getScoreboardGroups(scoreboard) {
-  const todayGames = uniqueGames(
-    asArray(scoreboard?.today?.games).length ? scoreboard.today.games : scoreboard?.games
-  );
-  const upcomingGames = uniqueGames([
+  const explicitTodayGames = uniqueGames(asArray(scoreboard?.today?.games));
+  const topLevelGames = uniqueGames(asArray(scoreboard?.games));
+  const explicitUpcomingGames = uniqueGames([
     ...asArray(scoreboard?.tomorrow?.games),
     ...asArray(scoreboard?.upcoming?.games),
+    ...asArray(scoreboard?.future?.games),
+    ...asArray(scoreboard?.next?.games),
   ]);
-  const recentGames = uniqueGames([
+  const explicitRecentGames = uniqueGames([
     ...asArray(scoreboard?.recent?.games),
-    ...todayGames.filter(isFinalGame),
+    ...asArray(scoreboard?.previous?.games),
+    ...asArray(scoreboard?.past?.games),
+    ...asArray(scoreboard?.yesterday?.games),
   ]);
-  const allGames = uniqueGames([...todayGames, ...upcomingGames, ...recentGames]);
+  const allGames = uniqueGames([
+    ...explicitTodayGames,
+    ...topLevelGames,
+    ...explicitUpcomingGames,
+    ...explicitRecentGames,
+  ]);
+  const slateDate = getSlateDate(scoreboard, allGames);
+  const todayGames = uniqueGames(
+    explicitTodayGames.length
+      ? explicitTodayGames
+      : topLevelGames.filter((game) => isSameSlateDate(game, slateDate))
+  );
+  const upcomingGames = uniqueGames([
+    ...explicitUpcomingGames,
+    ...allGames.filter((game) => isAfterSlateDate(game, slateDate) && isScheduledGame(game)),
+  ]).filter((game) => !isFinalGame(game) && !isSameSlateDate(game, slateDate));
+  const recentGames = uniqueGames([
+    ...explicitRecentGames,
+    ...allGames.filter((game) => isBeforeSlateDate(game, slateDate) || isFinalGame(game)),
+  ]);
+  const isTodayOnlyEndpoint = Boolean(
+    todayGames.length &&
+      !explicitUpcomingGames.length &&
+      !explicitRecentGames.length &&
+      allGames.length &&
+      allGames.every((game) => isSameSlateDate(game, slateDate))
+  );
 
   return {
     live: allGames.filter(isLiveGame),
     today: todayGames,
-    upcoming: upcomingGames.filter((game) => !isFinalGame(game)),
+    upcoming: upcomingGames,
     recent: recentGames,
     all: allGames,
+    isTodayOnlyEndpoint,
+    slateDate,
   };
 }
 
@@ -73,7 +171,11 @@ function getDefaultActiveTab(groups) {
   return 'live';
 }
 
-function getEmptyTabCopy(tabKey, tabLabel) {
+function getEmptyTabCopy(tabKey, tabLabel, groups) {
+  if ((tabKey === 'upcoming' || tabKey === 'recent') && groups?.isTodayOnlyEndpoint) {
+    return SLATE_ONLY_EMPTY_COPY;
+  }
+
   if (tabKey === 'live') return 'Sin juegos en vivo.';
   if (tabKey === 'today') return 'Sin juegos de hoy.';
   if (tabKey === 'upcoming') return 'Sin próximos juegos.';
@@ -88,7 +190,7 @@ function formatGameTime(value) {
   if (Number.isNaN(parsed.getTime())) return String(value);
 
   return new Intl.DateTimeFormat('es-MX', {
-    timeZone: 'America/Mazatlan',
+    timeZone: SCOREBOARD_TIME_ZONE,
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
@@ -388,11 +490,11 @@ function GameCard({ game }) {
   );
 }
 
-function GamesPanel({ games, tabKey, tabLabel }) {
+function GamesPanel({ games, tabKey, tabLabel, groups }) {
   if (!games.length) {
     return (
       <div className="empty-inline rich scoreboard-empty">
-        <strong>{getEmptyTabCopy(tabKey, tabLabel)}</strong>
+        <strong>{getEmptyTabCopy(tabKey, tabLabel, groups)}</strong>
         <p>Scoreboard cacheado sin entradas para esta pestaña.</p>
       </div>
     );
@@ -538,7 +640,7 @@ export default function ScoreboardView() {
               </div>
               <span className="ui-badge cache">Sin live calls</span>
             </div>
-            <GamesPanel games={activeGames} tabKey={activeTab} tabLabel={activeLabel} />
+            <GamesPanel games={activeGames} tabKey={activeTab} tabLabel={activeLabel} groups={groups} />
           </section>
         ) : null}
       </section>

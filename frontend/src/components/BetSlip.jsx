@@ -1,7 +1,16 @@
 import LegRow from './LegRow';
 
+const TICKET_NAME_BY_TYPE = {
+  safe: 'Ticket Seguro',
+  emi: 'Estilo Emi',
+  free: 'Free Bet',
+  free_bet: 'Free Bet',
+  freebet: 'Free Bet',
+};
+
 function getTicketName(ticket, index) {
-  return ticket?.name || ticket?.title || `Ticket ${index + 1}`;
+  const type = String(ticket?.type || '').toLowerCase();
+  return ticket?.name || ticket?.title || TICKET_NAME_BY_TYPE[type] || `Ticket ${index + 1}`;
 }
 
 function getTicketSummary(ticket, parentTicket) {
@@ -10,6 +19,27 @@ function getTicketSummary(ticket, parentTicket) {
   }
 
   return ticket?.summary || parentTicket?.summary || 'Ticket cacheado listo para revisar en modo read-only.';
+}
+
+function summarizeWarningChip(text) {
+  const value = String(text || '').trim();
+  if (!value) {
+    return '';
+  }
+
+  return value.length > 38 ? `${value.slice(0, 35).trim()}...` : value;
+}
+
+function getTicketWarnings(parentTicket, ticket) {
+  const warnings = [
+    ...(Array.isArray(parentTicket?.warnings) ? parentTicket.warnings : []),
+    ...(Array.isArray(ticket?.warnings) ? ticket.warnings : []),
+    ...(Array.isArray(ticket?.ruleWarnings) ? ticket.ruleWarnings : []),
+  ]
+    .map(summarizeWarningChip)
+    .filter(Boolean);
+
+  return Array.from(new Set(warnings));
 }
 
 export default function BetSlip({ ticket, parentTicket, selectedIndex }) {
@@ -24,6 +54,7 @@ export default function BetSlip({ ticket, parentTicket, selectedIndex }) {
 
   const legs = Array.isArray(ticket.legs) ? ticket.legs.filter(Boolean) : [];
   const unavailable = ticket.available === false;
+  const warnings = getTicketWarnings(parentTicket, ticket);
   const metrics = [
     { label: 'Stake', value: ticket.stake || ticket.stakeSuggestion || 'Libre' },
     { label: 'Momio', value: ticket.odds || ticket.targetOdds || 'Sin rango' },
@@ -61,6 +92,14 @@ export default function BetSlip({ ticket, parentTicket, selectedIndex }) {
       </div>
 
       <div className="compact-divider ticket-perforation" aria-hidden="true" />
+
+      {warnings.length ? (
+        <div className="warning-chip-row react-ticket-warning-row">
+          {warnings.map((warning) => (
+            <span className="warning-chip" key={warning}>{warning}</span>
+          ))}
+        </div>
+      ) : null}
 
       {unavailable ? (
         <div className="ticket-unavailable">

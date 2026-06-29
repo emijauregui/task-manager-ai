@@ -598,6 +598,41 @@
   justify-content: flex-end;
 }
 
+.react-generate-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border-color: rgba(216, 162, 79, 0.2);
+  background:
+    linear-gradient(90deg, rgba(216, 162, 79, 0.1), rgba(105, 196, 141, 0.055)),
+    rgba(10, 18, 32, 0.58);
+}
+
+.react-generate-panel h3 {
+  font-size: clamp(1.05rem, 1.5vw, 1.35rem);
+  line-height: 1.12;
+}
+
+.react-generate-panel p {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  max-width: 640px;
+}
+
+.react-generate-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.react-generate-button {
+  min-width: 210px;
+}
+
 .react-ticket-grid {
   align-items: start;
 }
@@ -621,6 +656,13 @@
 
 .react-ticket-state.error {
   border-color: rgba(196, 100, 87, 0.28);
+}
+
+.react-ticket-state.generating {
+  border-color: rgba(216, 162, 79, 0.28);
+  background:
+    linear-gradient(180deg, rgba(216, 162, 79, 0.1), rgba(247, 241, 224, 0.025)),
+    rgba(10, 18, 32, 0.66);
 }
 
 .react-ticket-summary {
@@ -743,6 +785,95 @@
 
   .react-ticket-intro-badges {
     justify-content: flex-start;
+  }
+
+  .react-generate-panel {
+    display: grid;
+  }
+
+  .react-generate-controls {
+    justify-content: flex-start;
+  }
+
+  .react-generate-button {
+    width: 100%;
+  }
+}
+
+/* --- React Migration v4: Scoreboard Read Only ---------------------------- */
+
+.react-scoreboard-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.react-scoreboard-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border: 1px solid rgba(233, 226, 205, 0.1);
+  border-radius: 14px;
+  background: rgba(247, 241, 224, 0.035);
+  padding: 12px 14px;
+}
+
+.react-scoreboard-meta strong {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.react-scoreboard-meta span {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.react-scoreboard-state {
+  padding: 28px;
+  display: grid;
+  gap: 12px;
+  max-width: 900px;
+}
+
+.react-scoreboard-state h3 {
+  font-size: clamp(1.25rem, 2vw, 1.85rem);
+  line-height: 1.1;
+}
+
+.react-scoreboard-state p,
+.react-scoreboard-state small {
+  color: var(--text-secondary);
+}
+
+.react-scoreboard-state.error {
+  border-color: rgba(196, 100, 87, 0.28);
+}
+
+.react-scoreboard-tab-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.react-scoreboard-games {
+  display: grid;
+  gap: 14px;
+}
+
+.react-scoreboard-card {
+  overflow: hidden;
+}
+
+.react-scoreboard-card .game-card-layout {
+  align-items: stretch;
+}
+
+.react-ai-lean {
+  min-width: 170px;
+}
+
+@media (max-width: 760px) {
+  .react-scoreboard-meta {
+    display: grid;
   }
 }
 

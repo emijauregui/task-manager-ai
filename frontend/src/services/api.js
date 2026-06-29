@@ -102,6 +102,24 @@ export async function fetchScoreboard() {
   return res.json();
 }
 
+export async function getMlbScoreboard() {
+  try {
+    const res = await fetch(apiUrl('/api/mlb/scoreboard'), {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+
+    if (!res.ok) {
+      throw new Error(`getMlbScoreboard: ${res.status}`);
+    }
+
+    const data = await res.json().catch(() => ({}));
+    return data && typeof data === 'object' ? data : {};
+  } catch (error) {
+    throw new Error(error?.message || 'getMlbScoreboard: request failed');
+  }
+}
+
 /**
  * GET /api/daily-ticket/odds/guard
  * Returns the odds gate status — safe, no live call.
@@ -134,17 +152,32 @@ export async function fetchHistoryPatterns() {
 
 /**
  * POST /api/daily-ticket/generate
- * ⚠️  ONLY call this from an explicit user action (button click).
- * Triggers Bedrock + Odds API — never call automatically.
- *
- * @param {{ confirmLive?: boolean }} [opts]
+ * Only call this from an explicit user action.
+ * Never call automatically.
+ * Sends an empty JSON body and never sends confirmLive.
  */
-export async function generateTicket(opts = {}) {
-  const res = await fetch(apiUrl('/api/daily-ticket/generate'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(opts),
-  });
-  if (!res.ok) throw new Error(`generateTicket: ${res.status}`);
-  return res.json();
+export async function generateDailyTicket() {
+  try {
+    const res = await fetch(apiUrl('/api/daily-ticket/generate'), {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!res.ok) {
+      throw new Error(`generateDailyTicket: ${res.status}`);
+    }
+
+    const data = await res.json().catch(() => ({}));
+    return data && typeof data === 'object' ? data : {};
+  } catch (error) {
+    throw new Error(error?.message || 'generateDailyTicket: request failed');
+  }
+}
+
+export async function generateTicket() {
+  return generateDailyTicket();
 }

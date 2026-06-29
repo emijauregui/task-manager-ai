@@ -1,9 +1,9 @@
 /**
  * DailyTicketView.jsx
- * Phase: React Migration v3.1 - Daily Ticket Read Only
+ * Phase: React Migration v3.3 - Generate Manual Button
  */
 import { useEffect, useMemo, useState } from 'react';
-import { getTodayTicket } from '../services/api';
+import { generateDailyTicket, getTodayTicket } from '../services/api';
 import BetSlip from '../components/BetSlip';
 import TicketSelector from '../components/TicketSelector';
 
@@ -18,10 +18,20 @@ function normalizeTodayTicketResponse(data) {
 
   let ticket = null;
 
-  if (data.hasTicketToday === true && data.ticket) {
+  if (Array.isArray(data.tickets)) {
+    ticket = data;
+  } else if (data.hasTicketToday === true && data.ticket) {
     ticket = data.ticket;
+  } else if (data.dailyTicket) {
+    ticket = data.dailyTicket;
   } else if (data.todayTicket) {
     ticket = data.todayTicket;
+  } else if (data.generatedTicket) {
+    ticket = data.generatedTicket;
+  } else if (data.result?.ticket) {
+    ticket = data.result.ticket;
+  } else if (data.data?.ticket) {
+    ticket = data.data.ticket;
   } else if (data.ticket?.ticket) {
     ticket = data.ticket.ticket;
   } else if (data.ticket) {
@@ -46,13 +56,13 @@ function getRenderableTickets(ticket) {
 }
 
 function getDefaultTicketIndex(tickets) {
-  const safeIndex = tickets.findIndex((item) => item?.type === 'safe');
-  if (safeIndex >= 0) {
-    return safeIndex;
+  const availableIndex = tickets.findIndex((item) => item?.available !== false);
+  if (availableIndex >= 0) {
+    return availableIndex;
   }
 
-  const availableIndex = tickets.findIndex((item) => item?.available !== false);
-  return availableIndex >= 0 ? availableIndex : 0;
+  const safeIndex = tickets.findIndex((item) => item?.type === 'safe');
+  return safeIndex >= 0 ? safeIndex : 0;
 }
 
 function formatTicketDate(dateKey) {
@@ -73,23 +83,43 @@ function formatTicketDate(dateKey) {
   }).format(parsed);
 }
 
+function formatTicketTimestamp(value) {
+  if (!value) {
+    return 'Sin registro';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat('es-MX', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(parsed);
+}
+
 function LoadingState() {
   return (
     <div className="ticket-panel ticket-panel-main glass-card react-ticket-state">
       <span className="ui-badge subtle">GET /today</span>
-      <h3>Cargando Ticket del Dia</h3>
+      <h3>Cargando ticket cacheado</h3>
       <p>Consultando cache read-only. No se genera ticket ni se refrescan odds.</p>
     </div>
   );
 }
 
-function ErrorState({ message }) {
+function ErrorState({ message, mode = 'read' }) {
   return (
     <div className="ticket-panel ticket-panel-main glass-card react-ticket-state error">
       <span className="ui-badge warning">Error</span>
-      <h3>No se pudo leer el Ticket del Dia</h3>
+      <h3>{mode === 'generate' ? 'No se pudo generar el Ticket del Dia' : 'No se pudo leer el Ticket del Dia'}</h3>
       <p>{message || 'El backend no respondio el cache de hoy.'}</p>
-      <small>Solo se intento GET /api/daily-ticket/today.</small>
+      <small>
+        {mode === 'generate'
+          ? 'Generate se intento solo por click manual. No se llamo odds refresh.'
+          : 'Solo se intento GET /api/daily-ticket/today.'}
+      </small>
     </div>
   );
 }
@@ -103,10 +133,42 @@ function EmptyState() {
         Esta fase no genera tickets automaticamente. Cuando exista un ticket cacheado,
         aqui apareceran sus slips y legs en modo lectura.
       </p>
-      <button type="button" className="btn btn-primary btn-ticket" disabled>
-        Generacion manual pendiente
-      </button>
     </div>
+  );
+}
+
+function GeneratingState() {
+  return (
+    <div className="ticket-panel ticket-panel-main glass-card react-ticket-state generating">
+      <span className="ui-badge pending">POST /generate</span>
+      <h3>Generando Ticket del Dia</h3>
+      <p>Generacion manual en curso. Puede usar IA configurada, pero no hace live odds ni refresh.</p>
+    </div>
+  );
+}
+
+function GenerateManualPanel({ disabled, isGenerating, generatedManually, onGenerate }) {
+  return (
+    <section className="ticket-panel glass-card react-generate-panel">
+      <div>
+        <p className="panel-kicker">Desk action</p>
+        <h3>Generacion manual</h3>
+        <p>
+          Generacion manual. Puede usar IA configurada, pero no hace live odds ni refresh.
+        </p>
+      </div>
+      <div className="react-generate-controls">
+        {generatedManually ? <span className="ui-badge generated">Generado manualmente</span> : null}
+        <button
+          type="button"
+          className="btn btn-primary btn-ticket react-generate-button"
+          disabled={disabled}
+          onClick={onGenerate}
+        >
+          {isGenerating ? 'Generando...' : 'Generar Ticket del Día'}
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -114,7 +176,29 @@ export default function DailyTicketView() {
   const [status, setStatus] = useState('loading');
   const [ticket, setTicket] = useState(null);
   const [error, setError] = useState('');
+  const [errorMode, setErrorMode] = useState('read');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedManually, setGeneratedManually] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  function applyTicketData(data, { manual = false } = {}) {
+    const normalized = normalizeTodayTicketResponse(data);
+    const nextTickets = getRenderableTickets(normalized.ticket);
+
+    if (!normalized.hasTicketToday || !normalized.ticket || !nextTickets.length) {
+      setTicket(null);
+      setSelectedIndex(0);
+      setGeneratedManually(false);
+      setStatus('empty');
+      return false;
+    }
+
+    setTicket(normalized.ticket);
+    setSelectedIndex(getDefaultTicketIndex(nextTickets));
+    setGeneratedManually(manual);
+    setStatus('success');
+    return true;
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -122,6 +206,8 @@ export default function DailyTicketView() {
     async function loadTicket() {
       setStatus('loading');
       setError('');
+      setErrorMode('read');
+      setGeneratedManually(false);
 
       try {
         const data = await getTodayTicket();
@@ -129,19 +215,7 @@ export default function DailyTicketView() {
           return;
         }
 
-        const normalized = normalizeTodayTicketResponse(data);
-        const tickets = getRenderableTickets(normalized.ticket);
-
-        if (!normalized.hasTicketToday || !normalized.ticket || !tickets.length) {
-          setTicket(null);
-          setSelectedIndex(0);
-          setStatus('empty');
-          return;
-        }
-
-        setTicket(normalized.ticket);
-        setSelectedIndex(getDefaultTicketIndex(tickets));
-        setStatus('success');
+        applyTicketData(data);
       } catch (loadError) {
         if (cancelled) {
           return;
@@ -160,11 +234,51 @@ export default function DailyTicketView() {
     };
   }, []);
 
+  async function handleGenerateTicket() {
+    if (isGenerating || status === 'loading') {
+      return;
+    }
+
+    setIsGenerating(true);
+    setError('');
+    setErrorMode('generate');
+    setGeneratedManually(false);
+    setStatus('generating');
+
+    try {
+      const generated = await generateDailyTicket();
+      let rendered = applyTicketData(generated, { manual: true });
+
+      if (!rendered && generated?.success === true) {
+        const refreshed = await getTodayTicket();
+        rendered = applyTicketData(refreshed, { manual: true });
+      }
+
+      if (!rendered) {
+        setTicket(null);
+        setSelectedIndex(0);
+        setGeneratedManually(false);
+        setStatus('empty');
+      }
+    } catch (generateError) {
+      setTicket(null);
+      setError(
+        'No se pudo generar el ticket del dia. El backend no devolvio un ticket renderizable; revisa el cache de odds o intenta mas tarde.'
+      );
+      setErrorMode('generate');
+      setGeneratedManually(false);
+      setStatus('error');
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
   const tickets = useMemo(() => getRenderableTickets(ticket), [ticket]);
   const selectedTicket = tickets[selectedIndex] || tickets[0] || null;
   const totalLegs = tickets.reduce((sum, item) => {
     return sum + (Array.isArray(item?.legs) ? item.legs.length : 0);
   }, 0);
+  const actionDisabled = status === 'loading' || isGenerating;
 
   return (
     <section
@@ -177,7 +291,7 @@ export default function DailyTicketView() {
           <p className="panel-kicker">Ticket del dia</p>
           <h3>Lectura read-only del ticket cacheado</h3>
           <p className="panel-subtitle">
-            Vista conectada solo a GET /api/daily-ticket/today. Sin generate,
+            Vista conectada a cache read-only y generate manual. Sin generate automatico,
             sin Bedrock y sin Odds API live al abrir.
           </p>
         </div>
@@ -188,8 +302,16 @@ export default function DailyTicketView() {
         </div>
       </div>
 
+      <GenerateManualPanel
+        disabled={actionDisabled}
+        isGenerating={isGenerating}
+        generatedManually={generatedManually}
+        onGenerate={handleGenerateTicket}
+      />
+
       {status === 'loading' ? <LoadingState /> : null}
-      {status === 'error' ? <ErrorState message={error} /> : null}
+      {status === 'generating' ? <GeneratingState /> : null}
+      {status === 'error' ? <ErrorState message={error} mode={errorMode} /> : null}
       {status === 'empty' ? <EmptyState /> : null}
 
       {status === 'success' ? (
@@ -241,9 +363,10 @@ export default function DailyTicketView() {
               </div>
               <div className="foundation-list">
                 <span>Fecha cache: {ticket?.date || 'Sin fecha'}</span>
+                <span>Generado: {formatTicketTimestamp(ticket?.generatedAt)}</span>
                 <span>Tickets disponibles: {tickets.length}</span>
                 <span>Legs renderizadas: {totalLegs}</span>
-                <span>Generacion: manual pendiente</span>
+                <span>Generacion: {generatedManually ? 'manual completada' : 'manual disponible'}</span>
               </div>
             </section>
 

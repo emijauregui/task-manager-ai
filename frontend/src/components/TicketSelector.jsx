@@ -1,5 +1,14 @@
+const TICKET_NAME_BY_TYPE = {
+  safe: 'Ticket Seguro',
+  emi: 'Estilo Emi',
+  free: 'Free Bet',
+  free_bet: 'Free Bet',
+  freebet: 'Free Bet',
+};
+
 function getTicketName(ticket, index) {
-  return ticket?.name || ticket?.title || `Ticket ${index + 1}`;
+  const type = String(ticket?.type || '').toLowerCase();
+  return ticket?.name || ticket?.title || TICKET_NAME_BY_TYPE[type] || `Ticket ${index + 1}`;
 }
 
 function getTicketOdds(ticket) {
@@ -10,6 +19,26 @@ function getTicketMeta(ticket) {
   const legs = Array.isArray(ticket?.legs) ? ticket.legs.length : 0;
   const risk = ticket?.risk || ticket?.riskLevel || 'Riesgo n/d';
   return `${legs} legs | ${risk}`;
+}
+
+function summarizeWarningChip(text) {
+  const value = String(text || '').trim();
+  if (!value) {
+    return '';
+  }
+
+  return value.length > 34 ? `${value.slice(0, 31).trim()}...` : value;
+}
+
+function getTicketWarnings(ticket) {
+  const warnings = [
+    ...(Array.isArray(ticket?.warnings) ? ticket.warnings : []),
+    ...(Array.isArray(ticket?.ruleWarnings) ? ticket.ruleWarnings : []),
+  ]
+    .map(summarizeWarningChip)
+    .filter(Boolean);
+
+  return Array.from(new Set(warnings)).slice(0, 2);
 }
 
 export default function TicketSelector({ tickets, selectedIndex, onSelect }) {
@@ -27,6 +56,7 @@ export default function TicketSelector({ tickets, selectedIndex, onSelect }) {
       {tickets.map((ticket, index) => {
         const active = index === selectedIndex;
         const unavailable = ticket?.available === false;
+        const warnings = getTicketWarnings(ticket);
 
         return (
           <button
@@ -45,6 +75,13 @@ export default function TicketSelector({ tickets, selectedIndex, onSelect }) {
               <span>{getTicketMeta(ticket)}</span>
               <span>{unavailable ? 'No disponible' : 'Read-only'}</span>
             </div>
+            {warnings.length ? (
+              <div className="ticket-selector-warnings" aria-label="Warnings del ticket">
+                {warnings.map((warning) => (
+                  <span className="warning-chip" key={warning}>{warning}</span>
+                ))}
+              </div>
+            ) : null}
             <div className="ticket-selector-serial-row">
               <span className="ticket-card-copy">Cache listo</span>
               <span className="ticket-card-serial">{String(ticket?.type || `slip-${index + 1}`).toUpperCase()}</span>

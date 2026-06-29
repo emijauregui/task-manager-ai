@@ -1,4 +1,4 @@
-/**
+﻿/**
  * index.css
  * React Migration v2 — App Shell Premium
  * React imports the canonical Ballpark Betting Desk stylesheet through Vite.
@@ -443,7 +443,7 @@
   font-family: var(--font-mono);
 }
 
-/* ─── Badges & UI Elements ───────────────────────────────────────────────── */
+/* --- Badges & UI Elements ------------------------------------------- */
 
 .react-foundation .ui-badge {
   padding: 6px 12px;
@@ -479,7 +479,14 @@
   color: #f5d4cf;
 }
 
-/* ─── Buttons Enhanced ───────────────────────────────────────────────────── */
+.react-foundation .ui-badge.generated {
+  background: rgba(105, 196, 141, 0.14);
+  border-color: rgba(105, 196, 141, 0.34);
+  color: #d5f5df;
+  font-weight: 700;
+}
+
+/* --- Buttons Enhanced ------------------------------------------------ */
 
 .react-foundation .btn {
   transition: all 180ms ease;

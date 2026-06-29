@@ -192,6 +192,13 @@ export default function DailyTicketView() {
       return;
     }
 
+    const confirmed = window.confirm(
+      'Esto generará un ticket manual usando la configuración actual. No activará live odds ni refresh de cuotas. ¿Continuar?'
+    );
+    if (!confirmed) {
+      return;
+    }
+
     setIsGenerating(true);
     setError('');
     setErrorMode('generate');

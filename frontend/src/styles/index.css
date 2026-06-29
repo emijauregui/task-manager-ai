@@ -1,23 +1,175 @@
-﻿/**
+/**
  * index.css
- * React Migration v2 — App Shell Premium
- * React imports the canonical Ballpark Betting Desk stylesheet through Vite.
- * App Shell enhancements live here so frontend/styles.css stays untouched.
+ * React Migration v7.1 — Ballpark Betting Desk Visual Redesign
+ * Establishes the core premium design system foundation:
+ * tokens, layouts, cards, badges, buttons, typography, and polished visual elements.
  */
 
-/* Import the canonical Ballpark Betting Desk stylesheet */
+/* Import the canonical Ballpark Betting Desk stylesheet as base */
 @import url('../../styles.css');
 
-/* ─── React Migration v2: App Shell Premium ─────────────────────────────── */
+:root {
+  /* ─── Creative Identity: Ballpark Betting Desk Colors ─────────────────── */
+  --clubhouse-black: #060b11;    /* Deep sports black clubhouse/warroom bg */
+  --scoreboard-navy: #0b1a2d;    /* Solid MLB scoreboard navy */
+  --dugout-charcoal: #142232;    /* Solid dugout dark intermediate gray-blue */
+  --petco-gold: #dfab56;         /* Premium golden accent highlight */
+  --paper-cream: #f6f1e3;        /* Vintage sports journalism cream white */
+  --field-green: #248a56;        /* Rich outfield baseball turf green */
+  --warning-amber: #e69d24;      /* High visibility warning amber */
+  --ticket-blue: #3b6e8c;        /* Classic sportsbook ticket slate blue */
+  
+  /* Game / Bet State Tones */
+  --win-green: #2bb673;          /* Rich victory green */
+  --loss-red: #c46457;           /* Retro sportsbook loss red */
+  --push-gray: #708090;          /* Scoreboard push gray */
+  
+  /* Border & Shadows */
+  --border-subtle: rgba(246, 241, 227, 0.08);
+  --border-subtle-strong: rgba(246, 241, 227, 0.16);
+  --shadow-premium: 0 20px 48px rgba(0, 0, 0, 0.55);
+  --shadow-premium-soft: 0 10px 24px rgba(0, 0, 0, 0.35);
+
+  /* Spacing Scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Radius Scale */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 999px;
+
+  /* Typography Scale */
+  --font-size-xs: 0.72rem;
+  --font-size-sm: 0.82rem;
+  --font-size-md: 0.92rem;
+  --font-size-lg: 1.1rem;
+  --font-size-xl: 1.4rem;
+  --font-size-xxl: 2rem;
+
+  /* ─── Mapping to override canonical variables globally ───────────────── */
+  --surface: var(--clubhouse-black);
+  --surface-dim: #04080c;
+  --surface-lowest: #020406;
+  --surface-low: var(--dugout-charcoal);
+  --surface-card: var(--scoreboard-navy);
+  --surface-card-strong: var(--clubhouse-black);
+  --surface-border: var(--border-subtle);
+  --surface-border-strong: var(--border-subtle-strong);
+  --surface-soft: rgba(246, 241, 227, 0.04);
+  
+  --text-primary: var(--paper-cream);
+  --text-secondary: #c8c3b2;
+  --text-dim: #7f8b99;
+  
+  --primary: var(--ticket-blue);
+  --primary-dark: #2a526b;
+  --secondary: #9cb5c9;
+  --secondary-dark: #627b8f;
+  --tertiary: var(--petco-gold);
+  --tertiary-dark: #bd8633;
+  
+  --accent-red: var(--loss-red);
+  --error: #efb3a3;
+  --error-dark: #c96c5c;
+  --success: var(--win-green);
+  --shadow: var(--shadow-premium);
+  --shadow-soft: var(--shadow-premium-soft);
+}
+
+/* ─── Global Reset & Body Adjustments ───────────────────────────────────── */
 
 #root {
   min-height: 100vh;
 }
 
-/* ─── Layout & Shell ─────────────────────────────────────────────────────── */
+body {
+  background:
+    radial-gradient(circle at 14% 0%, rgba(59, 110, 140, 0.12), transparent 28%),
+    radial-gradient(circle at 88% 0%, rgba(223, 171, 86, 0.06), transparent 24%),
+    linear-gradient(180deg, var(--clubhouse-black) 0%, #080f17 40%, var(--scoreboard-navy) 100%) !important;
+  color: var(--paper-cream) !important;
+  font-family: 'Inter', sans-serif;
+  line-height: 1.55;
+}
+
+/* ─── Typography & Hierarchy ────────────────────────────────────────────── */
+
+.react-foundation .desk-title,
+.react-foundation h2 {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-size: var(--font-size-xxl) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--paper-cream) !important;
+  text-transform: uppercase;
+  line-height: 1.1 !important;
+  margin-bottom: var(--space-sm);
+}
+
+.react-foundation .section-title,
+.react-foundation h3 {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-size: var(--font-size-xl) !important;
+  font-weight: 700 !important;
+  color: var(--petco-gold) !important;
+  letter-spacing: 0.02em !important;
+  text-transform: uppercase;
+  line-height: 1.2 !important;
+  margin-bottom: var(--space-sm);
+}
+
+.react-foundation .card-title,
+.react-foundation h4 {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-size: var(--font-size-lg) !important;
+  font-weight: 600 !important;
+  color: var(--paper-cream) !important;
+  letter-spacing: -0.01em !important;
+  margin-bottom: var(--space-sm);
+}
+
+.react-foundation p,
+.react-foundation .body-text {
+  font-family: 'Inter', sans-serif !important;
+  font-size: var(--font-size-md) !important;
+  color: var(--text-secondary) !important;
+  line-height: 1.55 !important;
+}
+
+.react-foundation .panel-kicker,
+.react-foundation .hero-kicker,
+.react-foundation .desk-scorebar-label,
+.react-foundation .sidebar-card-title,
+.react-foundation .game-insight-label {
+  font-family: var(--font-mono) !important;
+  font-size: var(--font-size-xs) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  color: var(--text-dim) !important;
+}
+
+.react-foundation strong,
+.react-foundation .game-score,
+.react-foundation .bet-slip-metric strong,
+.react-foundation .history-slip-ledger strong,
+.react-foundation .desk-scorebar-item strong {
+  font-family: var(--font-mono) !important;
+}
+
+/* ─── Layout & Shell Balance ────────────────────────────────────────────── */
 
 .react-foundation.app-shell {
   transition: grid-template-columns 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  width: 100%;
 }
 
 .react-foundation.app-shell.is-collapsed {
@@ -34,11 +186,10 @@
 
 .react-foundation .page-content {
   flex: 1;
-  padding: 24px 28px 80px;
+  padding: var(--space-lg) var(--space-xl) 80px !important;
   max-width: var(--content-max);
   width: 100%;
   margin: 0 auto;
-  align-items: start;
   min-width: 0;
 }
 
@@ -47,17 +198,25 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-md);
 }
 
-/* ─── Sidebar Enhanced ───────────────────────────────────────────────────── */
+/* ─── Premium App Sidebar ───────────────────────────────────────────────── */
 
 .react-foundation .app-sidebar {
   transition: width 240ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.react-foundation.is-collapsed .app-sidebar {
-  width: var(--sidebar-width-collapsed);
+  background: linear-gradient(
+    180deg,
+    #050a0f 0%,
+    var(--clubhouse-black) 100%
+  ) !important;
+  border-right: 1px solid rgba(246, 241, 227, 0.08) !important;
+  box-shadow: 6px 0 30px rgba(0, 0, 0, 0.45) !important;
+  padding: 20px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
 }
 
 .react-foundation.is-collapsed .brand-copy,
@@ -74,19 +233,19 @@
   color: var(--text-secondary);
   cursor: pointer;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
   font-size: 0.9rem;
   transition: all 180ms ease;
 }
 
 .react-foundation .sidebar-toggle:hover {
   background: var(--surface-soft);
-  border-color: var(--surface-border-strong);
-  color: var(--text-primary);
+  border-color: var(--petco-gold);
+  color: var(--paper-cream);
 }
 
 .react-foundation .sidebar-toggle:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--petco-gold);
   outline-offset: 2px;
 }
 
@@ -94,9 +253,36 @@
   transform: rotate(180deg);
 }
 
+.react-foundation .brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.react-foundation .brand-lockup h1 {
+  font-family: 'Space Grotesk', sans-serif !important;
+  color: var(--paper-cream) !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.react-foundation .brand-logo-frame-sidebar {
+  border-radius: var(--radius-xs);
+  border: 1px solid rgba(246, 241, 227, 0.15);
+  background: rgba(246, 241, 227, 0.05);
+  padding: 2px;
+}
+
 .react-foundation .nav-link {
   position: relative;
   transition: all 180ms ease;
+  border-radius: var(--radius-xs) !important;
+  margin: 2px 0 !important;
+  font-family: 'Space Grotesk', sans-serif !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em !important;
+  color: var(--text-secondary) !important;
 }
 
 .react-foundation .nav-link::before {
@@ -107,43 +293,46 @@
   transform: translateY(-50%);
   width: 3px;
   height: 0;
-  background: var(--tertiary);
+  background: var(--petco-gold);
   border-radius: 0 2px 2px 0;
   transition: height 180ms ease;
 }
 
 .react-foundation .nav-link:hover {
-  background: var(--surface-soft);
+  background: rgba(246, 241, 227, 0.04) !important;
+  color: var(--paper-cream) !important;
 }
 
 .react-foundation .nav-link:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--petco-gold);
   outline-offset: -2px;
 }
 
 .react-foundation .nav-link.is-active {
-  background: rgba(216, 162, 79, 0.12);
-  border-color: rgba(216, 162, 79, 0.24);
-  color: var(--tertiary);
+  background: rgba(223, 171, 86, 0.08) !important;
+  border-color: rgba(223, 171, 86, 0.2) !important;
+  color: var(--petco-gold) !important;
 }
 
 .react-foundation .nav-link.is-active::before {
   height: 24px;
+  background: var(--petco-gold) !important;
 }
 
-.react-foundation .nav-icon {
-  flex-shrink: 0;
+.react-foundation .sidebar-card {
+  background: rgba(18, 30, 45, 0.5) !important;
+  border: 1px solid rgba(246, 241, 227, 0.06) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: var(--space-md) !important;
+  margin-top: auto;
 }
 
-/* ─── DeskChrome Enhanced ────────────────────────────────────────────────── */
+/* ─── Scoreboard Ticker (DeskChrome) ────────────────────────────────────── */
 
 .react-foundation .desk-scorebar {
-  background: linear-gradient(
-    90deg,
-    var(--surface-card-strong) 0%,
-    var(--surface-card) 100%
-  );
-  border-bottom: 1px solid var(--surface-border-strong);
+  background: var(--clubhouse-black) !important;
+  border-bottom: 2px solid rgba(246, 241, 227, 0.1) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45) !important;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -158,18 +347,15 @@
   min-height: 52px;
   overflow-x: auto;
   scrollbar-width: none;
-}
-
-.react-foundation .desk-scorebar-track::-webkit-scrollbar {
-  display: none;
+  background: rgba(11, 26, 43, 0.6) !important;
 }
 
 .react-foundation .desk-scorebar-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 16px;
-  border-right: 1px solid rgba(233, 226, 205, 0.08);
+  padding: 10px 20px !important;
+  border-right: 1px solid rgba(246, 241, 227, 0.08) !important;
   min-width: max-content;
 }
 
@@ -179,1279 +365,633 @@
 }
 
 .react-foundation .desk-scorebar-label {
-  font-size: 0.7rem;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-family: var(--font-mono);
+  font-size: 0.68rem !important;
+  color: var(--petco-gold) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  font-family: var(--font-mono) !important;
 }
 
 .react-foundation .desk-scorebar-item strong {
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  font-family: var(--font-mono);
+  font-size: var(--font-size-sm) !important;
+  color: var(--paper-cream) !important;
+  font-family: var(--font-mono) !important;
+  letter-spacing: 0.02em !important;
 }
 
-/* ─── Views Enhanced ─────────────────────────────────────────────────────── */
-
-.react-foundation .foundation-view {
-  width: 100%;
+#desk-scorebar-cache {
+  color: #a8ebd1 !important;
 }
 
-.react-foundation .slate-desk-hero {
-  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
-  align-items: start;
-  gap: 28px;
-  padding: 32px 36px;
+#desk-scorebar-calls {
+  color: var(--text-dim) !important;
 }
 
-.react-foundation .slate-desk-head {
-  width: 100%;
-  max-width: 980px;
+/* ─── Premium Cards System ──────────────────────────────────────────────── */
+
+.react-foundation .desk-panel,
+.react-foundation .glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(11, 26, 43, 0.95) 0%,
+    rgba(18, 30, 45, 0.95) 100%
+  ) !important;
+  border: 1px solid rgba(246, 241, 227, 0.1) !important;
+  box-shadow: var(--shadow-premium) !important;
+  border-radius: var(--radius-md) !important;
+  position: relative;
+  overflow: hidden;
 }
 
-.react-foundation .slate-desk-head h2 {
-  max-width: min(960px, 100%);
-  font-size: clamp(1.9rem, 3vw, 3rem);
-  line-height: 1.02;
-  letter-spacing: 0.06em;
-  white-space: normal;
-  word-break: normal;
-  overflow-wrap: normal;
-  hyphens: manual;
-  text-wrap: balance;
-  margin-bottom: 16px;
+.react-foundation .desk-panel::before,
+.react-foundation .glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.02) 0%,
+    transparent 15%
+  );
+  z-index: 1;
 }
 
-.react-foundation .slate-desk-head .hero-description {
-  max-width: 68ch;
-  line-height: 1.6;
-  color: var(--text-secondary);
+.react-foundation .desk-card {
+  background: var(--surface-low) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: var(--space-md) !important;
 }
 
-.react-foundation .hero-badges {
+.react-foundation .ticket-card,
+.react-foundation .mini-ticket-card {
+  background: linear-gradient(
+    180deg,
+    rgba(18, 30, 45, 0.8) 0%,
+    rgba(11, 26, 43, 0.95) 100%
+  ) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: var(--space-md) !important;
+  transition: all 180ms ease !important;
+  position: relative;
+}
+
+.react-foundation .ticket-card:hover,
+.react-foundation .mini-ticket-card:hover {
+  border-color: rgba(223, 171, 86, 0.3) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(22, 38, 56, 0.9) 0%,
+    rgba(14, 30, 50, 0.95) 100%
+  ) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+.react-foundation .ticket-card.active,
+.react-foundation .mini-ticket-card.active {
+  border-color: var(--petco-gold) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(223, 171, 86, 0.08) 0%,
+    rgba(11, 26, 43, 0.95) 100%
+  ) !important;
+  box-shadow: 0 0 0 1px var(--petco-gold), 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.react-foundation .game-card,
+.react-foundation .scorebug-card {
+  background: linear-gradient(
+    135deg,
+    rgba(18, 30, 45, 0.85) 0%,
+    rgba(11, 26, 43, 0.95) 100%
+  ) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: var(--space-md) !important;
+  box-shadow: var(--shadow-premium-soft) !important;
+}
+
+.react-foundation .archive-card,
+.react-foundation .history-premium-slip {
+  background: linear-gradient(
+    180deg,
+    rgba(18, 30, 45, 0.7) 0%,
+    rgba(11, 26, 43, 0.85) 100%
+  ) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: var(--space-md) !important;
+  transition: all 180ms ease !important;
+}
+
+.react-foundation .archive-card:hover,
+.react-foundation .history-premium-slip:hover {
+  border-color: rgba(223, 171, 86, 0.28) !important;
+  transform: translateY(-2px) !important;
+}
+
+.react-foundation .metric-card,
+.react-foundation .slate-desk-metric {
+  background: rgba(18, 30, 45, 0.6) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: var(--space-md) !important;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 20px;
+  flex-direction: column;
+  gap: var(--space-xs);
+  transition: all 180ms ease !important;
+}
+
+.react-foundation .metric-card:hover,
+.react-foundation .slate-desk-metric:hover {
+  border-color: rgba(246, 241, 227, 0.18) !important;
+  background: rgba(18, 30, 45, 0.8) !important;
+  transform: translateY(-1px);
+}
+
+.react-foundation .status-card {
+  background: rgba(22, 34, 47, 0.5) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: var(--space-md) !important;
+}
+
+.react-foundation .surface-muted,
+.react-foundation .empty-inline.rich {
+  background: rgba(6, 11, 17, 0.4) !important;
+  border: 1px solid rgba(246, 241, 227, 0.05) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: var(--space-md) !important;
+}
+
+/* ─── Premium Sports Badges ─────────────────────────────────────────────── */
+
+.react-foundation .ui-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono) !important;
+  font-size: var(--font-size-xs) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  line-height: 1.25 !important;
+  border: 1px solid transparent !important;
+  width: fit-content;
+}
+
+.react-foundation .ui-badge.protected {
+  background: rgba(59, 110, 140, 0.12) !important;
+  border-color: rgba(59, 110, 140, 0.4) !important;
+  color: #c4d7e6 !important;
+}
+
+.react-foundation .ui-badge.cache,
+.react-foundation .ui-badge.cache-first {
+  background: rgba(43, 182, 115, 0.1) !important;
+  border-color: rgba(43, 182, 115, 0.35) !important;
+  color: #a8ebd1 !important;
+}
+
+.react-foundation .ui-badge.live {
+  background: rgba(196, 100, 87, 0.15) !important;
+  border-color: rgba(196, 100, 87, 0.5) !important;
+  color: #ffd2cc !important;
+  animation: pulse-live 2s infinite ease-in-out;
+}
+
+.react-foundation .ui-badge.pending {
+  background: rgba(223, 171, 86, 0.12) !important;
+  border-color: rgba(223, 171, 86, 0.4) !important;
+  color: #faebd3 !important;
+}
+
+.react-foundation .ui-badge.win,
+.react-foundation .ui-badge.won,
+.react-foundation .ui-badge.success {
+  background: rgba(43, 182, 115, 0.14) !important;
+  border-color: rgba(43, 182, 115, 0.5) !important;
+  color: #a8ebd1 !important;
+}
+
+.react-foundation .ui-badge.loss,
+.react-foundation .ui-badge.lost,
+.react-foundation .ui-badge.error,
+.react-foundation .ui-badge.warning {
+  background: rgba(196, 100, 87, 0.14) !important;
+  border-color: rgba(196, 100, 87, 0.45) !important;
+  color: #ffd2cc !important;
+}
+
+.react-foundation .ui-badge.push,
+.react-foundation .ui-badge.void,
+.react-foundation .ui-badge.push-gray {
+  background: rgba(112, 128, 144, 0.15) !important;
+  border-color: rgba(112, 128, 144, 0.4) !important;
+  color: #d1dbe5 !important;
+}
+
+.react-foundation .ui-badge.refund {
+  background: rgba(59, 110, 140, 0.14) !important;
+  border-color: rgba(59, 110, 140, 0.45) !important;
+  color: #c4d7e6 !important;
+}
+
+.react-foundation .ui-badge.generated {
+  background: rgba(223, 171, 86, 0.15) !important;
+  border-color: rgba(223, 171, 86, 0.5) !important;
+  color: #faebd3 !important;
+  font-weight: 800 !important;
+}
+
+.react-foundation .ui-badge.read-only,
+.react-foundation .ui-badge.read_only,
+.react-foundation .ui-badge.subtle {
+  background: rgba(246, 241, 227, 0.05) !important;
+  border-color: rgba(246, 241, 227, 0.15) !important;
+  color: var(--text-secondary) !important;
+}
+
+@keyframes pulse-live {
+  0% { opacity: 0.85; }
+  50% { opacity: 1; }
+  100% { opacity: 0.85; }
+}
+
+/* ─── Premium Tactile Buttons ───────────────────────────────────────────── */
+
+.react-foundation .btn {
+  font-family: var(--font-mono) !important;
+  font-size: var(--font-size-sm) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  padding: 10px 20px !important;
+  border-radius: var(--radius-xs) !important;
+  border: 1px solid transparent !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: var(--space-sm) !important;
+  transition: all 180ms ease !important;
+  cursor: pointer !important;
+  outline: none !important;
+}
+
+/* Primary Sports Action (Ticket Blue style) */
+.react-foundation .btn-primary,
+.react-foundation .btn-ticket {
+  background: var(--primary) !important;
+  color: var(--paper-cream) !important;
+  border-color: rgba(246, 241, 227, 0.12) !important;
+  box-shadow: 0 4px 12px rgba(59, 110, 140, 0.25) !important;
+}
+
+.react-foundation .btn-primary:not(:disabled):hover,
+.react-foundation .btn-ticket:not(:disabled):hover {
+  background: var(--primary-dark) !important;
+  border-color: rgba(246, 241, 227, 0.25) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 16px rgba(59, 110, 140, 0.4) !important;
+}
+
+.react-foundation .btn-primary:not(:disabled):active,
+.react-foundation .btn-ticket:not(:disabled):active {
+  transform: translateY(1px) !important;
+  box-shadow: 0 2px 6px rgba(59, 110, 140, 0.2) !important;
+}
+
+/* Secondary (Dugout Charcoal style) */
+.react-foundation .btn-secondary {
+  background: var(--dugout-charcoal) !important;
+  color: var(--text-secondary) !important;
+  border-color: rgba(246, 241, 227, 0.08) !important;
+}
+
+.react-foundation .btn-secondary:not(:disabled):hover {
+  background: var(--surface-card) !important;
+  border-color: var(--petco-gold) !important;
+  color: var(--paper-cream) !important;
+  transform: translateY(-1px) !important;
+}
+
+.react-foundation .btn-secondary:not(:disabled):active {
+  transform: translateY(1px) !important;
+}
+
+/* Ghost Button */
+.react-foundation .btn-ghost {
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+  border-color: transparent !important;
+}
+
+.react-foundation .btn-ghost:not(:disabled):hover {
+  background: rgba(246, 241, 227, 0.05) !important;
+  color: var(--paper-cream) !important;
+  border-color: rgba(246, 241, 227, 0.08) !important;
+}
+
+.react-foundation .btn-ghost:not(:disabled):active {
+  background: rgba(246, 241, 227, 0.08) !important;
+}
+
+/* Protected Actions */
+.react-foundation .btn-protected {
+  background: rgba(223, 171, 86, 0.15) !important;
+  color: var(--petco-gold) !important;
+  border-color: rgba(223, 171, 86, 0.4) !important;
+}
+
+.react-foundation .btn-protected:not(:disabled):hover {
+  background: rgba(223, 171, 86, 0.25) !important;
+  border-color: var(--petco-gold) !important;
+}
+
+/* Disabled & Focus visible states */
+.react-foundation .btn:focus-visible {
+  outline: 2px solid var(--petco-gold) !important;
+  outline-offset: 2px !important;
+}
+
+.react-foundation .btn:disabled {
+  background: rgba(6, 11, 17, 0.4) !important;
+  color: var(--text-dim) !important;
+  border-color: rgba(246, 241, 227, 0.03) !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+  opacity: 0.6 !important;
+  transform: none !important;
+}
+
+/* ─── Spacing, Grid Constraints & Layout Polish ────────────────────────── */
+
+.react-foundation .page-content {
+  padding: var(--space-lg) var(--space-xl) 100px !important;
+  max-width: var(--content-max) !important;
+  margin: 0 auto !important;
+}
+
+.react-foundation .daily-ticket-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr) !important;
+  gap: var(--space-lg) !important;
+}
+
+.react-foundation .foundation-card-grid {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  gap: var(--space-md) !important;
+}
+
+/* Slate Desk Hero */
+.react-foundation .slate-desk-hero {
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr) !important;
+  align-items: start;
+  gap: var(--space-xl) !important;
+  padding: var(--space-xl) !important;
 }
 
 .react-foundation .slate-desk-metrics {
   display: grid;
-  gap: 12px;
-}
-
-.react-foundation .slate-desk-metric {
-  padding: 16px;
-  border: 1px solid var(--surface-border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-soft);
-  transition: all 180ms ease;
-}
-
-.react-foundation .slate-desk-metric:hover {
-  border-color: var(--surface-border-strong);
-  background: rgba(247, 241, 224, 0.06);
+  gap: var(--space-sm) !important;
 }
 
 .react-foundation .slate-desk-note {
-  margin-top: 20px;
-  padding: 14px 16px;
-  background: rgba(79, 134, 187, 0.08);
-  border: 1px solid rgba(79, 134, 187, 0.18);
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
-  color: var(--secondary);
-  line-height: 1.5;
+  margin-top: var(--space-md) !important;
+  padding: 14px 16px !important;
+  background: rgba(59, 110, 140, 0.08) !important;
+  border: 1px solid rgba(59, 110, 140, 0.18) !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: var(--font-size-md) !important;
+  color: var(--secondary) !important;
+  line-height: 1.5 !important;
+}
+
+/* ─── BetSlip Premium styling ───────────────────────────────────────────── */
+
+.react-foundation .bet-slip-receipt-line {
+  display: flex !important;
+  justify-content: space-between !important;
+  font-family: var(--font-mono) !important;
+  font-size: 0.72rem !important;
+  color: var(--text-dim) !important;
+  text-transform: uppercase !important;
+  border-bottom: 1px dashed rgba(246, 241, 227, 0.15) !important;
+  padding-bottom: var(--space-sm) !important;
+  margin-bottom: var(--space-md) !important;
+}
+
+.react-foundation .bet-slip-serial {
+  color: var(--petco-gold) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+}
+
+.react-foundation .bet-slip-metrics {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: var(--space-sm) !important;
+  margin: var(--space-md) 0 !important;
+}
+
+.react-foundation .bet-slip-metric {
+  background: rgba(6, 11, 17, 0.35) !important;
+  border: 1px solid rgba(246, 241, 227, 0.05) !important;
+  border-radius: var(--radius-xs) !important;
+  padding: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.react-foundation .bet-slip-metric span {
+  font-family: var(--font-mono) !important;
+  font-size: 0.65rem !important;
+  text-transform: uppercase !important;
+  color: var(--text-dim) !important;
+}
+
+.react-foundation .bet-slip-metric strong {
+  font-family: var(--font-mono) !important;
+  font-size: var(--font-size-md) !important;
+  color: var(--paper-cream) !important;
+  margin-top: 4px !important;
 }
-
-.react-foundation .view-intro-panel {
-  padding: 24px 28px;
-  margin-bottom: 8px;
-}
-
-/* ─── Cards & Components ─────────────────────────────────────────────────── */
-
-.react-foundation .foundation-card-grid,
-.react-foundation .foundation-task-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 20px;
-  align-items: stretch;
-}
-
-.react-foundation .dashboard-focus-card,
-.react-foundation .compact-panel {
-  padding: 24px;
-}
-
-.react-foundation .panel-header {
-  margin-bottom: 20px;
-}
-
-.react-foundation .panel-kicker {
-  font-size: 0.75rem;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: 8px;
-}
-
-.react-foundation .panel-subtitle {
-  margin-top: 8px;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.react-foundation .foundation-quick-links {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-.react-foundation .quick-link-card {
-  padding: 16px 18px;
-  border: 1px solid var(--surface-border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-soft);
-  transition: all 180ms ease;
-  cursor: pointer;
-}
-
-.react-foundation .quick-link-card:hover {
-  border-color: var(--tertiary);
-  background: rgba(216, 162, 79, 0.08);
-  transform: translateY(-1px);
-}
-
-.react-foundation .quick-link-card:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
-.react-foundation .quick-link-card strong {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--text-primary);
-}
-
-.react-foundation .quick-link-card span {
-  display: block;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-/* ─── Foundation Lists & Grids ───────────────────────────────────────────── */
-
-.foundation-list {
-  display: grid;
-  gap: 10px;
-}
-
-.foundation-list span,
-.foundation-game-card,
-.foundation-archive-grid > article,
-.foundation-debug-item {
-  border: 1px solid rgba(233, 226, 205, 0.09);
-  background: rgba(247, 241, 224, 0.035);
-  border-radius: 14px;
-  transition: all 180ms ease;
-}
-
-.foundation-list span {
-  padding: 12px 14px;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
-.foundation-list span:hover,
-.foundation-game-card:hover,
-.foundation-debug-item:hover {
-  border-color: rgba(233, 226, 205, 0.16);
-  background: rgba(247, 241, 224, 0.055);
-}
-
-.foundation-ticket-strip,
-.foundation-scoreboard-grid,
-.foundation-archive-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.foundation-ticket-strip {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.foundation-ticket-strip .mini-ticket-card {
-  text-align: left;
-  transition: all 180ms ease;
-}
-
-.foundation-ticket-strip .mini-ticket-card:hover {
-  transform: translateY(-2px);
-}
-
-.foundation-ticket-strip .mini-ticket-card:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
-.foundation-slip {
-  margin-top: 16px;
-}
-
-.foundation-game-card {
-  display: grid;
-  gap: 8px;
-  padding: 18px;
-}
-
-.foundation-game-card strong {
-  display: block;
-  margin-top: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.95rem;
-}
-
-.foundation-game-card p,
-.foundation-archive-grid p,
-.foundation-debug-grid p {
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-  line-height: 1.5;
-}
-
-.foundation-history-metrics {
-  margin-bottom: 18px;
-}
-
-.foundation-debug-grid {
-  display: grid;
-  gap: 14px;
-}
-
-.foundation-debug-item {
-  padding: 16px 18px;
-}
-
-.foundation-debug-item strong {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-}
-
-/* --- Badges & UI Elements ------------------------------------------- */
-
-.react-foundation .ui-badge {
-  padding: 6px 12px;
-  border-radius: var(--radius-full);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  border: 1px solid;
-}
-
-.react-foundation .ui-badge.cache {
-  background: rgba(105, 196, 141, 0.12);
-  border-color: rgba(105, 196, 141, 0.3);
-  color: #d5f5df;
-}
-
-.react-foundation .ui-badge.subtle {
-  background: rgba(247, 241, 224, 0.06);
-  border-color: rgba(233, 226, 205, 0.15);
-  color: var(--text-secondary);
-}
-
-.react-foundation .ui-badge.pending {
-  background: rgba(216, 162, 79, 0.12);
-  border-color: rgba(216, 162, 79, 0.3);
-  color: #f5e5c4;
-}
-
-.react-foundation .ui-badge.warning {
-  background: rgba(196, 100, 87, 0.12);
-  border-color: rgba(196, 100, 87, 0.3);
-  color: #f5d4cf;
-}
-
-.react-foundation .ui-badge.generated {
-  background: rgba(105, 196, 141, 0.14);
-  border-color: rgba(105, 196, 141, 0.34);
-  color: #d5f5df;
-  font-weight: 700;
-}
-
-/* --- Buttons Enhanced ------------------------------------------------ */
-
-.react-foundation .btn {
-  transition: all 180ms ease;
-  cursor: pointer;
-}
-
-.react-foundation .btn:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
-.react-foundation .btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.react-foundation .btn-primary:not(:disabled):hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(79, 134, 187, 0.3);
-}
-
-.react-foundation .btn-secondary:not(:disabled):hover {
-  background: var(--surface-card-strong);
-  border-color: var(--surface-border-strong);
-  transform: translateY(-1px);
-}
-
-.react-foundation .btn-ghost:not(:disabled):hover {
-  background: var(--surface-soft);
-  color: var(--text-primary);
-}
-
-/* ─── Empty States ───────────────────────────────────────────────────────── */
-
-.react-foundation .empty-inline.rich {
-  padding: 18px 20px;
-  background: rgba(247, 241, 224, 0.025);
-  border: 1px solid rgba(233, 226, 205, 0.08);
-  border-radius: var(--radius-sm);
-}
-
-.react-foundation .empty-inline.rich strong {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--text-primary);
-}
-
-.react-foundation .empty-inline.rich p {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-/* ─── Responsive ─────────────────────────────────────────────────────────── */
-
-@media (max-width: 1180px) {
-  .react-foundation .slate-desk-hero,
-  .react-foundation .foundation-ticket-strip,
-  .react-foundation .foundation-scoreboard-grid,
-  .react-foundation .foundation-archive-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .react-foundation .daily-ticket-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .react-foundation .foundation-card-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 900px) {
-  .react-foundation .mobile-nav {
-    grid-template-columns: repeat(6, minmax(70px, 1fr));
-  }
-
-  .react-foundation .page-content {
-    padding: 18px 16px 80px;
-  }
-
-  .react-foundation .slate-desk-hero {
-    padding: 24px;
-  }
-}
-
-@media (max-width: 640px) {
-  .react-foundation .slate-desk-head h2 {
-    font-size: clamp(1.65rem, 8vw, 2.35rem);
-    max-width: 100%;
-  }
-
-  .react-foundation .foundation-ticket-strip {
-    grid-template-columns: 1fr;
-  }
-
-  .react-foundation .desk-scorebar-item.is-title {
-    min-width: 160px;
-  }
-}
-
-/* --- React Migration v3.1: Daily Ticket Read Only ------------------------ */
-
-.react-ticket-intro {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: flex-start;
-}
-
-.react-ticket-intro-badges {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.react-generate-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 18px 20px;
-  border-color: rgba(216, 162, 79, 0.2);
-  background:
-    linear-gradient(90deg, rgba(216, 162, 79, 0.1), rgba(105, 196, 141, 0.055)),
-    rgba(10, 18, 32, 0.58);
-}
-
-.react-generate-panel h3 {
-  font-size: clamp(1.05rem, 1.5vw, 1.35rem);
-  line-height: 1.12;
-}
-
-.react-generate-panel p {
-  margin-top: 6px;
-  color: var(--text-secondary);
-  max-width: 640px;
-}
-
-.react-generate-controls {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.react-generate-button {
-  min-width: 210px;
-}
-
-.react-ticket-grid {
-  align-items: start;
-}
-
-.react-ticket-state {
-  padding: 28px;
-  display: grid;
-  gap: 12px;
-  max-width: 860px;
-}
-
-.react-ticket-state h3 {
-  font-size: clamp(1.3rem, 2vw, 1.9rem);
-  line-height: 1.08;
-}
-
-.react-ticket-state p,
-.react-ticket-state small {
-  color: var(--text-secondary);
-}
-
-.react-ticket-state.error {
-  border-color: rgba(196, 100, 87, 0.28);
-}
-
-.react-ticket-state.generating {
-  border-color: rgba(216, 162, 79, 0.28);
-  background:
-    linear-gradient(180deg, rgba(216, 162, 79, 0.1), rgba(247, 241, 224, 0.025)),
-    rgba(10, 18, 32, 0.66);
-}
-
-.react-ticket-summary {
-  margin-bottom: 16px;
-}
-
-.react-ticket-selector {
-  margin-bottom: 16px;
-}
-
-.react-ticket-selector .ticket-selector-card {
-  min-height: 158px;
-}
-
-.react-ticket-selector .ticket-selector-card.active {
-  border-color: rgba(216, 162, 79, 0.4);
-  background: linear-gradient(180deg, rgba(216, 162, 79, 0.14), rgba(247, 241, 224, 0.025));
-}
-
-.ticket-selector-warnings,
-.react-ticket-warning-row,
-.react-leg-warning-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.ticket-selector-warnings {
-  margin-top: 8px;
-}
-
-.react-ticket-selector .warning-chip,
-.react-ticket-warning-row .warning-chip,
-.react-leg-warning-row .warning-chip {
-  max-width: 100%;
-  border: 1px solid rgba(216, 162, 79, 0.18);
-  border-radius: 999px;
-  background: rgba(216, 162, 79, 0.085);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 0.67rem;
-  font-weight: 800;
-  line-height: 1.25;
-  padding: 5px 8px;
-}
-
-.react-leg-row {
-  background: rgba(247, 241, 224, 0.026);
-}
-
-.react-leg-row.is-expanded {
-  border-color: rgba(216, 162, 79, 0.24);
-}
-
-.react-foundation .bet-leg-toggle {
-  border: 1px solid rgba(233, 226, 205, 0.16);
-  border-radius: 999px;
-  background: rgba(247, 241, 224, 0.055);
-  color: var(--text-primary);
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  padding: 7px 10px;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.react-foundation .bet-leg-toggle:hover,
-.react-foundation .bet-leg-toggle:focus-visible {
-  border-color: rgba(216, 162, 79, 0.38);
-  outline: none;
-}
-
-.react-leg-details {
-  margin-top: 12px;
-  display: grid;
-  gap: 10px;
-}
-
-.react-leg-detail-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.react-leg-detail-grid .bet-leg-detail-block.compact p {
-  margin-top: 4px;
-}
-
-.react-leg-avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(180deg, rgba(216, 162, 79, 0.18), rgba(79, 134, 187, 0.11));
-  border: 1px solid rgba(233, 226, 205, 0.14);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-.react-foundation .bet-leg-meta .ui-badge {
-  justify-content: center;
-}
-
-@media (max-width: 780px) {
-  .react-leg-detail-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 900px) {
-  .react-ticket-intro {
-    display: grid;
-  }
-
-  .react-ticket-intro-badges {
-    justify-content: flex-start;
-  }
-
-  .react-generate-panel {
-    display: grid;
-  }
-
-  .react-generate-controls {
-    justify-content: flex-start;
-  }
-
-  .react-generate-button {
-    width: 100%;
-  }
-}
-
-/* --- React Migration v4: Scoreboard Read Only ---------------------------- */
-
-.react-scoreboard-panel {
-  display: grid;
-  gap: 18px;
-}
-
-.react-scoreboard-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  border: 1px solid rgba(233, 226, 205, 0.1);
-  border-radius: 14px;
-  background: rgba(247, 241, 224, 0.035);
-  padding: 12px 14px;
-}
-
-.react-scoreboard-meta strong {
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-}
-
-.react-scoreboard-meta span {
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-}
-
-.react-scoreboard-state {
-  padding: 28px;
-  display: grid;
-  gap: 12px;
-  max-width: 900px;
+
+.react-foundation .compact-divider {
+  border: none !important;
+  border-top: 1px dashed rgba(246, 241, 227, 0.15) !important;
+  margin: var(--space-md) 0 !important;
 }
 
-.react-scoreboard-state h3 {
-  font-size: clamp(1.25rem, 2vw, 1.85rem);
-  line-height: 1.1;
+.react-foundation .receipt-footer {
+  font-family: var(--font-mono) !important;
+  font-size: 0.68rem !important;
+  color: var(--text-dim) !important;
+  text-transform: uppercase !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  margin-top: var(--space-md) !important;
 }
 
-.react-scoreboard-state p,
-.react-scoreboard-state small {
-  color: var(--text-secondary);
-}
-
-.react-scoreboard-state.error {
-  border-color: rgba(196, 100, 87, 0.28);
-}
-
-.react-scoreboard-tab-panel {
-  display: grid;
-  gap: 14px;
-}
-
-.react-scoreboard-games {
-  display: grid;
-  gap: 14px;
-}
-
-.react-scoreboard-card {
-  overflow: hidden;
-}
+/* ─── Scoreboard Specific styles ────────────────────────────────────────── */
 
-.react-scoreboard-card .game-card-layout {
-  align-items: stretch;
+.react-foundation .scoreboard-tabs {
+  display: flex !important;
+  background: rgba(6, 11, 17, 0.4) !important;
+  padding: 4px !important;
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid rgba(246, 241, 227, 0.05) !important;
+  margin-bottom: var(--space-md) !important;
 }
 
-.react-ai-lean {
-  min-width: 170px;
+.react-foundation .scoreboard-tab {
+  background: transparent !important;
+  border: none !important;
+  padding: 8px 16px !important;
+  border-radius: var(--radius-xs) !important;
+  color: var(--text-secondary) !important;
+  font-family: 'Space Grotesk', sans-serif !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.02em !important;
+  cursor: pointer !important;
+  transition: all 180ms ease !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
 }
 
-@media (max-width: 760px) {
-  .react-scoreboard-meta {
-    display: grid;
-  }
+.react-foundation .scoreboard-tab:hover {
+  color: var(--paper-cream) !important;
+  background: rgba(246, 241, 227, 0.04) !important;
 }
 
-/* --- React Migration v5.1: History Summary Read Only --------------------- */
-
-.react-history-intro {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.react-history-state {
-  padding: 28px;
-  display: grid;
-  gap: 12px;
-  max-width: 900px;
+.react-foundation .scoreboard-tab.is-active {
+  background: var(--dugout-charcoal) !important;
+  color: var(--petco-gold) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
 }
 
-.react-history-state h3 {
-  font-size: clamp(1.25rem, 2vw, 1.85rem);
-  line-height: 1.1;
+.react-foundation .scoreboard-tab-count {
+  background: rgba(246, 241, 227, 0.08) !important;
+  color: var(--text-secondary) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 0.72rem !important;
+  padding: 2px 6px !important;
+  border-radius: 999px !important;
 }
 
-.react-history-state p,
-.react-history-state small {
-  color: var(--text-secondary);
+.react-foundation .scoreboard-tab.is-active .scoreboard-tab-count {
+  background: rgba(223, 171, 86, 0.15) !important;
+  color: var(--petco-gold) !important;
 }
 
-.react-history-state.error {
-  border-color: rgba(196, 100, 87, 0.28);
+.react-foundation .linescore-wrap {
+  margin-top: var(--space-md) !important;
+  overflow-x: auto !important;
+  border: 1px solid rgba(246, 241, 227, 0.08) !important;
+  border-radius: var(--radius-xs) !important;
 }
 
-.react-history-panel {
-  display: grid;
-  gap: 18px;
+.react-foundation .linescore-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-family: var(--font-mono) !important;
+  font-size: 0.82rem !important;
 }
 
-.history-ledger-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+.react-foundation .linescore-table th {
+  background: rgba(18, 30, 45, 0.6) !important;
+  color: var(--petco-gold) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  padding: 6px 10px !important;
+  border-bottom: 1px solid rgba(246, 241, 227, 0.08) !important;
 }
 
-.history-ledger-strip article {
-  min-width: 0;
-  border: 1px solid rgba(233, 226, 205, 0.1);
-  border-radius: var(--radius-sm);
-  background:
-    linear-gradient(180deg, rgba(247, 241, 224, 0.055), rgba(247, 241, 224, 0.018)),
-    rgba(10, 18, 32, 0.62);
-  padding: 16px;
+.react-foundation .linescore-table td {
+  padding: 8px 10px !important;
+  text-align: center !important;
+  border-bottom: 1px solid rgba(246, 241, 227, 0.04) !important;
 }
 
-.history-ledger-strip span,
-.history-ledger-strip small {
-  display: block;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.react-foundation .linescore-team-cell {
+  text-align: left !important;
+  font-weight: 700 !important;
+  color: var(--paper-cream) !important;
 }
 
-.history-ledger-strip strong {
-  display: block;
-  margin: 7px 0 4px;
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: clamp(1.35rem, 2vw, 2rem);
-  line-height: 1;
+.react-foundation .linescore-rhe {
+  font-weight: 700 !important;
+  color: var(--paper-cream) !important;
+  background: rgba(246, 241, 227, 0.02) !important;
 }
 
-.react-history-metrics {
-  margin-bottom: 0;
-}
+/* ─── History Vault UI overrides ────────────────────────────────────────── */
 
 .react-history-metric.won,
 .react-history-slip.won {
-  border-color: rgba(105, 196, 141, 0.22);
+  border-color: rgba(43, 182, 115, 0.3) !important;
 }
 
 .react-history-metric.lost,
 .react-history-slip.lost {
-  border-color: rgba(196, 100, 87, 0.24);
+  border-color: rgba(196, 100, 87, 0.3) !important;
 }
 
 .react-history-metric.void,
 .react-history-slip.void,
 .react-history-slip.push {
-  border-color: rgba(216, 162, 79, 0.24);
-}
-
-.react-history-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  gap: 14px;
-}
-
-.react-history-breakdown {
-  min-width: 0;
-}
-
-.history-settlement-panel,
-.history-pattern-panel,
-.history-type-panel {
-  overflow: hidden;
-}
-
-.history-pattern-panel {
-  align-self: start;
-  max-height: 620px;
-}
-
-.history-settlement-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.history-settlement-chip {
-  min-width: 0;
-  border: 1px solid rgba(233, 226, 205, 0.1);
-  border-radius: var(--radius-sm);
-  background: rgba(247, 241, 224, 0.035);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px;
-}
-
-.history-settlement-chip strong {
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 1rem;
-}
-
-.react-history-breakdown .foundation-list span {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  word-break: break-word;
-}
-
-.react-history-breakdown .foundation-list strong {
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-}
-
-.react-history-pattern-list {
-  display: grid;
-  gap: 10px;
-  max-height: 500px;
-  overflow-y: auto;
-  padding-right: 4px;
-  scrollbar-color: rgba(216, 162, 79, 0.34) rgba(247, 241, 224, 0.06);
-  scrollbar-width: thin;
-}
-
-.react-history-pattern-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.react-history-pattern-list::-webkit-scrollbar-track {
-  background: rgba(247, 241, 224, 0.05);
-  border-radius: 999px;
-}
-
-.react-history-pattern-list::-webkit-scrollbar-thumb {
-  background: rgba(216, 162, 79, 0.34);
-  border-radius: 999px;
-}
-
-.history-pattern-card {
-  min-width: 0;
-  border: 1px solid rgba(233, 226, 205, 0.1);
-  border-radius: var(--radius-sm);
-  background:
-    linear-gradient(180deg, rgba(247, 241, 224, 0.05), rgba(247, 241, 224, 0.018)),
-    rgba(10, 18, 32, 0.58);
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-}
-
-.history-pattern-card.is-group {
-  gap: 10px;
-}
-
-.history-pattern-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-}
-
-.history-pattern-head strong {
-  min-width: 0;
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.88rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.history-pattern-head em {
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.86rem;
-  font-style: normal;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.history-pattern-metric-grid {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-}
-
-.history-pattern-card > .history-pattern-metric-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.history-pattern-row {
-  min-width: 0;
-  border: 1px solid rgba(233, 226, 205, 0.09);
-  border-radius: 12px;
-  background: rgba(247, 241, 224, 0.035);
-  display: grid;
-  gap: 8px;
-  padding: 9px 10px;
-}
-
-.history-pattern-row-main {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-}
-
-.history-pattern-row-main span {
-  min-width: 0;
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.history-pattern-row-main strong {
-  border: 1px solid rgba(216, 162, 79, 0.2);
-  border-radius: 999px;
-  background: rgba(216, 162, 79, 0.08);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 900;
-  padding: 5px 8px;
-  white-space: nowrap;
-}
-
-.history-pattern-row.has-children > .history-pattern-metric-grid {
-  border-left: 1px dashed rgba(233, 226, 205, 0.16);
-  margin-left: 3px;
-  padding-left: 10px;
-}
-
-.history-pattern-toggle {
-  justify-self: start;
-  border: 1px solid rgba(216, 162, 79, 0.2);
-  border-radius: 999px;
-  background: rgba(216, 162, 79, 0.08);
-  color: var(--accent-amber);
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 900;
-  padding: 7px 10px;
-}
-
-.history-pattern-toggle:hover,
-.history-pattern-toggle:focus-visible {
-  background: rgba(216, 162, 79, 0.14);
-  border-color: rgba(216, 162, 79, 0.34);
-  outline: none;
-}
-
-.history-pattern-details {
-  border-top: 1px dashed rgba(233, 226, 205, 0.13);
-  padding-top: 10px;
-}
-
-.react-history-warnings {
-  display: grid;
-  gap: 12px;
-}
-
-.react-history-warnings .warning-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.react-history-warnings .warning-chip {
-  border: 1px solid rgba(216, 162, 79, 0.18);
-  border-radius: 999px;
-  background: rgba(216, 162, 79, 0.085);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  font-weight: 800;
-  padding: 6px 9px;
-}
-
-.react-history-archive {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.history-type-grid {
-  margin-top: 0;
-}
-
-.history-archive-heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.react-history-slip {
-  display: grid;
-  gap: 12px;
-}
-
-.history-premium-slip {
-  position: relative;
-  min-width: 0;
-  overflow: hidden;
-  border-radius: var(--radius-sm);
-  background:
-    linear-gradient(180deg, rgba(247, 241, 224, 0.058), rgba(247, 241, 224, 0.018)),
-    rgba(10, 18, 32, 0.72);
-  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
-}
-
-.history-premium-slip:hover {
-  border-color: rgba(216, 162, 79, 0.28);
-  background:
-    linear-gradient(180deg, rgba(216, 162, 79, 0.075), rgba(247, 241, 224, 0.02)),
-    rgba(10, 18, 32, 0.76);
-  transform: translateY(-2px);
+  border-color: rgba(223, 171, 86, 0.3) !important;
 }
 
 .history-slip-stub {
   position: absolute;
   inset: 0 auto 0 0;
-  width: 7px;
-  border-right: 1px dashed rgba(233, 226, 205, 0.2);
-  background: rgba(216, 162, 79, 0.2);
+  width: 6px;
+  border-right: 1px dashed rgba(246, 241, 227, 0.15) !important;
+  background: var(--petco-gold) !important;
 }
 
-.history-premium-slip.safe .history-slip-stub {
-  background: rgba(105, 196, 141, 0.24);
+.react-history-slip.won .history-slip-stub {
+  background: var(--win-green) !important;
 }
 
-.history-premium-slip.emi .history-slip-stub {
-  background: rgba(216, 162, 79, 0.26);
+.react-history-slip.lost .history-slip-stub {
+  background: var(--loss-red) !important;
 }
 
-.history-premium-slip.free_bet .history-slip-stub,
-.history-premium-slip.freebet .history-slip-stub,
-.history-premium-slip.free .history-slip-stub {
-  background: rgba(79, 134, 187, 0.26);
+.react-history-slip.push .history-slip-stub,
+.react-history-slip.void .history-slip-stub {
+  background: var(--push-gray) !important;
 }
 
-.react-history-slip .history-ticket-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
+/* ─── Responsive Cleanups ───────────────────────────────────────────────── */
 
-.react-history-slip .history-ticket-top h4 {
-  margin-top: 6px;
-  line-height: 1.15;
-  word-break: normal;
-  overflow-wrap: normal;
-}
-
-.react-history-slip p {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.55;
-}
-
-.react-history-slip .history-ticket-badges,
-.react-history-slip .history-preview-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.history-slip-ledger,
-.react-history-slip .history-ticket-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.history-slip-ledger span,
-.react-history-slip .history-ticket-metrics span,
-.react-history-slip .history-preview-pill,
-.history-leg-strip span {
-  min-width: 0;
-  border: 1px solid rgba(233, 226, 205, 0.1);
-  border-radius: var(--radius-sm);
-  background: rgba(247, 241, 224, 0.045);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 7px 9px;
-}
-
-.history-slip-ledger span {
-  display: grid;
-  gap: 3px;
-}
-
-.history-slip-ledger small {
-  color: var(--text-dim);
-  font-size: 0.62rem;
-  text-transform: uppercase;
-}
-
-.history-slip-ledger strong {
-  color: var(--text-primary);
-  font-size: 0.78rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.react-history-slip .history-preview-row {
-  justify-content: flex-start;
-}
-
-.history-leg-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
-.history-leg-strip span {
-  border-radius: 999px;
-  max-width: 100%;
-}
-
-.history-leg-strip.is-empty span {
-  border-style: dashed;
-  color: var(--text-dim);
-}
-
-.history-empty-slip {
-  border-style: dashed;
-}
-
-.react-foundation .ui-badge.won {
-  background: rgba(105, 196, 141, 0.12);
-  border-color: rgba(105, 196, 141, 0.32);
-  color: #d5f5df;
-}
-
-.react-foundation .ui-badge.lost {
-  background: rgba(196, 100, 87, 0.12);
-  border-color: rgba(196, 100, 87, 0.32);
-  color: #f5d4cf;
-}
-
-.react-foundation .ui-badge.void,
-.react-foundation .ui-badge.push {
-  background: rgba(216, 162, 79, 0.12);
-  border-color: rgba(216, 162, 79, 0.32);
-  color: #f5e5c4;
-}
-
-@media (max-width: 980px) {
-  .react-history-intro,
-  .react-history-grid {
-    display: grid;
-  }
-
-  .history-ledger-strip,
-  .react-history-archive {
-    grid-template-columns: 1fr;
+@media (max-width: 1200px) {
+  .react-foundation .daily-ticket-grid,
+  .react-foundation .slate-desk-hero,
+  .react-foundation .foundation-ticket-strip,
+  .react-foundation .foundation-scoreboard-grid,
+  .react-foundation .foundation-archive-grid,
+  .react-foundation .react-history-grid {
+    grid-template-columns: 1fr !important;
+    gap: var(--space-md) !important;
   }
 }
 
-@media (max-width: 640px) {
-  .history-archive-heading,
-  .react-history-slip .history-ticket-top,
-  .react-history-slip .history-ticket-badges {
-    display: grid;
-    justify-content: stretch;
+@media (max-width: 768px) {
+  .react-foundation .page-content {
+    padding: var(--space-sm) var(--space-md) 100px !important;
   }
-
-  .history-settlement-grid,
-  .history-slip-ledger,
-  .react-history-slip .history-ticket-metrics {
-    grid-template-columns: 1fr;
+  .react-foundation .scoreboard-tabs {
+    flex-wrap: wrap !important;
   }
-}
-
-/* --- React Migration v3.2: Dashboard Data -------------------------------- */
-
-.react-dashboard-hero .slate-desk-note {
-  border-color: rgba(105, 196, 141, 0.2);
-  background: rgba(105, 196, 141, 0.07);
-  color: #d5f5df;
-}
-
-.react-dashboard-state {
-  padding: 28px;
-  display: grid;
-  gap: 12px;
-  max-width: 900px;
-}
-
-.react-dashboard-state h3 {
-  font-size: clamp(1.25rem, 2vw, 1.85rem);
-  line-height: 1.1;
-}
-
-.react-dashboard-state p,
-.react-dashboard-state small {
-  color: var(--text-secondary);
-}
-
-.react-dashboard-state.error {
-  border-color: rgba(196, 100, 87, 0.28);
-}
-
-.react-dashboard-grid {
-  align-items: stretch;
-}
-
-.react-dashboard-grid .empty-inline.rich {
-  min-height: 132px;
-}
-
-.react-dashboard-warnings {
-  display: grid;
-  gap: 12px;
-}
-
-.react-dashboard-warnings .warning-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.react-dashboard-warnings .warning-chip {
-  max-width: 100%;
-  line-height: 1.35;
 }

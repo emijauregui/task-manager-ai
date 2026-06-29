@@ -995,3 +995,294 @@ body {
     flex-wrap: wrap !important;
   }
 }
+
+/* ─── Dashboard Desk Premium v7.2 ───────────────────────────────────────── */
+
+/* Editorial Hero Header */
+.react-foundation .dashboard-desk-hero {
+  background: linear-gradient(
+    135deg,
+    rgba(11, 26, 43, 0.95) 0%,
+    rgba(18, 30, 45, 0.95) 100%
+  ) !important;
+  border: 1px solid rgba(246, 241, 227, 0.1) !important;
+  box-shadow: var(--shadow-premium) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--space-xl) !important;
+  margin-bottom: var(--space-lg) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.react-foundation .dashboard-desk-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.02) 0%,
+    transparent 15%
+  );
+  z-index: 1;
+}
+
+.react-foundation .desk-hero-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-md);
+  position: relative;
+  z-index: 2;
+}
+
+.react-foundation .hero-subtitle {
+  font-family: 'Space Grotesk', sans-serif !important;
+  font-size: var(--font-size-lg) !important;
+  color: var(--petco-gold) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+  margin-top: var(--space-xs) !important;
+}
+
+.react-foundation .desk-hero-summary {
+  font-size: var(--font-size-md) !important;
+  color: var(--text-secondary) !important;
+  line-height: 1.6 !important;
+  max-width: 70ch;
+  position: relative;
+  z-index: 2;
+}
+
+/* Executive Desk - 4 Card Grid */
+.react-foundation .dashboard-executive-desk {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
+}
+
+.react-foundation .desk-card-premium {
+  background: linear-gradient(
+    135deg,
+    rgba(11, 26, 43, 0.95) 0%,
+    rgba(18, 30, 45, 0.95) 100%
+  ) !important;
+  border: 1px solid rgba(246, 241, 227, 0.1) !important;
+  box-shadow: var(--shadow-premium) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--space-lg) !important;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  position: relative;
+  overflow: hidden;
+  transition: all 180ms ease !important;
+}
+
+.react-foundation .desk-card-premium::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.02) 0%,
+    transparent 15%
+  );
+  z-index: 1;
+}
+
+.react-foundation .desk-card-premium:hover {
+  border-color: rgba(223, 171, 86, 0.25) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+.react-foundation .desk-card-header {
+  position: relative;
+  z-index: 2;
+}
+
+.react-foundation .desk-card-body {
+  flex: 1;
+  position: relative;
+  z-index: 2;
+}
+
+.react-foundation .desk-card-actions {
+  display: flex;
+  gap: var(--space-sm);
+  position: relative;
+  z-index: 2;
+}
+
+/* Ticket Window Card Metrics */
+.react-foundation .desk-metric-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px dashed rgba(246, 241, 227, 0.1);
+}
+
+.react-foundation .desk-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.react-foundation .desk-metric span {
+  font-family: var(--font-mono) !important;
+  font-size: var(--font-size-xs) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--text-dim) !important;
+}
+
+.react-foundation .desk-metric strong {
+  font-family: var(--font-mono) !important;
+  font-size: var(--font-size-lg) !important;
+  color: var(--paper-cream) !important;
+  font-weight: 700 !important;
+}
+
+.react-foundation .desk-card-summary {
+  font-size: var(--font-size-sm) !important;
+  color: var(--text-secondary) !important;
+  line-height: 1.5 !important;
+  margin: 0 !important;
+}
+
+/* Status List (Market Guard, Slate Status) */
+.react-foundation .desk-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.react-foundation .desk-status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(6, 11, 17, 0.3) !important;
+  border: 1px solid rgba(246, 241, 227, 0.05) !important;
+  border-radius: var(--radius-xs) !important;
+}
+
+.react-foundation .desk-status-item span {
+  font-family: var(--font-mono) !important;
+  font-size: var(--font-size-xs) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--text-dim) !important;
+}
+
+.react-foundation .desk-status-item strong {
+  font-family: var(--font-mono) !important;
+  font-size: var(--font-size-sm) !important;
+  color: var(--paper-cream) !important;
+  font-weight: 700 !important;
+}
+
+/* AI Notes / Warnings */
+.react-foundation .desk-warnings-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.react-foundation .desk-warning-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: 10px 12px;
+  background: rgba(230, 157, 36, 0.06) !important;
+  border: 1px solid rgba(230, 157, 36, 0.15) !important;
+  border-radius: var(--radius-xs) !important;
+  font-size: var(--font-size-sm) !important;
+  color: var(--text-secondary) !important;
+  line-height: 1.4 !important;
+}
+
+.react-foundation .warning-bullet {
+  color: var(--warning-amber) !important;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.react-foundation .desk-card-empty {
+  padding: var(--space-lg) var(--space-md);
+  text-align: center;
+}
+
+.react-foundation .desk-card-empty p {
+  font-size: var(--font-size-sm) !important;
+  margin: 0 !important;
+}
+
+/* Text Utility Classes */
+.react-foundation .text-success {
+  color: var(--win-green) !important;
+}
+
+.react-foundation .text-warning {
+  color: var(--warning-amber) !important;
+}
+
+.react-foundation .text-accent {
+  color: var(--petco-gold) !important;
+}
+
+.react-foundation .text-dim {
+  color: var(--text-dim) !important;
+}
+
+.react-foundation .text-protected {
+  color: var(--ticket-blue) !important;
+}
+
+.react-foundation .text-cache {
+  color: #a8ebd1 !important;
+}
+
+/* Button Size Variants */
+.react-foundation .btn-sm {
+  padding: 8px 14px !important;
+  font-size: 0.7rem !important;
+}
+
+/* Responsive Dashboard */
+@media (max-width: 1024px) {
+  .react-foundation .dashboard-executive-desk {
+    grid-template-columns: 1fr;
+    gap: var(--space-md);
+  }
+
+  .react-foundation .desk-hero-header {
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+}
+
+@media (max-width: 768px) {
+  .react-foundation .dashboard-desk-hero {
+    padding: var(--space-lg) !important;
+  }
+
+  .react-foundation .desk-card-premium {
+    padding: var(--space-md) !important;
+  }
+
+  .react-foundation .desk-metric-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-xs);
+  }
+
+  .react-foundation .desk-card-actions {
+    flex-direction: column;
+  }
+}

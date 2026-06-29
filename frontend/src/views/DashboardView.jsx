@@ -155,65 +155,33 @@ export default function DashboardView() {
 
   return (
     <section
-      className="app-view dashboard-view foundation-view is-active"
+      className="app-view dashboard-view foundation-view is-active react-foundation"
       id="dashboard"
       data-app-view="dashboard"
     >
-      <div className="hero-panel slate-desk-hero desk-panel glass-card react-dashboard-hero">
-        <div className="slate-desk-head">
-          <p className="hero-kicker">Daily Slate Desk</p>
-          <h2>Resumen real cacheado</h2>
-          <p className="hero-description">
-            Dashboard conectado solo a GET /api/daily-ticket/dashboard. Muestra estado,
-            cache y lectura ejecutiva sin llamar generate, Bedrock, odds refresh ni scoreboard real.
-          </p>
+      {/* Hero Editorial */}
+      <header className="dashboard-desk-hero">
+        <div className="desk-hero-header">
+          <div>
+            <p className="hero-kicker">Daily Ticket AI</p>
+            <h2 className="desk-title">Ballpark Betting Desk</h2>
+            <p className="hero-subtitle">
+              {derived.ticketDate ? formatDateLabel(derived.ticketDate) : "Today's Desk"}
+            </p>
+          </div>
           <div className="hero-badges">
-            <span className="ui-badge cache">Cache-first</span>
-            <span className="ui-badge subtle">Read-only</span>
-            <span className="ui-badge subtle">Sin live calls</span>
+            <span className="ui-badge protected">Protected Mode</span>
+            <span className="ui-badge cache-first">Cache-first</span>
+            <span className="ui-badge read-only">Read-only</span>
           </div>
         </div>
+        <p className="desk-hero-summary">
+          Control room para Daily Ticket AI. Dashboard conectado a cache read-only sin llamadas live.
+          Generación manual pendiente.
+        </p>
+      </header>
 
-        <div className="slate-desk-metrics">
-          <MetricCard
-            label="Ticket hoy"
-            value={derived.hasTicketToday ? 'Si' : 'No'}
-            note={formatDateLabel(derived.ticketDate)}
-            tone={derived.hasTicketToday ? 'success' : 'warning'}
-          />
-          <MetricCard
-            label="Tickets"
-            value={String(derived.currentTicketsCount || derived.recentTicketsCount || 0)}
-            note={derived.currentTicketsCount ? 'hoy' : 'archivo reciente'}
-            tone={derived.currentTicketsCount ? 'success' : 'neutral'}
-          />
-          <MetricCard
-            label="Legs"
-            value={String(derived.currentLegsCount || derived.recentLegsCount || 0)}
-            note="picks disponibles"
-            tone="accent"
-          />
-          <MetricCard
-            label="Odds cache"
-            value={getStatusLabel(derived.status.oddsConfigured, 'Guarded', 'Off')}
-            note={derived.status.source || dashboard?.source || 'cache-first'}
-            tone={derived.status.oddsConfigured ? 'neutral' : 'warning'}
-          />
-        </div>
-
-        <div className="slate-desk-note">
-          Modo protegido: Dashboard usa cache read-only. Generacion manual pendiente y sin llamadas live.
-        </div>
-        <div className="hero-actions slate-desk-actions">
-          <button type="button" className="btn btn-primary btn-ticket" disabled>
-            Generacion manual pendiente
-          </button>
-          <a className="btn btn-secondary" href="#daily-ticket">
-            Ver Ticket del dia
-          </a>
-        </div>
-      </div>
-
+      {/* Loading / Error / Empty States */}
       {status === 'loading' ? (
         <ViewState
           className="ticket-panel glass-card react-dashboard-state"
@@ -241,61 +209,149 @@ export default function DashboardView() {
         />
       ) : null}
 
+      {/* Executive Desk - 4 Card Control Room */}
       {status === 'success' ? (
         <>
-          <div className="dashboard-summary-grid foundation-card-grid react-dashboard-grid">
-            <section className="ticket-panel desk-panel glass-card compact-panel dashboard-focus-card">
-              <div className="panel-header">
-                <div>
-                  <p className="panel-kicker">Ticket disponible</p>
-                  <h3>{derived.displayTicket?.title || 'Estado del slate'}</h3>
-                </div>
+          <div className="dashboard-executive-desk">
+            {/* Ticket Window Card */}
+            <section className="desk-card-premium ticket-window-card">
+              <div className="desk-card-header">
+                <p className="panel-kicker">Ticket Window</p>
+                <h3 className="card-title">
+                  {derived.displayTicket?.title || 'Estado del slate'}
+                </h3>
               </div>
-              <div className="empty-inline rich">
-                <strong>{derived.hasTicketToday ? 'Ticket de hoy en cache.' : 'Sin ticket de hoy.'}</strong>
-                <p>
-                  {derived.displayTicket?.summary ||
-                    'Hay estado de dashboard disponible, pero no hay resumen de ticket para hoy.'}
-                </p>
+              <div className="desk-card-body">
+                <div className="desk-metric-row">
+                  <div className="desk-metric">
+                    <span>Ticket hoy</span>
+                    <strong className={derived.hasTicketToday ? 'text-success' : 'text-warning'}>
+                      {derived.hasTicketToday ? 'Disponible' : 'No disponible'}
+                    </strong>
+                  </div>
+                  <div className="desk-metric">
+                    <span>Tickets</span>
+                    <strong>
+                      {derived.currentTicketsCount || derived.recentTicketsCount || 0}
+                    </strong>
+                  </div>
+                  <div className="desk-metric">
+                    <span>Legs</span>
+                    <strong className="text-accent">
+                      {derived.currentLegsCount || derived.recentLegsCount || 0}
+                    </strong>
+                  </div>
+                </div>
+                {derived.displayTicket?.summary ? (
+                  <p className="desk-card-summary">{derived.displayTicket.summary}</p>
+                ) : (
+                  <p className="desk-card-summary text-dim">
+                    {derived.currentTicketsCount
+                      ? 'Ticket disponible en cache.'
+                      : 'Sin ticket de hoy. Mostrando último disponible del archivo.'}
+                  </p>
+                )}
+              </div>
+              <div className="desk-card-actions">
+                <button type="button" className="btn btn-secondary btn-sm" disabled>
+                  Generación manual pendiente
+                </button>
+                <a className="btn btn-ghost btn-sm" href="#daily-ticket">
+                  Ver Daily Ticket →
+                </a>
               </div>
             </section>
 
-            <section className="ticket-panel desk-panel glass-card compact-panel dashboard-focus-card">
-              <div className="panel-header">
-                <div>
-                  <p className="panel-kicker">Estado protegido</p>
-                  <h3>Guard / cache</h3>
-                </div>
+            {/* Market Guard Card */}
+            <section className="desk-card-premium market-guard-card">
+              <div className="desk-card-header">
+                <p className="panel-kicker">Market Guard</p>
+                <h3 className="card-title">Config / Cache</h3>
               </div>
-              <div className="foundation-list">
-                <span>Bedrock: {getStatusLabel(derived.status.bedrockConfigured, 'configurado', 'off')}</span>
-                <span>Odds API: {getStatusLabel(derived.status.oddsConfigured, 'guarded mode', 'off')}</span>
-                <span>ESPN cache: {getStatusLabel(derived.status.espnAvailable, 'disponible', 'n/d')}</span>
-                <span>Source: {derived.status.source || dashboard?.source || 'n/d'}</span>
+              <div className="desk-card-body">
+                <div className="desk-status-list">
+                  <div className="desk-status-item">
+                    <span>Bedrock AI</span>
+                    <strong className={derived.status.bedrockConfigured ? 'text-success' : 'text-dim'}>
+                      {getStatusLabel(derived.status.bedrockConfigured, 'Configurado', 'Off')}
+                    </strong>
+                  </div>
+                  <div className="desk-status-item">
+                    <span>Odds API</span>
+                    <strong className={derived.status.oddsConfigured ? 'text-protected' : 'text-dim'}>
+                      {getStatusLabel(derived.status.oddsConfigured, 'Guarded', 'Off')}
+                    </strong>
+                  </div>
+                  <div className="desk-status-item">
+                    <span>ESPN Cache</span>
+                    <strong className={derived.status.espnAvailable ? 'text-success' : 'text-dim'}>
+                      {getStatusLabel(derived.status.espnAvailable, 'Disponible', 'n/d')}
+                    </strong>
+                  </div>
+                  <div className="desk-status-item">
+                    <span>Source</span>
+                    <strong className="text-cache">
+                      {derived.status.source || dashboard?.source || 'cache-first'}
+                    </strong>
+                  </div>
+                </div>
               </div>
             </section>
 
-            <section className="ticket-panel desk-panel glass-card compact-panel dashboard-focus-card">
-              <div className="panel-header">
-                <div>
-                  <p className="panel-kicker">Lectura rapida</p>
-                  <h3>Resumen operativo</h3>
+            {/* Slate Status Card */}
+            <section className="desk-card-premium slate-status-card">
+              <div className="desk-card-header">
+                <p className="panel-kicker">Slate Status</p>
+                <h3 className="card-title">Operación</h3>
+              </div>
+              <div className="desk-card-body">
+                <div className="desk-status-list">
+                  <div className="desk-status-item">
+                    <span>Fecha ticket</span>
+                    <strong>{derived.ticketDate || 'Sin fecha'}</strong>
+                  </div>
+                  <div className="desk-status-item">
+                    <span>Historial</span>
+                    <strong>{derived.historyCount} {derived.historyCount === 1 ? 'entrada' : 'entradas'}</strong>
+                  </div>
+                  <div className="desk-status-item">
+                    <span>Max AI/día</span>
+                    <strong>{derived.status.maxAiGenerationsPerDay ?? 'n/d'}</strong>
+                  </div>
+                  <div className="desk-status-item">
+                    <span>Can generate</span>
+                    <strong className={derived.status.canGenerate ? 'text-success' : 'text-warning'}>
+                      {getStatusLabel(derived.status.canGenerate, 'Disponible', 'No')}
+                    </strong>
+                  </div>
                 </div>
               </div>
-              <div className="foundation-list">
-                <span>Fecha ticket: {derived.ticketDate || 'Sin fecha'}</span>
-                <span>Historial cacheado: {derived.historyCount} entradas</span>
-                <span>Max AI/dia: {derived.status.maxAiGenerationsPerDay ?? 'n/d'}</span>
-                <span>Can generate: {getStatusLabel(derived.status.canGenerate, 'manual disponible', 'no')}</span>
+            </section>
+
+            {/* AI Notes Card */}
+            <section className="desk-card-premium ai-notes-card">
+              <div className="desk-card-header">
+                <p className="panel-kicker">AI Notes</p>
+                <h3 className="card-title">Warnings</h3>
+              </div>
+              <div className="desk-card-body">
+                {derived.warnings.length > 0 ? (
+                  <div className="desk-warnings-list">
+                    {derived.warnings.map((warning, index) => (
+                      <div className="desk-warning-item" key={`warning-${index}`}>
+                        <span className="warning-bullet">⚠</span>
+                        <span>{warning}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="desk-card-empty">
+                    <p className="text-dim">Sin warnings. Sistema operando en cache-first mode.</p>
+                  </div>
+                )}
               </div>
             </section>
           </div>
-
-          <WarningBanner
-            className="react-dashboard-warnings"
-            title="Notas del cache"
-            warnings={derived.warnings}
-          />
         </>
       ) : null}
     </section>

@@ -56,7 +56,11 @@ const NAV_ITEMS = ROUTES.map((route) => ({
 
 export default function Sidebar({ activeView, onNavigate, isCollapsed, onToggleCollapse }) {
   return (
-    <aside className="app-sidebar" id="app-sidebar">
+    <aside
+      className={`app-sidebar${isCollapsed ? ' is-collapsed' : ''}`}
+      id="app-sidebar"
+      data-sidebar-state={isCollapsed ? 'collapsed' : 'expanded'}
+    >
       <div className="sidebar-top">
         <div className="brand-lockup">
           <div className="brand-mark brand-logo-frame brand-logo-frame-sidebar">
@@ -75,11 +79,20 @@ export default function Sidebar({ activeView, onNavigate, isCollapsed, onToggleC
           type="button"
           className="sidebar-toggle"
           id="sidebar-toggle-btn"
-          aria-label={isCollapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+          aria-label={isCollapsed ? 'Abrir menú' : 'Cerrar menú'}
+          aria-controls="app-sidebar"
           aria-expanded={!isCollapsed}
           onClick={onToggleCollapse}
+          onKeyDown={(event) => {
+            if ((event.key === 'Enter' || event.key === ' ') && !event.repeat) {
+              event.preventDefault();
+              onToggleCollapse();
+            }
+          }}
         >
-          &lt;
+          <svg className="sidebar-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M10 3.5 5.5 8 10 12.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       </div>
 

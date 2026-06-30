@@ -5,6 +5,9 @@
  * tokens, layouts, cards, badges, buttons, typography, and polished visual elements.
  */
 
+/* Typography Layer 3B: visible sports/broadcast type without npm packages */
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Oswald:wght@500;600;700&display=swap');
+
 /* Import the canonical Ballpark Betting Desk stylesheet as base */
 @import url('../../styles.css');
 
@@ -65,6 +68,10 @@
   --font-size-lg: 1.1rem;
   --font-size-xl: 1.4rem;
   --font-size-xxl: 2rem;
+  --font-display: 'Barlow Condensed', 'Oswald', 'Bahnschrift Condensed', 'Arial Narrow', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-score: 'Barlow Condensed', 'Oswald', 'Bahnschrift Condensed', 'Arial Narrow', sans-serif;
+  --font-meta: 'Barlow Condensed', 'Oswald', 'Bahnschrift Condensed', 'Arial Narrow', sans-serif;
 
   /* ─── Mapping to override canonical variables globally ───────────────── */
   --surface: var(--espresso-black);
@@ -117,7 +124,7 @@ body {
     linear-gradient(180deg, var(--ballpark-deep) 0%, var(--ballpark-night) 28%, var(--clubhouse-haze) 58%, #04080b 100%) !important;
   background-attachment: fixed;
   color: var(--paper-cream) !important;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
   line-height: 1.55;
   min-height: 100vh;
   overflow-x: hidden;
@@ -158,10 +165,10 @@ body::after {
 
 .react-foundation .desk-title,
 .react-foundation h2 {
-  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-family: var(--font-display) !important;
   font-size: var(--font-size-xxl) !important;
   font-weight: 700 !important;
-  letter-spacing: -0.02em !important;
+  letter-spacing: 0 !important;
   color: var(--paper-cream) !important;
   text-transform: uppercase;
   line-height: 1.1 !important;
@@ -170,7 +177,7 @@ body::after {
 
 .react-foundation .section-title,
 .react-foundation h3 {
-  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-family: var(--font-display) !important;
   font-size: var(--font-size-xl) !important;
   font-weight: 700 !important;
   color: var(--petco-gold) !important;
@@ -182,17 +189,17 @@ body::after {
 
 .react-foundation .card-title,
 .react-foundation h4 {
-  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-family: var(--font-display) !important;
   font-size: var(--font-size-lg) !important;
   font-weight: 600 !important;
   color: var(--paper-cream) !important;
-  letter-spacing: -0.01em !important;
+  letter-spacing: 0 !important;
   margin-bottom: var(--space-sm);
 }
 
 .react-foundation p,
 .react-foundation .body-text {
-  font-family: 'Inter', sans-serif !important;
+  font-family: var(--font-body) !important;
   font-size: var(--font-size-md) !important;
   color: var(--text-secondary) !important;
   line-height: 1.55 !important;
@@ -203,7 +210,7 @@ body::after {
 .react-foundation .desk-scorebar-label,
 .react-foundation .sidebar-card-title,
 .react-foundation .game-insight-label {
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-meta) !important;
   font-size: var(--font-size-xs) !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
@@ -211,12 +218,15 @@ body::after {
   color: var(--text-dim) !important;
 }
 
-.react-foundation strong,
+.react-foundation strong {
+  font-family: var(--font-display) !important;
+}
+
 .react-foundation .game-score,
 .react-foundation .bet-slip-metric strong,
 .react-foundation .history-slip-ledger strong,
 .react-foundation .desk-scorebar-item strong {
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-score) !important;
 }
 
 /* ─── Layout & Shell Balance ────────────────────────────────────────────── */
@@ -260,7 +270,13 @@ body::after {
 /* ─── Premium App Sidebar ───────────────────────────────────────────────── */
 
 .react-foundation .app-sidebar {
-  transition: width 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  transition:
+    padding 220ms ease,
+    background 220ms ease,
+    box-shadow 220ms ease;
   background: linear-gradient(
     180deg,
     #060605 0%,
@@ -273,39 +289,116 @@ body::after {
   flex-direction: column;
   gap: 16px;
   overflow-y: auto;
+  overflow-x: visible;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(192, 132, 98, 0.28) transparent;
+}
+
+.react-foundation .app-sidebar.is-collapsed,
+.react-foundation.is-collapsed .app-sidebar {
+  align-items: center;
+  padding: 18px 10px 16px;
+}
+
+.react-foundation .sidebar-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  position: relative;
+}
+
+.react-foundation .app-sidebar.is-collapsed .sidebar-top,
+.react-foundation.is-collapsed .sidebar-top {
+  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+}
+
+.react-foundation .brand-copy,
+.react-foundation .nav-label,
+.react-foundation .sidebar-card {
+  transition:
+    opacity 140ms ease,
+    transform 180ms ease;
 }
 
 .react-foundation.is-collapsed .brand-copy,
 .react-foundation.is-collapsed .nav-label,
-.react-foundation.is-collapsed .sidebar-card {
+.react-foundation.is-collapsed .sidebar-card,
+.react-foundation .app-sidebar.is-collapsed .brand-copy,
+.react-foundation .app-sidebar.is-collapsed .nav-label,
+.react-foundation .app-sidebar.is-collapsed .sidebar-card {
   opacity: 0;
   pointer-events: none;
-  transition: opacity 120ms ease-out;
+  transform: translateY(-2px);
 }
 
 .react-foundation .sidebar-toggle {
-  background: transparent;
-  border: 1px solid var(--surface-border);
-  color: var(--text-secondary);
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 20;
+  background:
+    linear-gradient(180deg, rgba(246, 241, 227, 0.08), rgba(246, 241, 227, 0.02)),
+    rgba(11, 9, 7, 0.72);
+  border: 1px solid rgba(246, 241, 227, 0.13);
+  color: var(--silver-cool);
   cursor: pointer;
-  padding: 6px 10px;
-  border-radius: var(--radius-xs);
-  font-size: 0.9rem;
-  transition: all 180ms ease;
+  padding: 0;
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 22px rgba(0, 0, 0, 0.22);
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.react-foundation .sidebar-toggle-icon {
+  width: 17px;
+  height: 17px;
+  transition: transform 200ms ease;
 }
 
 .react-foundation .sidebar-toggle:hover {
-  background: var(--surface-soft);
-  border-color: var(--petco-gold);
+  background:
+    linear-gradient(180deg, rgba(192, 132, 98, 0.16), rgba(246, 241, 227, 0.035)),
+    rgba(17, 16, 14, 0.92);
+  border-color: rgba(192, 132, 98, 0.42);
   color: var(--paper-cream);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 26px rgba(0, 0, 0, 0.32);
 }
 
 .react-foundation .sidebar-toggle:focus-visible {
-  outline: 2px solid var(--petco-gold);
+  outline: 2px solid rgba(192, 132, 98, 0.78);
   outline-offset: 2px;
 }
 
+.react-foundation .app-sidebar.is-collapsed .sidebar-toggle,
 .react-foundation.is-collapsed .sidebar-toggle {
+  margin: 0 auto;
+  border-color: rgba(192, 132, 98, 0.34);
+  background:
+    linear-gradient(180deg, rgba(192, 132, 98, 0.14), rgba(246, 241, 227, 0.035)),
+    rgba(15, 13, 11, 0.94);
+  color: var(--paper-cream);
+  transform: none;
+}
+
+.react-foundation .app-sidebar.is-collapsed .sidebar-toggle-icon,
+.react-foundation.is-collapsed .sidebar-toggle-icon {
   transform: rotate(180deg);
 }
 
@@ -313,31 +406,62 @@ body::after {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+}
+
+.react-foundation .app-sidebar.is-collapsed .brand-lockup,
+.react-foundation.is-collapsed .brand-lockup {
+  justify-content: center;
+  width: 100%;
 }
 
 .react-foundation .brand-lockup h1 {
-  font-family: 'Space Grotesk', sans-serif !important;
+  font-family: var(--font-display) !important;
   color: var(--paper-cream) !important;
   font-size: 1.25rem !important;
   font-weight: 700 !important;
-  letter-spacing: -0.01em !important;
+  letter-spacing: 0 !important;
 }
 
 .react-foundation .brand-logo-frame-sidebar {
-  border-radius: var(--radius-xs);
-  border: 1px solid rgba(246, 241, 227, 0.15);
-  background: rgba(246, 241, 227, 0.05);
+  border-radius: 18px;
+  border: 1px solid rgba(246, 241, 227, 0.14);
+  background:
+    linear-gradient(180deg, rgba(246, 241, 227, 0.075), rgba(255, 255, 255, 0.018)),
+    rgba(11, 9, 7, 0.62);
   padding: 2px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 14px 26px rgba(0, 0, 0, 0.28);
+  transition:
+    width 220ms ease,
+    height 220ms ease,
+    border-radius 220ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.react-foundation .app-sidebar.is-collapsed .brand-logo-frame-sidebar,
+.react-foundation.is-collapsed .brand-logo-frame-sidebar {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  border-color: rgba(192, 132, 98, 0.22);
 }
 
 .react-foundation .nav-link {
   position: relative;
-  transition: all 180ms ease;
-  border-radius: var(--radius-xs) !important;
-  margin: 2px 0 !important;
-  font-family: 'Space Grotesk', sans-serif !important;
-  font-weight: 500 !important;
-  letter-spacing: 0.01em !important;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+  border-radius: 12px !important;
+  margin: 1px 0 !important;
+  font-family: var(--font-display) !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
   color: var(--text-secondary) !important;
 }
 
@@ -351,28 +475,90 @@ body::after {
   height: 0;
   background: var(--petco-gold);
   border-radius: 0 2px 2px 0;
-  transition: height 180ms ease;
+  transition:
+    height 180ms ease,
+    opacity 180ms ease,
+    width 180ms ease;
 }
 
 .react-foundation .nav-link:hover {
-  background: rgba(246, 241, 227, 0.04) !important;
+  background:
+    linear-gradient(180deg, rgba(192, 132, 98, 0.11), rgba(246, 241, 227, 0.025)) !important;
+  border-color: rgba(192, 132, 98, 0.22) !important;
   color: var(--paper-cream) !important;
+  transform: translateY(-1px);
 }
 
 .react-foundation .nav-link:focus-visible {
-  outline: 2px solid var(--petco-gold);
+  outline: 2px solid rgba(192, 132, 98, 0.7);
   outline-offset: -2px;
 }
 
 .react-foundation .nav-link.is-active {
-  background: rgba(192, 132, 98, 0.11) !important;
-  border-color: rgba(192, 132, 98, 0.26) !important;
-  color: var(--petco-gold) !important;
+  background:
+    linear-gradient(180deg, rgba(192, 132, 98, 0.15), rgba(246, 241, 227, 0.025)) !important;
+  border-color: rgba(192, 132, 98, 0.32) !important;
+  color: #e7d5c8 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 12px 20px rgba(0, 0, 0, 0.18) !important;
 }
 
 .react-foundation .nav-link.is-active::before {
   height: 24px;
   background: var(--petco-gold) !important;
+}
+
+.react-foundation .sidebar-nav .nav-link .nav-icon {
+  background:
+    linear-gradient(180deg, rgba(246, 241, 227, 0.075), rgba(246, 241, 227, 0.018)),
+    rgba(17, 16, 14, 0.7) !important;
+  border-color: rgba(246, 241, 227, 0.1) !important;
+  color: #ded8ca !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
+}
+
+.react-foundation .nav-link:hover .nav-icon,
+.react-foundation .nav-link.is-active .nav-icon {
+  border-color: rgba(192, 132, 98, 0.3) !important;
+  background:
+    linear-gradient(180deg, rgba(192, 132, 98, 0.16), rgba(246, 241, 227, 0.025)),
+    rgba(17, 16, 14, 0.86) !important;
+}
+
+.react-foundation .nav-label {
+  line-height: 1.15;
+}
+
+.react-foundation .app-sidebar.is-collapsed .sidebar-nav,
+.react-foundation.is-collapsed .sidebar-nav {
+  width: 100%;
+  gap: 9px;
+}
+
+.react-foundation .app-sidebar.is-collapsed .nav-link,
+.react-foundation.is-collapsed .nav-link {
+  justify-content: center;
+  min-height: 46px;
+  padding: 7px !important;
+  width: 100%;
+}
+
+.react-foundation .app-sidebar.is-collapsed .nav-link::before,
+.react-foundation.is-collapsed .nav-link::before {
+  left: 50%;
+  top: auto;
+  bottom: -4px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 2px;
+  opacity: 0;
+  border-radius: 999px;
+}
+
+.react-foundation .app-sidebar.is-collapsed .nav-link.is-active::before,
+.react-foundation.is-collapsed .nav-link.is-active::before {
+  width: 24px;
+  height: 2px;
+  opacity: 1;
 }
 
 .react-foundation .sidebar-card {
@@ -425,14 +611,14 @@ body::after {
   color: var(--petco-gold) !important;
   text-transform: uppercase !important;
   letter-spacing: 0.1em !important;
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-meta) !important;
 }
 
 .react-foundation .desk-scorebar-item strong {
   font-size: var(--font-size-sm) !important;
   color: var(--paper-cream) !important;
-  font-family: var(--font-mono) !important;
-  letter-spacing: 0.02em !important;
+  font-family: var(--font-score) !important;
+  letter-spacing: 0 !important;
 }
 
 #desk-scorebar-cache {
@@ -589,11 +775,11 @@ body::after {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-meta) !important;
   font-size: var(--font-size-xs) !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.06em !important;
+  letter-spacing: 0 !important;
   padding: 4px 8px !important;
   border-radius: 4px !important;
   line-height: 1.25 !important;
@@ -682,11 +868,11 @@ body::after {
 /* ─── Premium Tactile Buttons ───────────────────────────────────────────── */
 
 .react-foundation .btn {
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-meta) !important;
   font-size: var(--font-size-sm) !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.05em !important;
+  letter-spacing: 0 !important;
   padding: 10px 20px !important;
   border-radius: var(--radius-xs) !important;
   border: 1px solid transparent !important;
@@ -833,7 +1019,7 @@ body::after {
 .react-foundation .bet-slip-receipt-line {
   display: flex !important;
   justify-content: space-between !important;
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-meta) !important;
   font-size: 0.72rem !important;
   color: var(--text-dim) !important;
   text-transform: uppercase !important;
@@ -845,7 +1031,7 @@ body::after {
 .react-foundation .bet-slip-serial {
   color: var(--petco-gold) !important;
   font-weight: 700 !important;
-  letter-spacing: 0.05em !important;
+  letter-spacing: 0 !important;
 }
 
 .react-foundation .bet-slip-metrics {
@@ -867,14 +1053,14 @@ body::after {
 }
 
 .react-foundation .bet-slip-metric span {
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-meta) !important;
   font-size: 0.65rem !important;
   text-transform: uppercase !important;
   color: var(--text-dim) !important;
 }
 
 .react-foundation .bet-slip-metric strong {
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-score) !important;
   font-size: var(--font-size-md) !important;
   color: var(--paper-cream) !important;
   margin-top: 4px !important;
@@ -887,7 +1073,7 @@ body::after {
 }
 
 .react-foundation .receipt-footer {
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-meta) !important;
   font-size: 0.68rem !important;
   color: var(--text-dim) !important;
   text-transform: uppercase !important;
@@ -913,10 +1099,10 @@ body::after {
   padding: 8px 16px !important;
   border-radius: var(--radius-xs) !important;
   color: var(--text-secondary) !important;
-  font-family: 'Space Grotesk', sans-serif !important;
+  font-family: var(--font-display) !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.02em !important;
+  letter-spacing: 0 !important;
   cursor: pointer !important;
   transition: all 180ms ease !important;
   display: inline-flex !important;
@@ -938,7 +1124,7 @@ body::after {
 .react-foundation .scoreboard-tab-count {
   background: rgba(246, 241, 227, 0.08) !important;
   color: var(--text-secondary) !important;
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-score) !important;
   font-size: 0.72rem !important;
   padding: 2px 6px !important;
   border-radius: 999px !important;
@@ -947,6 +1133,79 @@ body::after {
 .react-foundation .scoreboard-tab.is-active .scoreboard-tab-count {
   background: rgba(192, 132, 98, 0.16) !important;
   color: var(--petco-gold) !important;
+}
+
+.react-foundation .react-scoreboard-meta,
+.react-foundation .game-status-block,
+.react-foundation .game-detail-item,
+.react-foundation .game-team-copy small {
+  font-family: var(--font-meta) !important;
+  letter-spacing: 0 !important;
+}
+
+.react-foundation .react-scoreboard-meta strong,
+.react-foundation .game-status-block strong {
+  font-family: var(--font-score) !important;
+  font-weight: 750 !important;
+  letter-spacing: 0 !important;
+}
+
+.react-foundation .game-team-copy strong {
+  font-family: var(--font-display) !important;
+  font-weight: 750 !important;
+  letter-spacing: 0 !important;
+  color: var(--paper-cream) !important;
+}
+
+.react-foundation .game-team-copy small,
+.react-foundation .game-detail-item {
+  color: var(--text-secondary) !important;
+}
+
+.react-foundation .game-score {
+  min-width: 2.4ch;
+  font-family: var(--font-score) !important;
+  font-size: 1.58rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+  color: #f1e8d9 !important;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.38);
+}
+
+.react-foundation .team-avatar-frame {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 15px !important;
+  padding: 5px !important;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.96) 0%, rgba(246, 241, 227, 0.9) 36%, rgba(210, 202, 185, 0.8) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(225, 217, 199, 0.86)) !important;
+  border: 1px solid rgba(246, 241, 227, 0.34) !important;
+  color: #2b2520 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    inset 0 -10px 18px rgba(91, 70, 48, 0.1),
+    0 10px 22px rgba(0, 0, 0, 0.28) !important;
+}
+
+.react-foundation .team-avatar-frame img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  filter:
+    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.38))
+    drop-shadow(0 5px 8px rgba(0, 0, 0, 0.24)) !important;
+}
+
+.react-foundation .team-avatar-frame.is-fallback {
+  font-family: var(--font-score) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0 !important;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.96), rgba(232, 224, 207, 0.88)),
+    rgba(246, 241, 227, 0.88) !important;
 }
 
 .react-foundation .linescore-wrap {
@@ -959,15 +1218,17 @@ body::after {
 .react-foundation .linescore-table {
   width: 100% !important;
   border-collapse: collapse !important;
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-score) !important;
   font-size: 0.82rem !important;
+  letter-spacing: 0 !important;
 }
 
 .react-foundation .linescore-table th {
   background: rgba(31, 33, 29, 0.64) !important;
-  color: var(--petco-gold) !important;
+  color: #d7c1ad !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
+  letter-spacing: 0 !important;
   padding: 6px 10px !important;
   border-bottom: 1px solid rgba(246, 241, 227, 0.08) !important;
 }
@@ -982,6 +1243,7 @@ body::after {
   text-align: left !important;
   font-weight: 700 !important;
   color: var(--paper-cream) !important;
+  letter-spacing: 0 !important;
 }
 
 .react-foundation .linescore-rhe {
@@ -1129,11 +1391,11 @@ body::after {
 }
 
 .react-foundation .hero-subtitle {
-  font-family: 'Space Grotesk', sans-serif !important;
+  font-family: var(--font-display) !important;
   font-size: var(--font-size-lg) !important;
   color: var(--petco-gold) !important;
   font-weight: 600 !important;
-  letter-spacing: 0.01em !important;
+  letter-spacing: 0 !important;
   margin-top: var(--space-xs) !important;
 }
 
@@ -1226,15 +1488,15 @@ body::after {
 }
 
 .react-foundation .desk-metric span {
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-meta) !important;
   font-size: var(--font-size-xs) !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.06em !important;
+  letter-spacing: 0 !important;
   color: var(--text-dim) !important;
 }
 
 .react-foundation .desk-metric strong {
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-score) !important;
   font-size: var(--font-size-lg) !important;
   color: var(--paper-cream) !important;
   font-weight: 700 !important;
@@ -1265,15 +1527,15 @@ body::after {
 }
 
 .react-foundation .desk-status-item span {
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-meta) !important;
   font-size: var(--font-size-xs) !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.06em !important;
+  letter-spacing: 0 !important;
   color: var(--text-dim) !important;
 }
 
 .react-foundation .desk-status-item strong {
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-score) !important;
   font-size: var(--font-size-sm) !important;
   color: var(--paper-cream) !important;
   font-weight: 700 !important;
@@ -1511,4 +1773,146 @@ body::after {
   text-align: center;
   color: var(--text-dim);
   font-style: italic;
+}
+
+/* ─── Visual Polish Layer 3B: Typography Only Fix ──────────────────────── */
+
+.react-foundation,
+.react-foundation .app-main,
+.react-foundation .page-content,
+.react-foundation input,
+.react-foundation textarea,
+.react-foundation select {
+  font-family: var(--font-body) !important;
+}
+
+.react-foundation .desk-title,
+.react-foundation .dashboard-desk-hero .desk-title,
+.react-foundation .panel-header h2,
+.react-foundation .panel-header h3,
+.react-foundation .scoreboard-group-header h4,
+.react-foundation .ticket-hero-summary h3,
+.react-foundation .view-intro-panel h2,
+.react-foundation .view-intro-panel h3,
+.react-foundation .tasks-header h2,
+.react-foundation .task-form-container h3,
+.react-foundation .tasks-container h3,
+.react-foundation .card-title,
+.react-foundation .desk-card-header h3,
+.react-foundation .history-ticket-top h4,
+.react-foundation .history-settlement-panel h3,
+.react-foundation .react-ticket-state h3,
+.react-foundation .react-scoreboard-state h3,
+.react-foundation h2,
+.react-foundation h3,
+.react-foundation h4 {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.018em !important;
+  text-transform: uppercase !important;
+  font-synthesis: none;
+  text-wrap: balance;
+}
+
+.react-foundation .desk-title,
+.react-foundation .dashboard-desk-hero .desk-title {
+  font-weight: 700 !important;
+  letter-spacing: 0.026em !important;
+}
+
+.react-foundation .brand-lockup h1,
+.react-foundation .nav-link,
+.react-foundation .nav-label,
+.react-foundation .scoreboard-tab,
+.react-foundation .btn,
+.react-foundation .ui-badge,
+.react-foundation .market-pill,
+.react-foundation .risk-pill,
+.react-foundation .ticket-card-chip,
+.react-foundation .sidebar-card-chip,
+.react-foundation .game-badge {
+  font-family: var(--font-meta) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.045em !important;
+  font-synthesis: none;
+}
+
+.react-foundation .panel-kicker,
+.react-foundation .hero-kicker,
+.react-foundation .brand-kicker,
+.react-foundation .desk-scorebar-label,
+.react-foundation .sidebar-card-title,
+.react-foundation .game-insight-label,
+.react-foundation .pattern-chip-label,
+.react-foundation .desk-metric span,
+.react-foundation .desk-status-item span,
+.react-foundation .bet-slip-metric span,
+.react-foundation .history-ticket-serial,
+.react-foundation .ticket-card-serial,
+.react-foundation .ticket-card-copy,
+.react-foundation .game-team-copy small,
+.react-foundation .game-detail-item,
+.react-foundation .react-scoreboard-meta,
+.react-foundation .ticket-selector-meta,
+.react-foundation .bet-leg-meta,
+.react-foundation .receipt-footer,
+.react-foundation .bet-slip-receipt-line {
+  font-family: var(--font-meta) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.055em !important;
+  font-synthesis: none;
+}
+
+.react-foundation p,
+.react-foundation .body-text,
+.react-foundation .panel-subtitle,
+.react-foundation .desk-card-summary,
+.react-foundation .hero-subtitle,
+.react-foundation .desk-hero-summary,
+.react-foundation .sidebar-card-copy,
+.react-foundation .game-insight-copy,
+.react-foundation .history-slip-summary,
+.react-foundation .ticket-disclaimer,
+.react-foundation .warning-banner-copy {
+  font-family: var(--font-body) !important;
+  font-weight: 500;
+  letter-spacing: 0 !important;
+}
+
+.react-foundation strong,
+.react-foundation .game-team-copy strong,
+.react-foundation .ticket-selector-card > strong,
+.react-foundation .react-leg-main strong,
+.react-foundation .history-ticket-top strong,
+.react-foundation .linescore-team-cell {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.018em !important;
+  font-synthesis: none;
+}
+
+.react-foundation .game-score,
+.react-foundation .linescore-table,
+.react-foundation .linescore-table th,
+.react-foundation .linescore-table td,
+.react-foundation .linescore-rhe,
+.react-foundation .pattern-chip-value,
+.react-foundation .desk-metric strong,
+.react-foundation .desk-status-item strong,
+.react-foundation .bet-slip-metric strong,
+.react-foundation .history-slip-ledger strong,
+.react-foundation .history-pattern-val,
+.react-foundation .desk-scorebar-item strong,
+.react-foundation .scoreboard-tab-count,
+.react-foundation .react-scoreboard-meta strong {
+  font-family: var(--font-score) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.026em !important;
+  font-variant-numeric: tabular-nums;
+  font-synthesis: none;
+}
+
+.react-foundation .game-score {
+  font-weight: 800 !important;
+  letter-spacing: 0.035em !important;
 }

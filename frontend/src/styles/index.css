@@ -10,14 +10,28 @@
 
 :root {
   /* ─── Creative Identity: Ballpark Betting Desk Colors ─────────────────── */
-  --clubhouse-black: #060b11;    /* Deep sports black clubhouse/warroom bg */
-  --scoreboard-navy: #0b1a2d;    /* Solid MLB scoreboard navy */
-  --dugout-charcoal: #142232;    /* Solid dugout dark intermediate gray-blue */
-  --petco-gold: #dfab56;         /* Premium golden accent highlight */
+  --clubhouse-black: #070706;    /* Deep sports black clubhouse/warroom bg */
+  --scoreboard-navy: #151412;    /* Legacy token: graphite panel surface */
+  --dugout-charcoal: #1d1d19;    /* Legacy token: warm gunmetal surface */
+  --petco-gold: #c08462;         /* Legacy token: muted copper highlight */
   --paper-cream: #f6f1e3;        /* Vintage sports journalism cream white */
-  --field-green: #248a56;        /* Rich outfield baseball turf green */
-  --warning-amber: #e69d24;      /* High visibility warning amber */
-  --ticket-blue: #3b6e8c;        /* Classic sportsbook ticket slate blue */
+  --field-green: #4f7052;        /* Muted outfield clubhouse green */
+  --warning-amber: #b98054;      /* Muted copper warning tone */
+  --ticket-blue: #6f716a;        /* Legacy token: cool gunmetal neutral */
+  --espresso-black: #0b0907;
+  --graphite-panel: #151412;
+  --graphite-panel-strong: #11100e;
+  --gunmetal-panel: #1f211d;
+  --copper-muted: #c08462;
+  --copper-deep: #8f5944;
+  --copper-soft: rgba(192, 132, 98, 0.14);
+  --silver-cool: #b5b6ad;
+  --ballpark-night: #03070b;     /* Premium night-game field darkness */
+  --ballpark-deep: #010304;      /* Vignette depth for the app shell */
+  --clubhouse-haze: #0a1212;     /* Charcoal-green mid layer */
+  --stadium-green-haze: rgba(36, 138, 86, 0.13);
+  --stadium-gold-haze: rgba(223, 171, 86, 0.1);
+  --stadium-burgundy-haze: rgba(111, 46, 42, 0.12);
   
   /* Game / Bet State Tones */
   --win-green: #2bb673;          /* Rich victory green */
@@ -53,26 +67,30 @@
   --font-size-xxl: 2rem;
 
   /* ─── Mapping to override canonical variables globally ───────────────── */
-  --surface: var(--clubhouse-black);
-  --surface-dim: #04080c;
-  --surface-lowest: #020406;
+  --surface: var(--espresso-black);
+  --surface-dim: #050504;
+  --surface-lowest: #020302;
   --surface-low: var(--dugout-charcoal);
   --surface-card: var(--scoreboard-navy);
   --surface-card-strong: var(--clubhouse-black);
   --surface-border: var(--border-subtle);
   --surface-border-strong: var(--border-subtle-strong);
   --surface-soft: rgba(246, 241, 227, 0.04);
+  --bg-page: var(--surface-dim);
+  --bg-card: var(--surface-card);
+  --bg-panel: var(--surface-low);
+  --bg-elevated: var(--gunmetal-panel);
   
   --text-primary: var(--paper-cream);
-  --text-secondary: #c8c3b2;
-  --text-dim: #7f8b99;
+  --text-secondary: #cec7b7;
+  --text-dim: #8d918a;
   
-  --primary: var(--ticket-blue);
-  --primary-dark: #2a526b;
-  --secondary: #9cb5c9;
-  --secondary-dark: #627b8f;
+  --primary: var(--copper-deep);
+  --primary-dark: #744637;
+  --secondary: var(--silver-cool);
+  --secondary-dark: #74776f;
   --tertiary: var(--petco-gold);
-  --tertiary-dark: #bd8633;
+  --tertiary-dark: #9a634c;
   
   --accent-red: var(--loss-red);
   --error: #efb3a3;
@@ -86,16 +104,54 @@
 
 #root {
   min-height: 100vh;
+  position: relative;
+  z-index: 1;
 }
 
 body {
   background:
-    radial-gradient(circle at 14% 0%, rgba(59, 110, 140, 0.12), transparent 28%),
-    radial-gradient(circle at 88% 0%, rgba(223, 171, 86, 0.06), transparent 24%),
-    linear-gradient(180deg, var(--clubhouse-black) 0%, #080f17 40%, var(--scoreboard-navy) 100%) !important;
+    radial-gradient(ellipse at 50% -18%, rgba(246, 241, 227, 0.11) 0%, rgba(223, 171, 86, 0.055) 18%, transparent 42%),
+    radial-gradient(ellipse at 12% 4%, var(--stadium-green-haze) 0%, rgba(36, 138, 86, 0.045) 32%, transparent 58%),
+    radial-gradient(ellipse at 92% 2%, var(--stadium-gold-haze) 0%, rgba(223, 171, 86, 0.035) 26%, transparent 52%),
+    radial-gradient(ellipse at 78% 88%, var(--stadium-burgundy-haze) 0%, transparent 48%),
+    linear-gradient(180deg, var(--ballpark-deep) 0%, var(--ballpark-night) 28%, var(--clubhouse-haze) 58%, #04080b 100%) !important;
+  background-attachment: fixed;
   color: var(--paper-cream) !important;
   font-family: 'Inter', sans-serif;
   line-height: 1.55;
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% -20%, rgba(246, 241, 227, 0.09) 0%, rgba(223, 171, 86, 0.04) 20%, transparent 44%),
+    radial-gradient(ellipse at 0% 18%, rgba(36, 138, 86, 0.08) 0%, transparent 42%),
+    radial-gradient(ellipse at 100% 14%, rgba(223, 171, 86, 0.055) 0%, transparent 38%),
+    linear-gradient(180deg, transparent 0%, rgba(1, 3, 4, 0.12) 55%, rgba(1, 3, 4, 0.48) 100%),
+    linear-gradient(90deg, rgba(1, 3, 4, 0.38) 0%, transparent 18%, transparent 82%, rgba(1, 3, 4, 0.4) 100%);
+  opacity: 0.92;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(246, 241, 227, 0.08) 0 0.65px, transparent 0.75px),
+    radial-gradient(circle at 2px 3px, rgba(36, 138, 86, 0.05) 0 0.55px, transparent 0.7px);
+  background-position: 0 0, 11px 17px;
+  background-size: 7px 7px, 19px 19px;
+  opacity: 0.16;
+  mix-blend-mode: soft-light;
 }
 
 /* ─── Typography & Hierarchy ────────────────────────────────────────────── */
@@ -207,7 +263,7 @@ body {
   transition: width 240ms cubic-bezier(0.4, 0, 0.2, 1);
   background: linear-gradient(
     180deg,
-    #050a0f 0%,
+    #060605 0%,
     var(--clubhouse-black) 100%
   ) !important;
   border-right: 1px solid rgba(246, 241, 227, 0.08) !important;
@@ -309,8 +365,8 @@ body {
 }
 
 .react-foundation .nav-link.is-active {
-  background: rgba(223, 171, 86, 0.08) !important;
-  border-color: rgba(223, 171, 86, 0.2) !important;
+  background: rgba(192, 132, 98, 0.11) !important;
+  border-color: rgba(192, 132, 98, 0.26) !important;
   color: var(--petco-gold) !important;
 }
 
@@ -320,7 +376,7 @@ body {
 }
 
 .react-foundation .sidebar-card {
-  background: rgba(18, 30, 45, 0.5) !important;
+  background: rgba(31, 33, 29, 0.56) !important;
   border: 1px solid rgba(246, 241, 227, 0.06) !important;
   border-radius: var(--radius-sm) !important;
   padding: var(--space-md) !important;
@@ -347,7 +403,7 @@ body {
   min-height: 52px;
   overflow-x: auto;
   scrollbar-width: none;
-  background: rgba(11, 26, 43, 0.6) !important;
+  background: rgba(17, 16, 14, 0.68) !important;
 }
 
 .react-foundation .desk-scorebar-item {
@@ -393,8 +449,8 @@ body {
 .react-foundation .glass-card {
   background: linear-gradient(
     135deg,
-    rgba(11, 26, 43, 0.95) 0%,
-    rgba(18, 30, 45, 0.95) 100%
+    rgba(17, 16, 14, 0.96) 0%,
+    rgba(31, 33, 29, 0.94) 100%
   ) !important;
   border: 1px solid rgba(246, 241, 227, 0.1) !important;
   box-shadow: var(--shadow-premium) !important;
@@ -428,8 +484,8 @@ body {
 .react-foundation .mini-ticket-card {
   background: linear-gradient(
     180deg,
-    rgba(18, 30, 45, 0.8) 0%,
-    rgba(11, 26, 43, 0.95) 100%
+    rgba(31, 33, 29, 0.82) 0%,
+    rgba(17, 16, 14, 0.95) 100%
   ) !important;
   border: 1px solid var(--surface-border) !important;
   border-radius: var(--radius-sm) !important;
@@ -440,11 +496,11 @@ body {
 
 .react-foundation .ticket-card:hover,
 .react-foundation .mini-ticket-card:hover {
-  border-color: rgba(223, 171, 86, 0.3) !important;
+  border-color: rgba(192, 132, 98, 0.34) !important;
   background: linear-gradient(
     180deg,
-    rgba(22, 38, 56, 0.9) 0%,
-    rgba(14, 30, 50, 0.95) 100%
+    rgba(38, 37, 32, 0.92) 0%,
+    rgba(20, 18, 15, 0.96) 100%
   ) !important;
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
@@ -455,8 +511,8 @@ body {
   border-color: var(--petco-gold) !important;
   background: linear-gradient(
     180deg,
-    rgba(223, 171, 86, 0.08) 0%,
-    rgba(11, 26, 43, 0.95) 100%
+    rgba(192, 132, 98, 0.12) 0%,
+    rgba(17, 16, 14, 0.96) 100%
   ) !important;
   box-shadow: 0 0 0 1px var(--petco-gold), 0 8px 24px rgba(0, 0, 0, 0.5) !important;
 }
@@ -465,8 +521,8 @@ body {
 .react-foundation .scorebug-card {
   background: linear-gradient(
     135deg,
-    rgba(18, 30, 45, 0.85) 0%,
-    rgba(11, 26, 43, 0.95) 100%
+    rgba(31, 33, 29, 0.86) 0%,
+    rgba(17, 16, 14, 0.96) 100%
   ) !important;
   border: 1px solid var(--surface-border) !important;
   border-radius: var(--radius-sm) !important;
@@ -478,8 +534,8 @@ body {
 .react-foundation .history-premium-slip {
   background: linear-gradient(
     180deg,
-    rgba(18, 30, 45, 0.7) 0%,
-    rgba(11, 26, 43, 0.85) 100%
+    rgba(31, 33, 29, 0.72) 0%,
+    rgba(17, 16, 14, 0.88) 100%
   ) !important;
   border: 1px solid var(--surface-border) !important;
   border-radius: var(--radius-sm) !important;
@@ -489,13 +545,13 @@ body {
 
 .react-foundation .archive-card:hover,
 .react-foundation .history-premium-slip:hover {
-  border-color: rgba(223, 171, 86, 0.28) !important;
+  border-color: rgba(192, 132, 98, 0.3) !important;
   transform: translateY(-2px) !important;
 }
 
 .react-foundation .metric-card,
 .react-foundation .slate-desk-metric {
-  background: rgba(18, 30, 45, 0.6) !important;
+  background: rgba(31, 33, 29, 0.62) !important;
   border: 1px solid var(--surface-border) !important;
   border-radius: var(--radius-sm) !important;
   padding: var(--space-md) !important;
@@ -508,12 +564,12 @@ body {
 .react-foundation .metric-card:hover,
 .react-foundation .slate-desk-metric:hover {
   border-color: rgba(246, 241, 227, 0.18) !important;
-  background: rgba(18, 30, 45, 0.8) !important;
+  background: rgba(35, 35, 30, 0.82) !important;
   transform: translateY(-1px);
 }
 
 .react-foundation .status-card {
-  background: rgba(22, 34, 47, 0.5) !important;
+  background: rgba(28, 28, 24, 0.56) !important;
   border: 1px solid var(--surface-border) !important;
   border-radius: var(--radius-sm) !important;
   padding: var(--space-md) !important;
@@ -546,9 +602,9 @@ body {
 }
 
 .react-foundation .ui-badge.protected {
-  background: rgba(59, 110, 140, 0.12) !important;
-  border-color: rgba(59, 110, 140, 0.4) !important;
-  color: #c4d7e6 !important;
+  background: rgba(111, 113, 106, 0.15) !important;
+  border-color: rgba(181, 182, 173, 0.32) !important;
+  color: #d4d2c8 !important;
 }
 
 .react-foundation .ui-badge.cache,
@@ -566,9 +622,9 @@ body {
 }
 
 .react-foundation .ui-badge.pending {
-  background: rgba(223, 171, 86, 0.12) !important;
-  border-color: rgba(223, 171, 86, 0.4) !important;
-  color: #faebd3 !important;
+  background: rgba(192, 132, 98, 0.13) !important;
+  border-color: rgba(192, 132, 98, 0.38) !important;
+  color: #efd4c3 !important;
 }
 
 .react-foundation .ui-badge.win,
@@ -597,15 +653,15 @@ body {
 }
 
 .react-foundation .ui-badge.refund {
-  background: rgba(59, 110, 140, 0.14) !important;
-  border-color: rgba(59, 110, 140, 0.45) !important;
-  color: #c4d7e6 !important;
+  background: rgba(111, 113, 106, 0.16) !important;
+  border-color: rgba(181, 182, 173, 0.36) !important;
+  color: #d4d2c8 !important;
 }
 
 .react-foundation .ui-badge.generated {
-  background: rgba(223, 171, 86, 0.15) !important;
-  border-color: rgba(223, 171, 86, 0.5) !important;
-  color: #faebd3 !important;
+  background: rgba(192, 132, 98, 0.16) !important;
+  border-color: rgba(192, 132, 98, 0.48) !important;
+  color: #efd4c3 !important;
   font-weight: 800 !important;
 }
 
@@ -643,13 +699,13 @@ body {
   outline: none !important;
 }
 
-/* Primary Sports Action (Ticket Blue style) */
+/* Primary Sports Action (Muted Copper style) */
 .react-foundation .btn-primary,
 .react-foundation .btn-ticket {
   background: var(--primary) !important;
   color: var(--paper-cream) !important;
   border-color: rgba(246, 241, 227, 0.12) !important;
-  box-shadow: 0 4px 12px rgba(59, 110, 140, 0.25) !important;
+  box-shadow: 0 4px 12px rgba(143, 89, 68, 0.24) !important;
 }
 
 .react-foundation .btn-primary:not(:disabled):hover,
@@ -657,13 +713,13 @@ body {
   background: var(--primary-dark) !important;
   border-color: rgba(246, 241, 227, 0.25) !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 6px 16px rgba(59, 110, 140, 0.4) !important;
+  box-shadow: 0 6px 16px rgba(143, 89, 68, 0.34) !important;
 }
 
 .react-foundation .btn-primary:not(:disabled):active,
 .react-foundation .btn-ticket:not(:disabled):active {
   transform: translateY(1px) !important;
-  box-shadow: 0 2px 6px rgba(59, 110, 140, 0.2) !important;
+  box-shadow: 0 2px 6px rgba(143, 89, 68, 0.2) !important;
 }
 
 /* Secondary (Dugout Charcoal style) */
@@ -703,13 +759,13 @@ body {
 
 /* Protected Actions */
 .react-foundation .btn-protected {
-  background: rgba(223, 171, 86, 0.15) !important;
+  background: rgba(192, 132, 98, 0.14) !important;
   color: var(--petco-gold) !important;
-  border-color: rgba(223, 171, 86, 0.4) !important;
+  border-color: rgba(192, 132, 98, 0.36) !important;
 }
 
 .react-foundation .btn-protected:not(:disabled):hover {
-  background: rgba(223, 171, 86, 0.25) !important;
+  background: rgba(192, 132, 98, 0.2) !important;
   border-color: var(--petco-gold) !important;
 }
 
@@ -764,8 +820,8 @@ body {
 .react-foundation .slate-desk-note {
   margin-top: var(--space-md) !important;
   padding: 14px 16px !important;
-  background: rgba(59, 110, 140, 0.08) !important;
-  border: 1px solid rgba(59, 110, 140, 0.18) !important;
+  background: rgba(111, 113, 106, 0.1) !important;
+  border: 1px solid rgba(181, 182, 173, 0.16) !important;
   border-radius: var(--radius-sm) !important;
   font-size: var(--font-size-md) !important;
   color: var(--secondary) !important;
@@ -889,7 +945,7 @@ body {
 }
 
 .react-foundation .scoreboard-tab.is-active .scoreboard-tab-count {
-  background: rgba(223, 171, 86, 0.15) !important;
+  background: rgba(192, 132, 98, 0.16) !important;
   color: var(--petco-gold) !important;
 }
 
@@ -908,7 +964,7 @@ body {
 }
 
 .react-foundation .linescore-table th {
-  background: rgba(18, 30, 45, 0.6) !important;
+  background: rgba(31, 33, 29, 0.64) !important;
   color: var(--petco-gold) !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
@@ -936,6 +992,41 @@ body {
 
 /* ─── History Vault UI overrides ────────────────────────────────────────── */
 
+.react-foundation .game-insight-mini {
+  background:
+    linear-gradient(180deg, rgba(31, 33, 29, 0.72), rgba(11, 9, 7, 0.34)),
+    rgba(255, 255, 255, 0.01) !important;
+  border-color: rgba(181, 182, 173, 0.14) !important;
+}
+
+.react-foundation .game-insight-mini.is-empty {
+  background:
+    linear-gradient(180deg, rgba(246, 241, 227, 0.035), rgba(255, 255, 255, 0.012)),
+    rgba(11, 9, 7, 0.18) !important;
+  border-color: rgba(246, 241, 227, 0.08) !important;
+}
+
+.react-foundation .game-insight-label {
+  color: var(--silver-cool) !important;
+}
+
+.react-foundation .game-insight-chip.accent,
+.react-foundation .scorebug-card .game-insight-chip.accent {
+  background: rgba(111, 113, 106, 0.16) !important;
+  border-color: rgba(181, 182, 173, 0.26) !important;
+  color: #d4d2c8 !important;
+}
+
+.react-foundation .game-insight-chip.medium {
+  background: rgba(192, 132, 98, 0.13) !important;
+  border-color: rgba(192, 132, 98, 0.28) !important;
+  color: #efd4c3 !important;
+}
+
+.react-foundation .game-insight-toggle:hover {
+  color: var(--petco-gold) !important;
+}
+
 .react-history-metric.won,
 .react-history-slip.won {
   border-color: rgba(43, 182, 115, 0.3) !important;
@@ -949,7 +1040,7 @@ body {
 .react-history-metric.void,
 .react-history-slip.void,
 .react-history-slip.push {
-  border-color: rgba(223, 171, 86, 0.3) !important;
+  border-color: rgba(192, 132, 98, 0.3) !important;
 }
 
 .history-slip-stub {
@@ -1002,8 +1093,8 @@ body {
 .react-foundation .dashboard-desk-hero {
   background: linear-gradient(
     135deg,
-    rgba(11, 26, 43, 0.95) 0%,
-    rgba(18, 30, 45, 0.95) 100%
+    rgba(17, 16, 14, 0.96) 0%,
+    rgba(31, 33, 29, 0.94) 100%
   ) !important;
   border: 1px solid rgba(246, 241, 227, 0.1) !important;
   box-shadow: var(--shadow-premium) !important;
@@ -1066,8 +1157,8 @@ body {
 .react-foundation .desk-card-premium {
   background: linear-gradient(
     135deg,
-    rgba(11, 26, 43, 0.95) 0%,
-    rgba(18, 30, 45, 0.95) 100%
+    rgba(17, 16, 14, 0.96) 0%,
+    rgba(31, 33, 29, 0.94) 100%
   ) !important;
   border: 1px solid rgba(246, 241, 227, 0.1) !important;
   box-shadow: var(--shadow-premium) !important;
@@ -1095,7 +1186,7 @@ body {
 }
 
 .react-foundation .desk-card-premium:hover {
-  border-color: rgba(223, 171, 86, 0.25) !important;
+  border-color: rgba(192, 132, 98, 0.28) !important;
   transform: translateY(-2px);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5) !important;
 }
@@ -1200,8 +1291,8 @@ body {
   align-items: flex-start;
   gap: var(--space-sm);
   padding: 10px 12px;
-  background: rgba(230, 157, 36, 0.06) !important;
-  border: 1px solid rgba(230, 157, 36, 0.15) !important;
+  background: rgba(192, 132, 98, 0.08) !important;
+  border: 1px solid rgba(192, 132, 98, 0.18) !important;
   border-radius: var(--radius-xs) !important;
   font-size: var(--font-size-sm) !important;
   color: var(--text-secondary) !important;

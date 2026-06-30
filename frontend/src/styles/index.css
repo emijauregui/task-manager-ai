@@ -1286,3 +1286,138 @@ body {
     flex-direction: column;
   }
 }
+
+/* ─── History Premium Visual Reset & Performance Hotfix v1 ────────────────────────── */
+
+/* Optimize React History components performance */
+.react-history-panel .glass-card,
+.react-history-panel .history-ticket-card,
+.react-history-panel .desk-card {
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  background-image: none !important; /* Remove heavy gradients on large lists */
+}
+
+/* History Patterns Layout */
+.react-history-pattern-list {
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  /* custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-subtle) transparent;
+}
+
+.react-history-pattern-list::-webkit-scrollbar {
+  width: 6px;
+}
+.react-history-pattern-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.react-history-pattern-list::-webkit-scrollbar-thumb {
+  background-color: var(--border-subtle);
+  border-radius: 10px;
+}
+
+/* Pattern Card Compact UI */
+.history-pattern-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md) !important;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+.history-pattern-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: var(--space-sm);
+  margin-bottom: -4px;
+}
+
+.history-pattern-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.history-pattern-chip {
+  background: var(--bg-page);
+  border: 1px solid rgba(246, 241, 227, 0.08);
+  border-radius: 6px;
+  padding: var(--space-sm) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  min-width: 80px;
+}
+
+.pattern-chip-label {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.pattern-chip-value {
+  color: var(--paper-cream);
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+}
+
+.history-pattern-footer {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(246, 241, 227, 0.05);
+  padding-top: var(--space-sm);
+}
+
+/* Pattern Detail Rows */
+.history-pattern-details {
+  background: rgba(6, 11, 17, 0.5);
+  border-radius: 6px;
+  padding: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+.history-pattern-metric-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-pattern-row-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(246, 241, 227, 0.1);
+  font-size: 0.9rem;
+}
+
+.history-pattern-row:last-child > .history-pattern-row-main {
+  border-bottom: none;
+}
+
+.history-pattern-label {
+  color: var(--text-dim);
+}
+
+.history-pattern-val {
+  color: var(--petco-gold);
+  font-family: var(--font-mono);
+}
+
+.history-pattern-single-value {
+  padding: var(--space-md);
+  text-align: center;
+  color: var(--text-dim);
+  font-style: italic;
+}

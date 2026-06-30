@@ -387,13 +387,26 @@ function PatternMetricRows({ metrics, allowChildren = false }) {
           key={`${metric.key || metric.label}-${index}`}
         >
           <div className="history-pattern-row-main">
-            <span>{metric.label}</span>
-            {metric.value ? <strong>{metric.value}</strong> : null}
+            <span className="history-pattern-label">{metric.label}:</span>
+            {metric.value ? <strong className="history-pattern-val">{metric.value}</strong> : null}
           </div>
           {allowChildren && metric.children?.length ? (
             <PatternMetricRows metrics={metric.children.slice(0, 6)} allowChildren />
           ) : null}
         </article>
+      ))}
+    </div>
+  );
+}
+
+function PatternMetricChips({ metrics }) {
+  return (
+    <div className="history-pattern-chips-row">
+      {metrics.map((metric, index) => (
+        <div className="history-pattern-chip" key={`${metric.key || metric.label}-${index}`}>
+          <span className="pattern-chip-label">{metric.label}</span>
+          <strong className="pattern-chip-value">{metric.value || '-'}</strong>
+        </div>
       ))}
     </div>
   );
@@ -406,29 +419,35 @@ function PatternCard({ pattern }) {
   const hasDetails = detailMetrics.length > 0;
 
   return (
-    <article className={`history-pattern-card ${pattern.metrics.length ? 'is-group' : 'is-single'}`}>
+    <article className={`desk-card history-pattern-card ${pattern.metrics.length ? 'is-group' : 'is-single'}`}>
       <div className="history-pattern-head">
-        <span className="ui-badge subtle">{pattern.metrics.length ? 'Summary' : 'Metric'}</span>
         <strong>{pattern.label}</strong>
-        {!pattern.metrics.length ? <em>{pattern.value || 'n/d'}</em> : null}
+        <span className="ui-badge subtle">{pattern.metrics.length ? 'Summary' : 'Metric'}</span>
       </div>
-      {summaryMetrics.length ? <PatternMetricRows metrics={summaryMetrics} /> : null}
+      {!pattern.metrics.length ? (
+        <div className="history-pattern-single-value">
+          <em>{pattern.value || 'n/d'}</em>
+        </div>
+      ) : null}
+      {summaryMetrics.length ? <PatternMetricChips metrics={summaryMetrics} /> : null}
+      
       {hasDetails ? (
-        <>
+        <div className="history-pattern-footer">
           <button
             type="button"
-            className="history-pattern-toggle"
+            className="btn btn-ghost btn-sm history-pattern-toggle"
             aria-expanded={expanded}
             onClick={() => setExpanded((value) => !value)}
           >
             {expanded ? 'Ocultar detalles' : 'Ver detalles'}
           </button>
-          {expanded ? (
-            <div className="history-pattern-details">
-              <PatternMetricRows metrics={detailMetrics} allowChildren />
-            </div>
-          ) : null}
-        </>
+        </div>
+      ) : null}
+      
+      {expanded && hasDetails ? (
+        <div className="history-pattern-details">
+          <PatternMetricRows metrics={detailMetrics} allowChildren />
+        </div>
       ) : null}
     </article>
   );

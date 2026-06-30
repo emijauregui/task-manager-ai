@@ -160,23 +160,27 @@ export default function HistorySlipCard({ ticket, index = 0, variant = 'ticket' 
         </div>
       </div>
 
-      <div className="history-slip-ledger">
-        <span>
-          <small>Picks</small>
-          <strong>{formatNumber(totalPicks, '0')}</strong>
-        </span>
-        <span>
-          <small>Net</small>
-          <strong>{formatMoney(netProfit)}</strong>
-        </span>
-        <span>
-          <small>ROI</small>
-          <strong>{formatPercent(roi)}</strong>
-        </span>
-        <span>
-          <small>Mult.</small>
-          <strong>{multiplier || 'n/d'}</strong>
-        </span>
+      <div className="history-slip-ledger history-pattern-chips-row">
+        <div className="history-pattern-chip">
+          <span className="pattern-chip-label">Picks</span>
+          <strong className="pattern-chip-value">{formatNumber(totalPicks, '0')}</strong>
+        </div>
+        <div className="history-pattern-chip">
+          <span className="pattern-chip-label">Net</span>
+          <strong className="pattern-chip-value">{formatMoney(netProfit)}</strong>
+        </div>
+        <div className="history-pattern-chip">
+          <span className="pattern-chip-label">ROI</span>
+          <strong className="pattern-chip-value">{formatPercent(roi)}</strong>
+        </div>
+        <div className="history-pattern-chip">
+          <span className="pattern-chip-label">Mult.</span>
+          <strong className="pattern-chip-value">{multiplier || 'n/d'}</strong>
+        </div>
+        <div className="history-pattern-chip">
+          <span className="pattern-chip-label">Res.</span>
+          <strong className="pattern-chip-value">{status.label || 'n/d'}</strong>
+        </div>
       </div>
 
       <p>

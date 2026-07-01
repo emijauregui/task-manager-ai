@@ -1653,6 +1653,34 @@ async function getTicketByDate(dateKey) {
   return cache.data || null;
 }
 
+async function ensureTodayAliasForTicket(ticket, todayDateKey, options = {}) {
+  if (!ticket || typeof ticket !== 'object') {
+    return null;
+  }
+
+  if (!Array.isArray(ticket.tickets)) {
+    return null;
+  }
+
+  if (!todayDateKey || todayDateKey === ticket.date) {
+    return null;
+  }
+
+  const aliasTicket = {
+    ...ticket,
+    cacheDate: todayDateKey,
+    aliasForDate: ticket.date,
+    aliasReason: options.aliasReason || 'fallback_to_tomorrow',
+  };
+
+  if (options.sourceDateReason) {
+    aliasTicket.sourceDateReason = options.sourceDateReason;
+  }
+
+  await writeCache(getTicketCacheFilename(todayDateKey), aliasTicket);
+  return aliasTicket;
+}
+
 async function getUpcomingTicket() {
   const todayDateKey = getTodayDateKey();
   const todayTicket = await getTicketByDate(todayDateKey);
@@ -1666,15 +1694,25 @@ async function getUpcomingTicket() {
 async function getHistory(limit = 5) {
   const files = await listCacheFiles('daily-ticket-');
   const latest = files
-    .sort((left, right) => right.localeCompare(left))
-    .slice(0, limit);
+    .sort((left, right) => right.localeCompare(left));
 
   const history = [];
+  const seenTickets = new Set();
   for (const file of latest) {
     const filePath = getCacheFilePath(file);
     const ticket = await readJsonFile(filePath);
     if (ticket) {
+      const realDate = ticket.aliasForDate || ticket.date || ticket.cacheDate || file;
+      const historyKey = `${realDate}|${ticket.generatedAt || ''}`;
+      if (seenTickets.has(historyKey)) {
+        continue;
+      }
+
+      seenTickets.add(historyKey);
       history.push(ticket);
+      if (history.length >= limit) {
+        break;
+      }
     }
   }
 
@@ -3108,6 +3146,17 @@ async function generateDailyTicket(options = {}) {
       });
 
       if (cachedTomorrowTicket) {
+        await ensureTodayAliasForTicket(cachedTomorrowTicket, todayDateKey, {
+          sourceDateReason: TOMORROW_SOURCE_REASON,
+          aliasReason: 'fallback_to_tomorrow',
+        });
+
+        logGenerateStage('CACHE_ALIAS_TODAY', {
+          source: 'cached_tomorrow',
+          fromDate: todayDateKey,
+          targetDate: cachedTomorrowTicket.date || tomorrowDateKey,
+        });
+
         return buildTicketResponse(cachedTomorrowTicket, {
           source: 'cache',
           cached: true,

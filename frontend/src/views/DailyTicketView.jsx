@@ -589,16 +589,16 @@ export default function DailyTicketView() {
     >
       {hasTicket ? (
         <div className="daily-ticket-grid react-ticket-grid daily-ticket-layout">
-          <div className="daily-ticket-main-column">
-            <DailyTicketHero
-              ticket={ticket}
-              selectedTicket={selectedTicket}
-              selectedIndex={selectedIndex}
-              ticketsCount={tickets.length}
-              totalLegs={totalLegs}
-              generatedManually={generatedManually}
-            />
+          <DailyTicketHero
+            ticket={ticket}
+            selectedTicket={selectedTicket}
+            selectedIndex={selectedIndex}
+            ticketsCount={tickets.length}
+            totalLegs={totalLegs}
+            generatedManually={generatedManually}
+          />
 
+          <div className="daily-ticket-main-column">
             <GenerateManualPanel
               disabled={actionDisabled}
               isGenerating={isGenerating}

@@ -6707,3 +6707,391 @@ body::after {
     font-size: 3rem !important;
   }
 }
+
+/* Daily Ticket v4.2.1: visual QA leftovers */
+.react-foundation #daily-ticket {
+  --dt-polish-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.react-foundation #daily-ticket .daily-ticket-layout {
+  grid-template-areas:
+    "hero hero"
+    "main side";
+  align-items: start !important;
+  padding-top: 20px;
+}
+
+.react-foundation #daily-ticket .daily-ticket-desk-hero {
+  grid-area: hero;
+  width: 100%;
+  padding: clamp(18px, 1.7vw, 24px) !important;
+}
+
+.react-foundation #daily-ticket .daily-ticket-main-column {
+  grid-area: main;
+}
+
+.react-foundation #daily-ticket .daily-ticket-side {
+  grid-area: side;
+}
+
+.react-foundation #daily-ticket .daily-ticket-hero-header {
+  grid-template-columns: minmax(250px, 0.36fr) minmax(560px, 0.64fr) !important;
+  gap: clamp(16px, 2vw, 26px) !important;
+  align-items: stretch !important;
+}
+
+.react-foundation #daily-ticket .daily-ticket-brand-lockup {
+  align-content: center;
+}
+
+.react-foundation #daily-ticket .daily-ticket-brand-lockup h2 {
+  line-height: 0.98 !important;
+}
+
+.react-foundation #daily-ticket .daily-ticket-brand-lockup p {
+  color: rgba(246, 241, 227, 0.72) !important;
+  font-size: 0.8rem !important;
+  letter-spacing: 0.08em !important;
+}
+
+.react-foundation #daily-ticket .daily-ticket-control-strip {
+  grid-template-columns: repeat(4, minmax(124px, 1fr)) !important;
+  gap: 10px !important;
+  width: 100%;
+}
+
+.react-foundation #daily-ticket .daily-ticket-control-strip > span {
+  min-height: 58px !important;
+  padding: 10px 13px !important;
+  border-radius: 16px !important;
+  justify-content: center;
+  background:
+    linear-gradient(180deg, rgba(246, 241, 227, 0.06), rgba(246, 241, 227, 0.016)),
+    rgba(8, 9, 8, 0.82) !important;
+}
+
+.react-foundation #daily-ticket .daily-ticket-control-strip strong {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  line-height: 1.16 !important;
+}
+
+.react-foundation #daily-ticket .slip-side-notch {
+  display: none !important;
+}
+
+.react-foundation #daily-ticket .daily-ticket-slip::before {
+  top: 214px !important;
+  left: 24px !important;
+  right: 24px !important;
+  height: 1px !important;
+  opacity: 0.28 !important;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(246, 241, 227, 0.5) 0 8px,
+    transparent 8px 18px
+  ) !important;
+  box-shadow: none !important;
+}
+
+.react-foundation #daily-ticket .bet-slip-receipt-line,
+.react-foundation #daily-ticket .bet-slip-header,
+.react-foundation #daily-ticket .daily-ticket-ledger,
+.react-foundation #daily-ticket .bet-slip-support-metrics,
+.react-foundation #daily-ticket .bet-slip-leg-section {
+  position: relative;
+  z-index: 1;
+}
+
+.react-foundation #daily-ticket .react-leg-avatar.team.has-real-logo {
+  background:
+    radial-gradient(circle at 50% 45%, #fffaf0 0 45%, #f0dcc0 70%, #cfaa72 100%),
+    linear-gradient(145deg, #fff6de, #c9a568) !important;
+  border-color: rgba(246, 241, 227, 0.46) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 12px 22px rgba(0, 0, 0, 0.28) !important;
+}
+
+.react-foundation #daily-ticket .react-leg-avatar.team.has-real-logo:not(.image-failed) img {
+  inset: 6px !important;
+  width: calc(100% - 12px) !important;
+  height: calc(100% - 12px) !important;
+  opacity: 1 !important;
+  filter:
+    drop-shadow(0 5px 6px rgba(38, 24, 12, 0.22))
+    contrast(1.18)
+    saturate(1.14) !important;
+  mix-blend-mode: normal !important;
+}
+
+.react-foundation #daily-ticket .react-leg-avatar.player .leg-player-nameplate,
+.react-foundation #daily-ticket .react-leg-avatar.player .leg-avatar-initials,
+.react-foundation #daily-ticket .react-leg-avatar.player.has-image:not(.image-failed) .leg-player-nameplate {
+  display: none !important;
+}
+
+.react-foundation #daily-ticket .react-leg-avatar.player.is-fallback,
+.react-foundation #daily-ticket .react-leg-avatar.player.image-failed {
+  background:
+    radial-gradient(circle at 50% 15%, rgba(246, 241, 227, 0.2), transparent 32%),
+    linear-gradient(160deg, color-mix(in srgb, var(--leg-team-primary) 28%, #28251e 72%), #070807 78%) !important;
+}
+
+.react-foundation #daily-ticket .react-leg-avatar.player .leg-player-card {
+  inset: 9px !important;
+  border-radius: 15px !important;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(246, 241, 227, 0.09), rgba(246, 241, 227, 0.018)),
+    radial-gradient(circle at 50% 40%, rgba(67, 209, 143, 0.1), transparent 56%) !important;
+  border: 1px solid rgba(246, 241, 227, 0.11) !important;
+}
+
+.react-foundation #daily-ticket .react-leg-avatar.player .leg-player-card::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 9px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(67, 209, 143, 0.42);
+  box-shadow: 0 0 12px rgba(67, 209, 143, 0.16);
+}
+
+.react-foundation #daily-ticket .leg-player-icon {
+  width: 48px !important;
+  height: 48px !important;
+  stroke: rgba(246, 241, 227, 0.8) !important;
+  stroke-width: 2.55 !important;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.26)) !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-row {
+  overflow: visible !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-top {
+  grid-template-columns: 104px minmax(0, 1fr) 92px !important;
+  gap: 18px !important;
+  align-items: center !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding-block: 2px;
+}
+
+.react-foundation #daily-ticket .bet-leg-market-label {
+  margin: 0 !important;
+  line-height: 1.22 !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-title-row {
+  display: block !important;
+  overflow: visible !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-title-row strong {
+  display: block;
+  max-width: 100%;
+  padding-block: 2px;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  line-height: 1.24 !important;
+  text-wrap: pretty;
+}
+
+.react-foundation #daily-ticket .bet-leg-matchup {
+  line-height: 1.32 !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-chip-row {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px 8px !important;
+  width: min(100%, 430px);
+  margin-top: 2px !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-chip-row > span,
+.react-foundation #daily-ticket .confidence-pill,
+.react-foundation #daily-ticket .market-pill {
+  flex: 0 0 auto;
+  min-height: 25px;
+  padding: 5px 9px !important;
+  line-height: 1 !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-confidence-meter {
+  width: min(100%, 420px);
+  max-width: 420px !important;
+  height: 6px !important;
+  margin-top: 2px !important;
+  border-radius: 999px;
+  overflow: visible !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-confidence-meter span::after {
+  width: 14px !important;
+  height: 16px !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-short-why {
+  margin-top: 2px !important;
+  line-height: 1.42 !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-meta {
+  width: 92px;
+  justify-items: stretch !important;
+  align-content: center !important;
+  gap: 8px !important;
+}
+
+.react-foundation #daily-ticket .leg-status-dot {
+  justify-self: end;
+  width: 20px !important;
+  height: 20px !important;
+  margin-right: 4px;
+}
+
+.react-foundation #daily-ticket .bet-leg-odds-block {
+  width: 86px !important;
+  min-width: 86px !important;
+  min-height: 50px !important;
+  padding: 7px 9px !important;
+  border-radius: 12px !important;
+  align-content: center;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(192, 132, 98, 0.2), transparent 44%),
+    linear-gradient(180deg, rgba(28, 20, 14, 0.92), rgba(8, 8, 7, 0.97)) !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-odds-block span {
+  font-size: 0.52rem !important;
+  letter-spacing: 0.06em !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-odds {
+  font-size: 1.12rem !important;
+  line-height: 1 !important;
+}
+
+.react-foundation #daily-ticket .bet-leg-toggle {
+  width: 86px;
+  min-width: 86px !important;
+  min-height: 34px !important;
+  border-radius: 10px !important;
+  transition:
+    transform 160ms var(--dt-polish-ease),
+    border-color 160ms var(--dt-polish-ease),
+    background-color 160ms var(--dt-polish-ease);
+}
+
+.react-foundation #daily-ticket .bet-leg-toggle:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 1320px) {
+  .react-foundation #daily-ticket .daily-ticket-hero-header {
+    grid-template-columns: minmax(220px, 0.35fr) minmax(500px, 0.65fr) !important;
+  }
+
+  .react-foundation #daily-ticket .daily-ticket-control-strip {
+    grid-template-columns: repeat(4, minmax(108px, 1fr)) !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  .react-foundation #daily-ticket .daily-ticket-layout {
+    grid-template-areas:
+      "hero"
+      "side"
+      "main";
+  }
+
+  .react-foundation #daily-ticket .daily-ticket-hero-header {
+    grid-template-columns: 1fr !important;
+  }
+
+  .react-foundation #daily-ticket .daily-ticket-control-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .react-foundation.app-shell:has(#daily-ticket.is-active) .desk-scorebar {
+    display: none !important;
+  }
+
+  .react-foundation #daily-ticket .daily-ticket-layout {
+    padding-top: 0;
+  }
+
+  .react-foundation #daily-ticket .daily-ticket-control-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .react-foundation #daily-ticket .bet-leg-top {
+    grid-template-columns: 92px minmax(0, 1fr) !important;
+    align-items: start !important;
+  }
+
+  .react-foundation #daily-ticket .bet-leg-meta {
+    grid-column: 2;
+    width: auto;
+    grid-template-columns: 20px auto auto;
+    justify-content: start;
+    align-items: center;
+  }
+
+  .react-foundation #daily-ticket .bet-leg-odds-block {
+    width: auto !important;
+    min-width: 78px !important;
+    min-height: 42px !important;
+    grid-template-columns: 1fr;
+    gap: 2px !important;
+    border-radius: 12px !important;
+  }
+
+  .react-foundation #daily-ticket .bet-leg-toggle {
+    width: auto;
+    min-width: 94px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .react-foundation #daily-ticket .daily-ticket-control-strip {
+    grid-template-columns: 1fr !important;
+  }
+
+  .react-foundation #daily-ticket .bet-leg-chip-row {
+    width: 100%;
+  }
+
+  .react-foundation #daily-ticket .bet-leg-confidence-meter {
+    width: 100%;
+  }
+
+  .react-foundation #daily-ticket .bet-leg-meta {
+    grid-column: 1 / -1;
+    margin-left: 82px;
+    grid-template-columns: 20px auto auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .react-foundation #daily-ticket .bet-leg-toggle {
+    transition: none !important;
+  }
+}

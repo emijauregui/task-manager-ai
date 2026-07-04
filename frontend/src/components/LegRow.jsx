@@ -431,14 +431,13 @@ export default function LegRow({ leg, index }) {
                   <path d="M24 8c5.4 0 9.5 4.2 9.5 9.7 0 5.2-3.9 9.2-9.5 9.2s-9.5-4-9.5-9.2C14.5 12.2 18.6 8 24 8Z" />
                   <path d="M10.5 41.2c2.1-8 7-12.1 13.5-12.1s11.4 4.1 13.5 12.1" />
                 </svg>
-                <span className="leg-player-nameplate">{visual.initials}</span>
               </span>
             ) : (
               <span className="leg-team-crest" aria-hidden="true">
                 <span className="leg-team-monogram">{visual.teamAbbr}</span>
               </span>
             )}
-            <span className="leg-avatar-initials">{visual.initials}</span>
+            {visual.type === 'team' ? <span className="leg-avatar-initials">{visual.initials}</span> : null}
             {visual.image ? (
               <img
                 src={visual.image}

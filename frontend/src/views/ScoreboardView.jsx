@@ -631,15 +631,42 @@ function CountPill({ label, value }) {
   );
 }
 
+function OutsDots({ value }) {
+  if (value === null || value === undefined) {
+    return (
+      <span className="live-outs-tracker is-unavailable">
+        <small>OUTS</small>
+        <strong>--</strong>
+      </span>
+    );
+  }
+
+  const outs = Math.max(0, Math.min(3, Number(value) || 0));
+
+  return (
+    <span className="live-outs-tracker" aria-label={`${outs} outs`}>
+      <small>OUTS</small>
+      <span className="live-outs-dots" aria-hidden="true">
+        {[0, 1, 2].map((index) => (
+          <span
+            className={`live-out-dot${index < outs ? ' is-filled' : ''}`}
+            key={index}
+          />
+        ))}
+      </span>
+    </span>
+  );
+}
+
 function BaseDiamond({ situation }) {
   const bases = situation?.bases || {};
   const hasBases = situation?.hasBases;
 
   return (
     <div className={`live-diamond${hasBases ? '' : ' is-unavailable'}`} aria-label={hasBases ? 'Bases ocupadas' : 'Bases no disponibles'}>
-      <span className={`base-marker second${bases.second ? ' occupied' : ''}`} />
-      <span className={`base-marker third${bases.third ? ' occupied' : ''}`} />
-      <span className={`base-marker first${bases.first ? ' occupied' : ''}`} />
+      <span className={`base-marker second${bases.second ? ' occupied' : ''}`} aria-label="Segunda base" />
+      <span className={`base-marker third${bases.third ? ' occupied' : ''}`} aria-label="Tercera base" />
+      <span className={`base-marker first${bases.first ? ' occupied' : ''}`} aria-label="Primera base" />
     </div>
   );
 }
@@ -660,10 +687,12 @@ function LiveSituation({ game }) {
         <div className={`live-situation-body${situation.hasBases ? '' : ' count-only'}`}>
           {situation.hasBases ? <BaseDiamond situation={situation} /> : null}
           {situation.hasCount ? (
-            <div className="live-count-grid" aria-label="Cuenta del juego">
-              <CountPill label="B" value={situation.balls} />
-              <CountPill label="S" value={situation.strikes} />
-              <CountPill label="O" value={situation.outs} />
+            <div className="live-count-panel" aria-label="Cuenta del juego">
+              <div className="live-count-grid">
+                <CountPill label="B" value={situation.balls} />
+                <CountPill label="S" value={situation.strikes} />
+              </div>
+              <OutsDots value={situation.outs} />
             </div>
           ) : (
             <small className="live-situation-note">Sin conteo disponible.</small>

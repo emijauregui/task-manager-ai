@@ -350,10 +350,14 @@ app.post('/api/daily-ticket/odds/refresh', asyncRoute(async (req, res) => {
 app.get('/api/mlb/scoreboard', asyncRoute(async (req, res) => {
   const includeTomorrow = parseBooleanQuery(req.query.includeTomorrow);
   const refreshLive = parseBooleanQuery(req.query.refreshLive);
+  const enrichLiveDetails = req.query.enrichLiveDetails === undefined
+    ? true
+    : parseBooleanQuery(req.query.enrichLiveDetails);
   const result = await espnService.getMlbScoreboardBundle({
     dateKey: req.query.date,
     includeTomorrow,
     refreshLive,
+    enrichLiveDetails,
   });
   return res.json(result);
 }));

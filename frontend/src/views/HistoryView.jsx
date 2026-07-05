@@ -93,6 +93,240 @@ function formatPercent(value) {
   return `${formatNumber(numeric)}%`;
 }
 
+function getWinRate(won, lost) {
+  const winCount = getNumber(won);
+  const lossCount = getNumber(lost);
+  if (winCount === null || lossCount === null || winCount + lossCount <= 0) {
+    return null;
+  }
+
+  return (winCount / (winCount + lossCount)) * 100;
+}
+
+function formatRecord({ won, lost, push, void: voided, pending }) {
+  const values = [
+    ['W', won],
+    ['L', lost],
+    ['P', push],
+    ['V', voided],
+    ['Live', pending],
+  ]
+    .map(([label, value]) => [label, getNumber(value)])
+    .filter(([, value]) => value !== null)
+    .map(([label, value]) => (label === 'Live' ? `${label} ${value}` : `${label}${value}`));
+
+  return values.length ? values.join(' / ') : 'Record n/d';
+}
+
+function getProfitTone(value) {
+  const numeric = getNumber(value);
+  if (numeric === null) return 'neutral';
+  if (numeric > 0) return 'positive';
+  if (numeric < 0) return 'negative';
+  return 'flat';
+}
+
+function clampPercent(value) {
+  const numeric = getNumber(value);
+  if (numeric === null) return 0;
+  return Math.max(0, Math.min(100, numeric));
+}
+
+function getStatusDistribution(derived) {
+  return [
+    { key: 'won', label: 'Win', value: derived.won, tone: 'positive' },
+    { key: 'lost', label: 'Loss', value: derived.lost, tone: 'negative' },
+    { key: 'pending', label: 'Pending', value: derived.pending, tone: 'pending' },
+    { key: 'void', label: 'Void/refund', value: derived.void, tone: 'void' },
+  ].map((entry) => ({
+    ...entry,
+    numeric: getNumber(entry.value) || 0,
+  }));
+}
+
+function getStatusTotal(entries) {
+  return entries.reduce((total, entry) => total + entry.numeric, 0);
+}
+
+function getTicketTypeKey(ticket) {
+  return String(ticket?.type || ticket?.ticketType || ticket?.key || '').toLowerCase();
+}
+
+function getComparableTicketTypes(ticketTypeSummaries) {
+  const desiredOrder = [
+    { key: 'safe', label: 'Ticket Seguro' },
+    { key: 'emi', label: 'Estilo Emi' },
+    { key: 'free_bet', label: 'Free Bet' },
+  ];
+  const lookup = new Map(
+    asArray(ticketTypeSummaries).map((ticket) => [getTicketTypeKey(ticket), ticket])
+  );
+
+  const normalized = desiredOrder.map((slot) => {
+    const ticket =
+      lookup.get(slot.key) ||
+      (slot.key === 'free_bet' ? lookup.get('free') || lookup.get('freebet') : null);
+    const roi = getNumber(ticket?.roi, ticket?.ROI);
+    const netProfit = getNumber(ticket?.netProfit, ticket?.profit, ticket?.net);
+    const total = getNumber(ticket?.total, ticket?.count, ticket?.totalTickets);
+    const won = getNumber(ticket?.won, ticket?.wins);
+    const lost = getNumber(ticket?.lost, ticket?.losses);
+    const voided = getNumber(ticket?.void, ticket?.voids);
+    const pending = getNumber(ticket?.pending);
+    const score =
+      roi !== null
+        ? clampPercent(50 + roi)
+        : netProfit !== null
+          ? clampPercent(50 + netProfit / 10)
+          : total
+            ? 34
+            : 0;
+
+    return {
+      key: slot.key,
+      label: ticket?.typeLabel || ticket?.label || slot.label,
+      roi,
+      netProfit,
+      total,
+      record: formatRecord({ won, lost, push: null, void: voided, pending }),
+      score,
+      hasData: Boolean(ticket),
+      tone: getProfitTone(netProfit ?? roi),
+    };
+  });
+
+  const extras = asArray(ticketTypeSummaries)
+    .filter((ticket) => !['safe', 'emi', 'free', 'free_bet', 'freebet'].includes(getTicketTypeKey(ticket)))
+    .slice(0, 2)
+    .map((ticket) => {
+      const roi = getNumber(ticket?.roi, ticket?.ROI);
+      const netProfit = getNumber(ticket?.netProfit, ticket?.profit, ticket?.net);
+      return {
+        key: getTicketTypeKey(ticket) || ticket?.typeLabel || 'extra',
+        label: ticket?.typeLabel || ticket?.label || getPatternTitle(getTicketTypeKey(ticket)),
+        roi,
+        netProfit,
+        total: getNumber(ticket?.total, ticket?.count, ticket?.totalTickets),
+        record: formatRecord({
+          won: ticket?.won ?? ticket?.wins,
+          lost: ticket?.lost ?? ticket?.losses,
+          push: null,
+          void: ticket?.void ?? ticket?.voids,
+          pending: ticket?.pending,
+        }),
+        score: roi !== null ? clampPercent(50 + roi) : 34,
+        hasData: true,
+        tone: getProfitTone(netProfit ?? roi),
+      };
+    });
+
+  return [...normalized, ...extras];
+}
+
+function getTicketStatusMeta(ticket) {
+  const rawStatus = getText(ticket?.status, ticket?.result, ticket?.computedResult, ticket?.settlementType);
+  const normalized = rawStatus.toLowerCase();
+  const netProfit = getNumber(ticket?.netProfit, ticket?.profit, ticket?.net);
+  const voided = getNumber(ticket?.void, ticket?.voids);
+  const pending = getNumber(ticket?.pending);
+
+  if (normalized.includes('won') || normalized.includes('win') || normalized.includes('gan')) {
+    return { tone: 'positive', label: 'Win' };
+  }
+  if (normalized.includes('lost') || normalized.includes('loss') || normalized.includes('perd')) {
+    return { tone: 'negative', label: 'Loss' };
+  }
+  if (normalized.includes('void') || normalized.includes('refund') || normalized.includes('push') || (voided !== null && voided > 0)) {
+    return { tone: 'void', label: 'Void' };
+  }
+  if (normalized.includes('pending') || (pending !== null && pending > 0)) {
+    return { tone: 'pending', label: 'Pending' };
+  }
+  if (netProfit !== null && netProfit > 0) return { tone: 'positive', label: 'Positive' };
+  if (netProfit !== null && netProfit < 0) return { tone: 'negative', label: 'Negative' };
+
+  return { tone: 'neutral', label: rawStatus || 'n/d' };
+}
+
+function getTicketTypeLabel(ticket) {
+  const type = getTicketTypeKey(ticket);
+  return getText(ticket?.typeLabel, ticket?.label, ticket?.name, ticket?.title, TICKET_NAME_BY_TYPE[type], 'Archive slip');
+}
+
+function getTicketLegs(ticket) {
+  const directLegs = asArray(ticket?.legs);
+  if (directLegs.length) return directLegs;
+  return asArray(ticket?.tickets).flatMap((item) => asArray(item?.legs));
+}
+
+function getTicketLegLabel(leg, index) {
+  return getText(leg?.pick, leg?.selection, leg?.market, leg?.game, leg?.team, `Leg ${index + 1}`);
+}
+
+function getProfitSeries(derived) {
+  const ordered = asArray(derived.recentTickets).slice().reverse();
+  const points = [{ label: 'Start', value: 0 }];
+  let running = 0;
+
+  ordered.forEach((ticket, index) => {
+    const net = getNumber(ticket?.netProfit, ticket?.profit, ticket?.net);
+    if (net === null) return;
+    running += net;
+    points.push({
+      label: getText(ticket?.date, ticket?.ticketDate, ticket?.createdAt, ticket?.generatedAt, `Slip ${index + 1}`),
+      value: running,
+    });
+  });
+
+  if (points.length > 1) {
+    return points.slice(-8);
+  }
+
+  if (derived.netProfit !== null) {
+    return [
+      { label: 'Start', value: 0 },
+      { label: 'Actual', value: derived.netProfit },
+    ];
+  }
+
+  return [];
+}
+
+function getCurveModel(series) {
+  const width = 760;
+  const height = 230;
+  const padX = 28;
+  const padY = 28;
+  const values = series.map((point) => point.value);
+  const minValue = Math.min(0, ...values);
+  const maxValue = Math.max(0, ...values);
+  const range = maxValue - minValue || 1;
+  const step = series.length > 1 ? (width - padX * 2) / (series.length - 1) : 0;
+  const yFor = (value) => padY + (1 - (value - minValue) / range) * (height - padY * 2);
+  const coords = series.map((point, index) => ({
+    ...point,
+    x: padX + step * index,
+    y: yFor(point.value),
+  }));
+  const linePath = coords.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
+  const baseY = height - padY;
+  const areaPath = coords.length
+    ? `${linePath} L ${coords[coords.length - 1].x.toFixed(1)} ${baseY} L ${coords[0].x.toFixed(1)} ${baseY} Z`
+    : '';
+  const zeroY = yFor(0);
+
+  return {
+    width,
+    height,
+    coords,
+    linePath,
+    areaPath,
+    zeroY,
+    minValue,
+    maxValue,
+  };
+}
+
 function humanizeKey(value) {
   const key = String(value || '').trim();
   if (!key) return 'Metric';
@@ -316,20 +550,32 @@ function getDerivedSummary(summary) {
   const totalPicks = getNumber(
     firstValue(summary, ['totalPicks', 'totalLegs', 'pickCount', ['metrics', 'totalPicks']])
   );
+  const won = getNumber(summary?.won, summary?.wins, summary?.win);
+  const lost = getNumber(summary?.lost, summary?.losses, summary?.loss);
+  const push = getNumber(summary?.push, summary?.pushes);
+  const voided = getNumber(summary?.void, summary?.voids);
+  const pending = getNumber(summary?.pending);
+  const partial = getNumber(summary?.partial);
+  const roi = getNumber(summary?.roi, summary?.ROI, summary?.returnOnInvestment);
+  const netProfit = getNumber(summary?.netProfit, summary?.profit, summary?.net);
+  const totalStake = getNumber(summary?.totalStake, summary?.stake);
+  const totalPayout = getNumber(summary?.totalPayout, summary?.payout);
 
   return {
     totalTickets,
     totalPicks,
-    won: getNumber(summary?.won, summary?.wins, summary?.win),
-    lost: getNumber(summary?.lost, summary?.losses, summary?.loss),
-    push: getNumber(summary?.push, summary?.pushes),
-    void: getNumber(summary?.void, summary?.voids),
-    pending: getNumber(summary?.pending),
-    partial: getNumber(summary?.partial),
-    roi: getNumber(summary?.roi, summary?.ROI, summary?.returnOnInvestment),
-    netProfit: getNumber(summary?.netProfit, summary?.profit, summary?.net),
-    totalStake: getNumber(summary?.totalStake, summary?.stake),
-    totalPayout: getNumber(summary?.totalPayout, summary?.payout),
+    won,
+    lost,
+    push,
+    void: voided,
+    pending,
+    partial,
+    roi,
+    netProfit,
+    totalStake,
+    totalPayout,
+    winRate: getWinRate(won, lost),
+    recordLabel: formatRecord({ won, lost, push, void: voided, pending }),
     recentTickets,
     ticketTypeSummaries: normalizeTicketTypeSummaries(summary),
     settlementBreakdown: firstValue(summary, ['settlementBreakdown', ['metrics', 'settlementBreakdown']]),
@@ -453,6 +699,251 @@ function PatternCard({ pattern }) {
   );
 }
 
+function ProfitCurvePanel({ derived }) {
+  const series = getProfitSeries(derived);
+  const model = getCurveModel(series);
+  const hasSeries = model.coords.length > 1;
+  const profitTone = getProfitTone(derived.netProfit);
+
+  return (
+    <section className={`history-visual-stage history-profit-stage ${profitTone}`}>
+      <div className="history-stage-head">
+        <div>
+          <span className="history-stage-label">Profit curve</span>
+          <h4>Rendimiento acumulado</h4>
+        </div>
+        <strong>{formatMoney(derived.netProfit)}</strong>
+      </div>
+
+      {hasSeries ? (
+        <div className="history-curve-wrap">
+          <svg
+            className="history-profit-curve"
+            viewBox={`0 0 ${model.width} ${model.height}`}
+            role="img"
+            aria-label={`Curva de rendimiento con resultado final ${formatMoney(derived.netProfit)}`}
+          >
+            <defs>
+              <linearGradient id="history-profit-area" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="currentColor" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="currentColor" stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+            <path className="history-curve-gridline" d={`M 28 ${model.zeroY.toFixed(1)} H 732`} />
+            <path className="history-curve-area" d={model.areaPath} />
+            <path className="history-curve-line" d={model.linePath} />
+            {model.coords.map((point, index) => (
+              <circle
+                className="history-curve-point"
+                cx={point.x}
+                cy={point.y}
+                r={index === model.coords.length - 1 ? 5 : 3.5}
+                key={`${point.label}-${index}`}
+              />
+            ))}
+          </svg>
+          <div className="history-curve-axis">
+            <span>{series[0]?.label ? formatDate(series[0].label) : 'Inicio'}</span>
+            <strong>{formatMoney(model.maxValue)}</strong>
+            <span>{series[series.length - 1]?.label ? formatDate(series[series.length - 1].label) : 'Actual'}</span>
+          </div>
+        </div>
+      ) : (
+        <div className="history-chart-empty">
+          <strong>Curva no disponible</strong>
+          <p>El summary no incluye suficientes resultados por ticket para trazar una serie.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StatusDistributionPanel({ derived }) {
+  const entries = getStatusDistribution(derived);
+  const total = getStatusTotal(entries);
+
+  return (
+    <aside className="history-visual-stage history-status-stage">
+      <div className="history-stage-head">
+        <div>
+          <span className="history-stage-label">Settlement mix</span>
+          <h4>Distribucion</h4>
+        </div>
+        <strong>{formatNumber(total, '0')}</strong>
+      </div>
+
+      <div className="history-status-bar" aria-label="Distribucion de estados">
+        {entries.map((entry) => (
+          <span
+            className={`history-status-segment ${entry.tone}`}
+            style={{ '--history-segment-width': `${total ? (entry.numeric / total) * 100 : 0}%` }}
+            title={`${entry.label}: ${entry.numeric}`}
+            key={entry.key}
+          />
+        ))}
+      </div>
+
+      <div className="history-status-list">
+        {entries.map((entry) => (
+          <div className={`history-status-row ${entry.tone}`} key={entry.key}>
+            <span>{entry.label}</span>
+            <strong>{formatNumber(entry.numeric, '0')}</strong>
+          </div>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function TicketTypeComparison({ ticketTypes }) {
+  return (
+    <section className="history-type-race">
+      <div className="history-section-head">
+        <div>
+          <span className="history-stage-label">Ticket type race</span>
+          <h3>Comparativa por boleto</h3>
+        </div>
+        <p>Lectura visual de ROI/net sin crear datos nuevos.</p>
+      </div>
+
+      <div className="history-type-lanes">
+        {ticketTypes.map((ticket) => (
+          <article className={`history-type-lane ${ticket.tone} ${ticket.hasData ? 'has-data' : 'is-empty'}`} key={ticket.key}>
+            <div className="history-type-label">
+              <strong>{ticket.label}</strong>
+              <span>{ticket.hasData ? ticket.record : 'Sin data en summary'}</span>
+            </div>
+            <div className="history-type-track" aria-label={`${ticket.label} score ${formatNumber(ticket.score, '0')}%`}>
+              <span style={{ '--history-type-score': `${ticket.score}%` }} />
+            </div>
+            <div className="history-type-values">
+              <strong>{ticket.roi === null ? 'ROI n/d' : formatPercent(ticket.roi)}</strong>
+              <span>{ticket.netProfit === null ? 'Net n/d' : formatMoney(ticket.netProfit)}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RecentActivityFeed({ tickets }) {
+  return (
+    <section className="history-activity-feed">
+      <div className="history-section-head">
+        <div>
+          <span className="history-stage-label">Recent activity</span>
+          <h3>Ticket tape</h3>
+        </div>
+        <p>{tickets.length ? `${tickets.length} slips recientes` : 'Sin slips recientes en summary'}</p>
+      </div>
+
+      <div className="history-feed-list">
+        {tickets.length ? (
+          tickets.map((ticket, index) => {
+            const status = getTicketStatusMeta(ticket);
+            const legs = getTicketLegs(ticket);
+            const netProfit = getNumber(ticket?.netProfit, ticket?.profit, ticket?.net);
+            const roi = getNumber(ticket?.roi, ticket?.ROI);
+            const date = getText(ticket?.date, ticket?.ticketDate, ticket?.createdAt, ticket?.generatedAt);
+
+            return (
+              <article className={`history-feed-row ${status.tone}`} key={`${date}-${getTicketTypeLabel(ticket)}-${index}`}>
+                <div className="history-feed-index">
+                  <span>ARC</span>
+                  <strong>{String(index + 1).padStart(2, '0')}</strong>
+                </div>
+                <div className="history-feed-main">
+                  <div className="history-feed-title-line">
+                    <strong>{getTicketTypeLabel(ticket)}</strong>
+                    <span>{formatDate(date)}</span>
+                  </div>
+                  <div className="history-feed-meta">
+                    <span>{legs.length ? `${legs.length} picks` : 'Picks n/d'}</span>
+                    <span>{roi === null ? 'ROI n/d' : formatPercent(roi)}</span>
+                    <span>{netProfit === null ? 'Net n/d' : formatMoney(netProfit)}</span>
+                  </div>
+                  <details className="history-feed-details">
+                    <summary>Ver detalles</summary>
+                    <div className="history-feed-leg-list">
+                      {legs.length ? (
+                        legs.slice(0, 5).map((leg, legIndex) => (
+                          <span key={`${getTicketLegLabel(leg, legIndex)}-${legIndex}`}>
+                            {getTicketLegLabel(leg, legIndex)}
+                          </span>
+                        ))
+                      ) : (
+                        <span>Sin legs detalladas en summary</span>
+                      )}
+                    </div>
+                  </details>
+                </div>
+                <div className="history-feed-result">
+                  <span>{status.label}</span>
+                  <strong>{netProfit === null ? 'n/d' : formatMoney(netProfit)}</strong>
+                </div>
+              </article>
+            );
+          })
+        ) : (
+          <div className="history-chart-empty">
+            <strong>Sin actividad reciente</strong>
+            <p>El endpoint respondio metricas agregadas, pero no slips renderizables.</p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function PatternIntelligence({ patterns, warnings }) {
+  const topPatterns = asArray(patterns).slice(0, 3);
+
+  if (!topPatterns.length && !warnings.length) {
+    return null;
+  }
+
+  return (
+    <section className="history-intelligence-strip">
+      <div className="history-section-head">
+        <div>
+          <span className="history-stage-label">Archive intelligence</span>
+          <h3>Senales del archivo</h3>
+        </div>
+      </div>
+      <div className="history-intelligence-list">
+        {topPatterns.map((pattern) => {
+          const summaryMetrics = getPatternSummaryMetrics(pattern).slice(0, 3);
+          return (
+            <article className="history-intelligence-row" key={pattern.id || pattern.label}>
+              <strong>{pattern.label}</strong>
+              <div className="history-intelligence-metrics">
+                {summaryMetrics.length ? (
+                  summaryMetrics.map((metric) => (
+                    <span key={metric.key || metric.label}>
+                      {metric.label}: <b>{metric.value || '-'}</b>
+                    </span>
+                  ))
+                ) : (
+                  <span>{pattern.value || 'Sin metrica destacada'}</span>
+                )}
+              </div>
+            </article>
+          );
+        })}
+        {warnings.slice(0, 2).map((warning, index) => (
+          <article className="history-intelligence-row warning" key={`${warning}-${index}`}>
+            <strong>Nota</strong>
+            <div className="history-intelligence-metrics">
+              <span>{warning}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function HistoryView() {
   const [status, setStatus] = useState('loading');
   const [summary, setSummary] = useState(null);
@@ -495,21 +986,29 @@ export default function HistoryView() {
       id="history"
       data-app-view="history"
     >
-      <div className="view-intro-panel glass-card react-history-intro">
-        <div>
-          <p className="panel-kicker">Historial</p>
-          <h3>Archivo de tickets y resumen real</h3>
-          <p className="panel-subtitle">
-            Vista conectada solo a GET /api/daily-ticket/history/summary. Sin generate,
-            sin scoreboard, sin Odds API live y sin Bedrock.
-          </p>
+      {status !== 'success' ? (
+        <div className="view-intro-panel glass-card react-history-intro">
+          <div className="history-intro-copy">
+            <p className="panel-kicker">History ledger</p>
+            <h3>Archivo de tickets</h3>
+            <p className="panel-subtitle">
+              Lectura premium del archivo cacheado: rendimiento, cierres y slips recientes
+              sin llamadas live ni acciones automaticas.
+            </p>
+          </div>
+          <div className="history-intro-status" aria-label="Modo de lectura">
+            <div className="hero-badges">
+              <span className="ui-badge cache">Cache-first</span>
+              <span className="ui-badge subtle">Read-only</span>
+              <span className="ui-badge subtle">No live calls</span>
+            </div>
+            <div className="history-mini-ledger">
+              <span>Source</span>
+              <strong>History summary</strong>
+            </div>
+          </div>
         </div>
-        <div className="hero-badges">
-          <span className="ui-badge cache">Cache-first</span>
-          <span className="ui-badge subtle">Read-only</span>
-          <span className="ui-badge subtle">No live calls</span>
-        </div>
-      </div>
+      ) : null}
 
       {status === 'loading' ? (
         <ViewState
@@ -539,139 +1038,55 @@ export default function HistoryView() {
       ) : null}
 
       {status === 'success' ? (
-        <section className="ticket-panel glass-card compact-panel history-panel-full react-history-panel">
-          <div className="panel-header">
-            <div>
-              <p className="panel-kicker">Ticket archive</p>
-              <h3>Archivo premium cacheado</h3>
+        <section className={`history-analytics-shell ${getProfitTone(derived.netProfit)}`}>
+          <section className="history-performance-hero">
+            <div className="history-performance-copy">
+              <span className="history-stage-label">Performance</span>
+              <h3>History</h3>
+              <strong className="history-net-figure">{formatMoney(derived.netProfit)}</strong>
+              <p>
+                {getProfitTone(derived.netProfit) === 'negative'
+                  ? 'Archivo negativo: encontrar donde se escapa valor.'
+                  : getProfitTone(derived.netProfit) === 'positive'
+                    ? 'Archivo positivo: entender que formatos producen.'
+                    : 'Archivo plano o incompleto: mostrar lo disponible sin inventar datos.'}
+              </p>
             </div>
-            <div className="hero-badges">
-              <span className="ui-badge cache">Summary read</span>
-              <span className="ui-badge subtle">
-                {derived.dateRange.from || derived.dateRange.to
-                  ? `${formatDate(derived.dateRange.from)} - ${formatDate(derived.dateRange.to)}`
-                  : 'Fechas n/d'}
-              </span>
-            </div>
-          </div>
 
-          <div className="history-ledger-strip">
-            <article>
-              <span>Resultado neto</span>
-              <strong>{formatMoney(derived.netProfit)}</strong>
-              <small>{formatPercent(derived.roi)} ROI</small>
-            </article>
-            <article>
-              <span>Volumen</span>
-              <strong>{formatNumber(derived.totalTickets, '0')}</strong>
-              <small>{formatNumber(derived.totalStake, '0')} stake total</small>
-            </article>
-            <article>
-              <span>Boletos vivos</span>
-              <strong>{formatNumber(derived.pending, '0')}</strong>
-              <small>{formatNumber(derived.void, '0')} void/refund</small>
-            </article>
-          </div>
-
-          <div className="history-stats-grid react-history-metrics">
-            <MetricCard label="Tickets" value={formatNumber(derived.totalTickets, '0')} note="registrados" />
-            <MetricCard label="Picks" value={formatNumber(derived.totalPicks, 'n/d')} note="legs/picks" />
-            <MetricCard label="Win" value={formatNumber(derived.won, '0')} note="settled" tone="won" />
-            <MetricCard label="Loss" value={formatNumber(derived.lost, '0')} note="settled" tone="lost" />
-            <MetricCard label="Push/Void" value={`${formatNumber(derived.push, '0')}/${formatNumber(derived.void, '0')}`} note="refunds" tone="void" />
-            <MetricCard label="Pending" value={formatNumber(derived.pending, '0')} note="por cerrar" />
-            <MetricCard label="Partial" value={formatNumber(derived.partial, '0')} note="ajustes" />
-            <MetricCard
-              label="ROI"
-              value={formatPercent(derived.roi)}
-              note="realizado"
-              tone={derived.roi === null ? 'neutral' : derived.roi >= 0 ? 'won' : 'lost'}
-            />
-            <MetricCard
-              label="Net profit"
-              value={formatMoney(derived.netProfit)}
-              note="acumulado"
-              tone={derived.netProfit === null ? 'neutral' : derived.netProfit >= 0 ? 'won' : 'lost'}
-            />
-            <MetricCard label="Stake" value={formatMoney(derived.totalStake)} note="total" />
-            <MetricCard label="Payout" value={formatMoney(derived.totalPayout)} note="total" />
-          </div>
-
-          <div className="react-history-grid">
-            <SettlementBreakdown breakdown={derived.settlementBreakdown} />
-            <section className="ticket-panel glass-card compact-panel react-history-breakdown history-pattern-panel">
-              <div className="panel-header">
-                <div>
-                  <p className="panel-kicker">Patterns</p>
-                  <h3>Resumen incluido</h3>
-                </div>
-              </div>
-              {derived.patterns.length ? (
-                <div className="react-history-pattern-list">
-                  {derived.patterns.map((pattern) => (
-                    <PatternCard pattern={pattern} key={pattern.id || pattern.label} />
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-inline rich">
-                  <strong>Sin patterns en summary.</strong>
-                  <p>No se llamo al endpoint de patterns en esta fase.</p>
-                </div>
-              )}
-            </section>
-          </div>
-
-          <WarningBanner
-            className="react-history-warnings"
-            title="Notas del archivo"
-            warnings={derived.warnings}
-          />
-
-          <section className="ticket-panel glass-card compact-panel history-type-panel">
-            <div className="panel-header">
+            <div className="history-performance-meta" aria-label="Resumen de rendimiento">
               <div>
-                <p className="panel-kicker">Ticket types</p>
-                <h3>Rendimiento por boleto</h3>
+                <span>Record</span>
+                <strong>{derived.recordLabel}</strong>
               </div>
-              <span className="ui-badge subtle">Ticket Seguro / Estilo Emi / Free Bet</span>
+              <div>
+                <span>ROI</span>
+                <strong>{formatPercent(derived.roi)}</strong>
+              </div>
+              <div>
+                <span>Pending exposure</span>
+                <strong>{formatNumber(derived.pending, '0')}</strong>
+              </div>
+              <div>
+                <span>Range</span>
+                <strong>
+                  {derived.dateRange.from || derived.dateRange.to
+                    ? `${formatDate(derived.dateRange.from)} - ${formatDate(derived.dateRange.to)}`
+                    : 'Fechas n/d'}
+                </strong>
+              </div>
             </div>
-            {derived.ticketTypeSummaries.length ? (
-              <div className="foundation-archive-grid react-history-archive history-type-grid">
-                {derived.ticketTypeSummaries.map((ticket, index) => (
-                  <HistorySlipCard ticket={ticket} index={index} variant="type" key={ticket.key || index} />
-                ))}
-              </div>
-            ) : (
-              <div className="empty-inline rich">
-                <strong>Sin resumen por tipo.</strong>
-                <p>El summary no incluyo recordByTicketType/byTicketType.</p>
-              </div>
-            )}
           </section>
 
-          <div className="history-archive-heading">
-            <div>
-              <p className="panel-kicker">Archive slips</p>
-              <h3>Boletos recientes</h3>
-            </div>
-            <span className="ui-badge subtle">{derived.recentTickets.length || 0} slips</span>
+          <div className="history-visual-grid-v2">
+            <ProfitCurvePanel derived={derived} />
+            <StatusDistributionPanel derived={derived} />
           </div>
 
-          <div className="foundation-archive-grid react-history-archive">
-            {derived.recentTickets.length ? (
-              derived.recentTickets.map((ticket, index) => (
-                <HistorySlipCard ticket={ticket} index={index} key={`${getText(ticket.date, ticket.ticketDate, ticket.createdAt)}-${getText(ticket.title, ticket.name, ticket.type)}-${index}`} />
-              ))
-            ) : (
-              <article className="ticket-panel glass-card compact-panel react-history-slip history-premium-slip history-empty-slip">
-                <p className="panel-kicker">Archive slip</p>
-                <h4>Sin slips recientes incluidos</h4>
-                <p className="panel-subtitle">El summary trae metricas de archivo, pero no incluyo recent tickets/slips renderizables.</p>
-                <div className="history-leg-strip is-empty">
-                  <span>Usa el panel de tipos para revisar rendimiento agregado.</span>
-                </div>
-              </article>
-            )}
+          <TicketTypeComparison ticketTypes={getComparableTicketTypes(derived.ticketTypeSummaries)} />
+
+          <div className="history-lower-grid-v2">
+            <RecentActivityFeed tickets={derived.recentTickets} />
+            <PatternIntelligence patterns={derived.patterns} warnings={derived.warnings} />
           </div>
         </section>
       ) : null}

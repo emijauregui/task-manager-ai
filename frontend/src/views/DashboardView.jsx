@@ -69,6 +69,19 @@ function getStatusLabel(value, onLabel = 'Activo', offLabel = 'Off') {
   return 'n/d';
 }
 
+function getReadinessPercent(status, hasTicketToday) {
+  const checks = [
+    status?.bedrockConfigured,
+    status?.oddsConfigured,
+    status?.espnAvailable,
+    hasTicketToday,
+  ];
+  const known = checks.filter((value) => value === true || value === false);
+  if (!known.length) return 0;
+  const active = known.filter(Boolean).length;
+  return Math.round((active / known.length) * 100);
+}
+
 function hasUsefulDashboardData(dashboard) {
   return Boolean(
     dashboard &&
@@ -150,6 +163,7 @@ export default function DashboardView() {
       recentLegsCount: getLegCount(recentTicket),
       historyCount: asArray(dashboard?.history).length,
       warnings: getWarnings(dashboard, currentTicket, recentTicket),
+      readinessPercent: getReadinessPercent(dashboardStatus, Boolean(dashboardStatus.hasTicketToday || dashboard?.todayTicket)),
     };
   }, [dashboard]);
 
@@ -180,6 +194,24 @@ export default function DashboardView() {
           Generación manual pendiente.
         </p>
       </header>
+
+      {status === 'success' ? (
+        <section className="visual-performance-strip dashboard-performance-strip" aria-label="Resumen visual del dashboard">
+          <div className="performance-strip-lede">
+            <span>Readiness</span>
+            <strong>{derived.readinessPercent}%</strong>
+          </div>
+          <div className="performance-strip-track" aria-hidden="true">
+            <span style={{ '--strip-progress': `${derived.readinessPercent}%` }} />
+          </div>
+          <div className="performance-strip-metrics">
+            <span><b>{derived.currentTicketsCount || derived.recentTicketsCount || 0}</b> tickets</span>
+            <span><b>{derived.currentLegsCount || derived.recentLegsCount || 0}</b> legs</span>
+            <span><b>{derived.historyCount}</b> history</span>
+            <span><b>{derived.warnings.length}</b> warnings</span>
+          </div>
+        </section>
+      ) : null}
 
       {/* Loading / Error / Empty States */}
       {status === 'loading' ? (

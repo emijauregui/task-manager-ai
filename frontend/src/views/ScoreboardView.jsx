@@ -171,6 +171,28 @@ function getDefaultActiveTab(groups) {
   return 'live';
 }
 
+function getScoreboardDensity(groups) {
+  const total = groups.all.length || 0;
+  if (!total) {
+    return [
+      { key: 'live', label: 'Live', value: 0, pct: 0 },
+      { key: 'today', label: 'Today', value: 0, pct: 0 },
+      { key: 'upcoming', label: 'Upcoming', value: 0, pct: 0 },
+      { key: 'recent', label: 'Recent', value: 0, pct: 0 },
+    ];
+  }
+
+  return [
+    { key: 'live', label: 'Live', value: groups.live.length },
+    { key: 'today', label: 'Today', value: groups.today.length },
+    { key: 'upcoming', label: 'Upcoming', value: groups.upcoming.length },
+    { key: 'recent', label: 'Recent', value: groups.recent.length },
+  ].map((item) => ({
+    ...item,
+    pct: Math.max(3, Math.round((item.value / total) * 100)),
+  }));
+}
+
 function getEmptyTabCopy(tabKey, tabLabel, groups) {
   if ((tabKey === 'upcoming' || tabKey === 'recent') && groups?.isTodayOnlyEndpoint) {
     return SLATE_ONLY_EMPTY_COPY;
@@ -229,6 +251,141 @@ function formatInningLabel(game) {
 
   if (half && inning) return `${half} ${inning}`;
   return inning;
+}
+
+function getFirstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== '');
+}
+
+function readNestedValue(source, paths) {
+  for (const path of paths) {
+    const value = String(path)
+      .split('.')
+      .reduce((current, key) => (current && current[key] !== undefined ? current[key] : undefined), source);
+    if (value !== undefined && value !== null && value !== '') return value;
+  }
+
+  return undefined;
+}
+
+function normalizeCountNumber(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return Math.max(0, numeric);
+}
+
+function parseCountText(value) {
+  if (typeof value !== 'string') return {};
+
+  const compact = value.trim().match(/^(\d+)\s*[-/]\s*(\d+)$/);
+  if (compact) {
+    return {
+      balls: normalizeCountNumber(compact[1]),
+      strikes: normalizeCountNumber(compact[2]),
+    };
+  }
+
+  const balls = value.match(/(\d+)\s*(?:b|ball|balls)/i);
+  const strikes = value.match(/(\d+)\s*(?:s|strike|strikes)/i);
+  const outs = value.match(/(\d+)\s*(?:o|out|outs)/i);
+  return {
+    balls: balls ? normalizeCountNumber(balls[1]) : null,
+    strikes: strikes ? normalizeCountNumber(strikes[1]) : null,
+    outs: outs ? normalizeCountNumber(outs[1]) : null,
+  };
+}
+
+function normalizeBaseOccupied(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value > 0;
+
+  const text = String(value).trim().toLowerCase();
+  if (!text) return null;
+  if (['true', 'yes', 'occupied', 'runner', '1'].includes(text)) return true;
+  if (['false', 'no', 'empty', '0'].includes(text)) return false;
+  return true;
+}
+
+function getBaseValue(game, baseKey, baseNumber) {
+  const situation = game?.situation || game?.liveSituation || game?.gameSituation || {};
+  const runners = game?.runners || situation?.runners || game?.bases || situation?.bases;
+
+  const direct = getFirstDefined(
+    game?.[`on${baseKey}`],
+    game?.[`runnerOn${baseKey}`],
+    game?.[`runner_on_${baseKey.toLowerCase()}`],
+    situation?.[`on${baseKey}`],
+    situation?.[`runnerOn${baseKey}`],
+    situation?.[baseKey.toLowerCase()]
+  );
+  if (direct !== undefined) return normalizeBaseOccupied(direct);
+
+  if (Array.isArray(runners)) {
+    return runners.some((runner) => {
+      if (typeof runner === 'number' || typeof runner === 'string') {
+        return String(runner) === String(baseNumber) || String(runner).toLowerCase() === baseKey.toLowerCase();
+      }
+
+      return Number(runner?.base || runner?.baseNumber || runner?.currentBase) === baseNumber;
+    });
+  }
+
+  if (runners && typeof runners === 'object') {
+    return normalizeBaseOccupied(getFirstDefined(
+      runners[baseKey.toLowerCase()],
+      runners[baseKey],
+      runners[baseNumber],
+      runners[`on${baseKey}`]
+    ));
+  }
+
+  return null;
+}
+
+function getLiveSituation(game) {
+  if (!isLiveGame(game)) return null;
+
+  const situation = game?.situation || game?.liveSituation || game?.gameSituation || {};
+  const parsedCount = parseCountText(getFirstDefined(game?.count, situation?.count));
+  const balls = normalizeCountNumber(getFirstDefined(
+    game?.balls,
+    situation?.balls,
+    game?.count?.balls,
+    readNestedValue(game, ['count.balls', 'situation.count.balls']),
+    parsedCount.balls
+  ));
+  const strikes = normalizeCountNumber(getFirstDefined(
+    game?.strikes,
+    situation?.strikes,
+    game?.count?.strikes,
+    readNestedValue(game, ['count.strikes', 'situation.count.strikes']),
+    parsedCount.strikes
+  ));
+  const outs = normalizeCountNumber(getFirstDefined(
+    game?.outs,
+    situation?.outs,
+    game?.count?.outs,
+    readNestedValue(game, ['count.outs', 'situation.count.outs']),
+    parsedCount.outs
+  ));
+  const bases = {
+    first: getBaseValue(game, 'First', 1),
+    second: getBaseValue(game, 'Second', 2),
+    third: getBaseValue(game, 'Third', 3),
+  };
+  const hasCount = [balls, strikes, outs].some((value) => value !== null);
+  const hasBases = Object.values(bases).some((value) => value !== null);
+
+  return {
+    inningLabel: formatInningLabel(game),
+    balls,
+    strikes,
+    outs,
+    bases,
+    hasCount,
+    hasBases,
+  };
 }
 
 function getRenderableInnings(linescore) {
@@ -298,21 +455,47 @@ function hasRhe(linescore, game) {
     linescore?.away?.hits,
     linescore?.away?.errors,
     linescore?.home?.runs ?? game?.homeScore,
-    linescore?.home?.hits,
+  linescore?.home?.hits,
     linescore?.home?.errors,
   ];
 
   return values.some((value) => value !== undefined && value !== null && value !== '');
 }
 
-function LinescoreRow({ game, team, side, innings }) {
+function LinescoreLogo({ name, logo }) {
+  const fallback = getShortTeamNameFallback(name);
+  if (!logo) {
+    return <span className="linescore-logo-fallback">{fallback}</span>;
+  }
+  return (
+    <img
+      src={logo}
+      alt={name || fallback}
+      className="linescore-logo-img"
+      loading="lazy"
+      onError={(event) => {
+        const host = event.currentTarget.parentElement;
+        if (host) {
+          host.textContent = fallback;
+          host.classList.add('linescore-logo-fallback');
+        }
+      }}
+    />
+  );
+}
+
+function LinescoreGridRow({ game, team, side, innings }) {
   const inningRuns = asArray(team?.inningRuns);
+  const name = side === 'away' ? game?.awayTeam : game?.homeTeam;
+  const logo = side === 'away' ? game?.awayLogo : game?.homeLogo;
 
   return (
-    <tr>
-      <td className="linescore-team-cell">{getLinescoreTeamLabel(game, team, side)}</td>
+    <>
+      <div className="linescore-cell linescore-team-cell" role="cell">
+        <LinescoreLogo name={name} logo={logo} />
+      </div>
       {innings.map((_, index) => (
-        <td key={`${side}-${index}`}>
+        <div className="linescore-cell linescore-inning-cell" role="cell" key={`${side}-${index}`}>
           {getInningCellValue({
             game,
             side,
@@ -320,12 +503,18 @@ function LinescoreRow({ game, team, side, innings }) {
             totalInnings: innings.length,
             inningRuns,
           })}
-        </td>
+        </div>
       ))}
-      <td className="linescore-rhe">{formatLinescoreValue(team?.runs ?? game?.[`${side}Score`])}</td>
-      <td className="linescore-rhe">{formatLinescoreValue(team?.hits)}</td>
-      <td className="linescore-rhe">{formatLinescoreValue(team?.errors)}</td>
-    </tr>
+      <div className="linescore-cell linescore-rhe" role="cell">
+        {formatLinescoreValue(team?.runs ?? game?.[`${side}Score`])}
+      </div>
+      <div className="linescore-cell linescore-rhe" role="cell">
+        {formatLinescoreValue(team?.hits)}
+      </div>
+      <div className="linescore-cell linescore-rhe" role="cell">
+        {formatLinescoreValue(team?.errors)}
+      </div>
+    </>
   );
 }
 
@@ -370,24 +559,26 @@ function Linescore({ game }) {
   }
 
   return (
-    <div className="linescore-wrap">
-      <table className="linescore-table">
-        <thead>
-          <tr>
-            <th>Equipo</th>
-            {innings.map((inning) => (
-              <th key={inning}>{inning}</th>
-            ))}
-            <th>R</th>
-            <th>H</th>
-            <th>E</th>
-          </tr>
-        </thead>
-        <tbody>
-          <LinescoreRow game={game} team={linescore.away || {}} side="away" innings={innings} />
-          <LinescoreRow game={game} team={linescore.home || {}} side="home" innings={innings} />
-        </tbody>
-      </table>
+    <div
+      className={`linescore-wrap${innings.length > 9 ? ' is-extra-innings' : ''}`}
+      aria-label="Linescore con R H E visible"
+      role="table"
+      style={{ '--linescore-innings': innings.length }}
+    >
+      <div className="linescore-grid" role="rowgroup">
+        <div className="linescore-cell linescore-head linescore-team-cell" role="columnheader">Equipo</div>
+        {innings.map((inning) => (
+          <div className="linescore-cell linescore-head linescore-inning-cell" role="columnheader" key={inning}>
+            {inning}
+          </div>
+        ))}
+        <div className="linescore-cell linescore-head linescore-rhe" role="columnheader">R</div>
+        <div className="linescore-cell linescore-head linescore-rhe" role="columnheader">H</div>
+        <div className="linescore-cell linescore-head linescore-rhe" role="columnheader">E</div>
+
+        <LinescoreGridRow game={game} team={linescore.away || {}} side="away" innings={innings} />
+        <LinescoreGridRow game={game} team={linescore.home || {}} side="home" innings={innings} />
+      </div>
     </div>
   );
 }
@@ -431,14 +622,259 @@ function ProbablePitchers({ game }) {
   );
 }
 
+function CountPill({ label, value }) {
+  return (
+    <span className="live-count-pill">
+      <small>{label}</small>
+      <strong>{value ?? '--'}</strong>
+    </span>
+  );
+}
+
+function BaseDiamond({ situation }) {
+  const bases = situation?.bases || {};
+  const hasBases = situation?.hasBases;
+
+  return (
+    <div className={`live-diamond${hasBases ? '' : ' is-unavailable'}`} aria-label={hasBases ? 'Bases ocupadas' : 'Bases no disponibles'}>
+      <span className={`base-marker second${bases.second ? ' occupied' : ''}`} />
+      <span className={`base-marker third${bases.third ? ' occupied' : ''}`} />
+      <span className={`base-marker first${bases.first ? ' occupied' : ''}`} />
+    </div>
+  );
+}
+
+function LiveSituation({ game }) {
+  const situation = getLiveSituation(game);
+  if (!situation) return null;
+
+  const hasLiveDetail = situation.hasCount || situation.hasBases;
+
+  return (
+    <div className={`live-situation-card${hasLiveDetail ? '' : ' is-limited'}`}>
+      <div className="live-situation-head">
+        <span>Situación en juego</span>
+        <strong>{situation.inningLabel || 'En vivo'}</strong>
+      </div>
+      {hasLiveDetail ? (
+        <div className={`live-situation-body${situation.hasBases ? '' : ' count-only'}`}>
+          {situation.hasBases ? <BaseDiamond situation={situation} /> : null}
+          {situation.hasCount ? (
+            <div className="live-count-grid" aria-label="Cuenta del juego">
+              <CountPill label="B" value={situation.balls} />
+              <CountPill label="S" value={situation.strikes} />
+              <CountPill label="O" value={situation.outs} />
+            </div>
+          ) : (
+            <small className="live-situation-note">Sin conteo disponible.</small>
+          )}
+        </div>
+      ) : (
+        <div className="live-situation-unavailable">
+          <strong>Situación no disponible</strong>
+          <small>No hay datos en tiempo real para este momento.</small>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * IconVenue — ballpark from above (diamond, foul lines, outfield arc).
+ * Matches the provided ballpark-icon.png reference.
+ */
+const IconVenue = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    {/* Outfield arc */}
+    <path d="M2 10 A 10 10 0 0 1 22 10" />
+    {/* Foul lines */}
+    <line x1="10.6" y1="18.6" x2="2" y2="10" />
+    <line x1="13.4" y1="18.6" x2="22" y2="10" />
+    {/* Home plate circle */}
+    <circle cx="12" cy="20" r="2" />
+    {/* Infield diamond */}
+    <polygon points="12,15 7,10 12,5 17,10" />
+    {/* Pitcher's mound */}
+    <circle cx="12" cy="10" r="1.5" />
+  </svg>
+);
+
+/**
+ * IconWeather — cloud with partial sun rays. Clearly weather, not venue.
+ */
+const IconWeather = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    {/* Sun behind cloud */}
+    <circle cx="14" cy="9" r="3" />
+    <path d="M14 3v1.5" />
+    <path d="M18.66 5.34l-1.06 1.06" />
+    <path d="M20.5 9H19" />
+    {/* Cloud body */}
+    <path d="M6 19a4 4 0 0 1-.5-7.97A5 5 0 0 1 16 13.5a3 3 0 0 1 .5 5.5H6z" />
+  </svg>
+);
+
+const IconCalendar = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+const IconUsers = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+
+/**
+ * Custom SVG Flags for Windows compatibility (avoids emoji rendering bugs 'US'/'CA')
+ */
+const FlagUS = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%">
+    <rect width="64" height="64" fill="#bd3d44"/>
+    <path stroke="#fff" strokeWidth="4.9" d="M0 6.5h64M0 16.3h64M0 26.2h64M0 36h64M0 45.8h64M0 55.7h64"/>
+    <rect width="28" height="34" fill="#192f5d"/>
+    <path fill="#fff" d="M5,4h2v2h-2z M11,4h2v2h-2z M17,4h2v2h-2z M23,4h2v2h-2z M8,9h2v2h-2z M14,9h2v2h-2z M20,9h2v2h-2z M5,14h2v2h-2z M11,14h2v2h-2z M17,14h2v2h-2z M23,14h2v2h-2z M8,19h2v2h-2z M14,19h2v2h-2z M20,19h2v2h-2z M5,24h2v2h-2z M11,24h2v2h-2z M17,24h2v2h-2z M23,24h2v2h-2z M8,29h2v2h-2z M14,29h2v2h-2z M20,29h2v2h-2z"/>
+  </svg>
+);
+
+const FlagCanada = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%">
+    <rect width="64" height="64" fill="#d3273e"/>
+    <rect x="18" width="28" height="64" fill="#fff"/>
+    <path fill="#d3273e" d="M32 12 L35 22 L42 19 L39 26 L48 29 L41 33 L44 42 L34 37 L33 48 L31 48 L30 37 L20 42 L23 33 L16 29 L25 26 L22 19 L29 22 Z"/>
+  </svg>
+);
+
+/**
+ * MLB stadium → city/country lookup.
+ * Used to display the flag pill below the venue name.
+ * All 30 MLB teams covered. Toronto = FlagCanada, rest = FlagUS.
+ */
+const MLB_VENUE_CITY_MAP = {
+  // NL East
+  'nationals park':              { city: 'Washington, DC', country: 'USA', flag: <FlagUS /> },
+  'citi field':                  { city: 'New York, NY',   country: 'USA', flag: <FlagUS /> },
+  'citizens bank park':          { city: 'Philadelphia, PA', country: 'USA', flag: <FlagUS /> },
+  'truist park':                 { city: 'Atlanta, GA',    country: 'USA', flag: <FlagUS /> },
+  'loandepot park':              { city: 'Miami, FL',      country: 'USA', flag: <FlagUS /> },
+  'marlins park':                { city: 'Miami, FL',      country: 'USA', flag: <FlagUS /> },
+  // NL Central
+  'wrigley field':               { city: 'Chicago, IL',    country: 'USA', flag: <FlagUS /> },
+  'great american ball park':    { city: 'Cincinnati, OH', country: 'USA', flag: <FlagUS /> },
+  'american family field':       { city: 'Milwaukee, WI',  country: 'USA', flag: <FlagUS /> },
+  'pnc park':                    { city: 'Pittsburgh, PA', country: 'USA', flag: <FlagUS /> },
+  'busch stadium':               { city: 'St. Louis, MO',  country: 'USA', flag: <FlagUS /> },
+  // NL West
+  'chase field':                 { city: 'Phoenix, AZ',    country: 'USA', flag: <FlagUS /> },
+  'coors field':                 { city: 'Denver, CO',     country: 'USA', flag: <FlagUS /> },
+  'dodger stadium':              { city: 'Los Angeles, CA', country: 'USA', flag: <FlagUS /> },
+  'petco park':                  { city: 'San Diego, CA',  country: 'USA', flag: <FlagUS /> },
+  'oracle park':                 { city: 'San Francisco, CA', country: 'USA', flag: <FlagUS /> },
+  // AL East
+  'yankee stadium':              { city: 'New York, NY',   country: 'USA', flag: <FlagUS /> },
+  'fenway park':                 { city: 'Boston, MA',     country: 'USA', flag: <FlagUS /> },
+  'rogers centre':               { city: 'Toronto, ON',    country: 'Canada', flag: <FlagCanada /> },
+  'oriole park at camden yards':  { city: 'Baltimore, MD',  country: 'USA', flag: <FlagUS /> },
+  'camden yards':                { city: 'Baltimore, MD',  country: 'USA', flag: <FlagUS /> },
+  'tropicana field':             { city: 'St. Petersburg, FL', country: 'USA', flag: <FlagUS /> },
+  // AL Central
+  'guaranteed rate field':       { city: 'Chicago, IL',    country: 'USA', flag: <FlagUS /> },
+  'progressive field':           { city: 'Cleveland, OH',  country: 'USA', flag: <FlagUS /> },
+  'comerica park':               { city: 'Detroit, MI',    country: 'USA', flag: <FlagUS /> },
+  'kauffman stadium':            { city: 'Kansas City, MO', country: 'USA', flag: <FlagUS /> },
+  'target field':                { city: 'Minneapolis, MN', country: 'USA', flag: <FlagUS /> },
+  // AL West
+  'minute maid park':            { city: 'Houston, TX',    country: 'USA', flag: <FlagUS /> },
+  'daikin park':                 { city: 'Houston, TX',    country: 'USA', flag: <FlagUS /> },
+  'sutter health park':          { city: 'West Sacramento, CA', country: 'USA', flag: <FlagUS /> },
+  'angel stadium':               { city: 'Anaheim, CA',    country: 'USA', flag: <FlagUS /> },
+  'angel stadium of anaheim':    { city: 'Anaheim, CA',    country: 'USA', flag: <FlagUS /> },
+  'oakland coliseum':            { city: 'Oakland, CA',    country: 'USA', flag: <FlagUS /> },
+  'oakland athletics ballpark':  { city: 'Las Vegas, NV',  country: 'USA', flag: <FlagUS /> },
+  't-mobile park':               { city: 'Seattle, WA',    country: 'USA', flag: <FlagUS /> },
+  'globe life field':            { city: 'Arlington, TX',  country: 'USA', flag: <FlagUS /> },
+};
+
+const venueCityCache = {};
+
+/**
+ * Returns { city, country, flag } for a given venue name, or null if unknown.
+ * Cleans up text in parentheses (e.g. "Chase Field (NH)" -> "chase field") and
+ * falls back to substring matching.
+ */
+function getVenueCity(venueName) {
+  if (!venueName) return null;
+  const rawKey = String(venueName);
+  
+  if (venueCityCache[rawKey] !== undefined) {
+    return venueCityCache[rawKey];
+  }
+  
+  // Clean up any parenthetical annotations like "(NH)" or "(Neutral)"
+  let cleanName = rawKey.toLowerCase().trim();
+  cleanName = cleanName.replace(/\s*\([^)]*\)/g, '').trim();
+  
+  let result = null;
+  
+  // 1. Try exact match on cleaned name
+  if (MLB_VENUE_CITY_MAP[cleanName]) {
+    result = MLB_VENUE_CITY_MAP[cleanName];
+  } else {
+    // 2. Try fuzzy substring matching
+    for (const [key, value] of Object.entries(MLB_VENUE_CITY_MAP)) {
+      if (cleanName.includes(key) || key.includes(cleanName)) {
+        result = value;
+        break;
+      }
+    }
+  }
+  
+  venueCityCache[rawKey] = result;
+  return result;
+}
+
+/**
+ * Extracts weather display text from a game object.
+ * Returns null if no weather data exists in the payload.
+ * ESPN cache currently does NOT include weather — confirmed by cache audit.
+ */
+function extractWeatherText(game) {
+  const weather = game?.weather;
+  if (!weather) return null;
+
+  if (typeof weather === 'string' && weather.trim()) return weather.trim();
+
+  if (typeof weather === 'object') {
+    const parts = [];
+    const condition = weather.condition || weather.description || weather.summary;
+    if (condition) parts.push(condition);
+
+    const temp = weather.temp ?? weather.temperature;
+    if (temp !== undefined && temp !== null) {
+      const tempStr = String(temp);
+      parts.push(tempStr.includes('°') ? tempStr : `${tempStr}°`);
+    }
+
+    if (weather.wind) parts.push(`Viento ${weather.wind}`);
+    if (weather.humidity) parts.push(`Hum ${weather.humidity}`);
+    return parts.length > 0 ? parts.join(' · ') : null;
+  }
+
+  return null;
+}
+
 function GameCard({ game }) {
   const inningLabel = formatInningLabel(game);
-  const records = asArray(game?.records).join(' | ');
+  const records = asArray(game?.records);
+
+  // Weather audit: game.weather is NOT present in ESPN cache.
+  const weatherText = extractWeatherText(game);
+  const weatherExists = weatherText !== null;
+
+  const venueText = game?.venue?.name || game?.venueName || (typeof game?.venue === 'string' ? game.venue : null);
+  const attendance = game?.attendance || game?.venue?.attendance;
+  const attendanceText = attendance ? `${Number(attendance).toLocaleString()}` : null;
+
+  // City + flag lookup — uses venue name to resolve MLB stadium → city/country
+  const venueCity = getVenueCity(venueText);
 
   return (
     <article className="game-card scorebug-card react-scoreboard-card">
       <div className="game-card-top">
         <div className="game-status-block">
+          <IconCalendar />
           <strong>{formatGameTime(game?.startTime || game?.date)}</strong>
           <small>{formatStatus(game)}</small>
         </div>
@@ -452,7 +888,7 @@ function GameCard({ game }) {
               <TeamAvatar name={game?.awayTeam || 'Visitante'} logo={game?.awayLogo} />
               <div className="game-team-copy">
                 <strong>{game?.awayTeam || 'Visitante'}</strong>
-                <small>Visitante</small>
+                <small>Visitante {records.length ? `(${records[0] || ''})` : ''}</small>
               </div>
             </div>
             <span className="game-score">{formatScoreValue(game?.awayScore, game)}</span>
@@ -463,7 +899,7 @@ function GameCard({ game }) {
               <TeamAvatar name={game?.homeTeam || 'Local'} logo={game?.homeLogo} />
               <div className="game-team-copy">
                 <strong>{game?.homeTeam || 'Local'}</strong>
-                <small>Local</small>
+                <small>Local {records.length > 1 ? `(${records[1] || ''})` : ''}</small>
               </div>
             </div>
             <span className="game-score">{formatScoreValue(game?.homeScore, game)}</span>
@@ -471,17 +907,61 @@ function GameCard({ game }) {
         </div>
 
         <div className="game-detail-list">
-          {inningLabel ? <div className="game-detail-item"><strong>Inning:</strong> {inningLabel}</div> : null}
-          <div className="game-detail-item"><strong>Venue:</strong> {game?.venue || 'Sin venue'}</div>
-          <div className="game-detail-item"><strong>Records:</strong> {records || 'Sin records'}</div>
-          <div className="game-detail-item"><strong>Detalle:</strong> {formatStatus(game)}</div>
+          {/* Inning chip — only for live games */}
+          {inningLabel ? (
+            <div className="game-detail-item meta-pill">
+              <strong>Inning:</strong> {inningLabel}
+            </div>
+          ) : null}
+
+          {/* Venue pill: stadium icon + name + attendance as subtext (matches reference screenshot) */}
+          {venueText ? (
+            <div className="game-detail-item meta-pill meta-pill--venue">
+              <IconVenue />
+              <span className="meta-pill-venue-body">
+                <span className="meta-pill-venue-name">{venueText}</span>
+                {attendanceText ? (
+                  <small className="meta-pill-venue-sub">Attendance: {attendanceText}</small>
+                ) : null}
+              </span>
+            </div>
+          ) : null}
+
+          {/* City + flag pill — resolved from venue name via MLB_VENUE_CITY_MAP */}
+          {venueCity ? (
+            <div className="game-detail-item meta-pill meta-pill--city">
+              <span className="venue-flag" role="img" aria-label={venueCity.country}>
+                {venueCity.flag}
+              </span>
+              <span>{venueCity.city}, {venueCity.country}</span>
+            </div>
+          ) : null}
+
+          {/* Weather — separate pill with cloud-sun icon.
+              If data exists: show condition + temp.
+              If no data (current ESPN cache): show intentional muted fallback. */}
+          {weatherExists ? (
+            <div className="game-detail-item meta-pill">
+              <IconWeather />
+              <span>{weatherText}</span>
+            </div>
+          ) : (
+            <div className="game-detail-item meta-pill meta-pill--muted" aria-label="Clima no disponible en cache">
+              <IconWeather />
+              <span className="meta-pill-unavailable">Sin clima</span>
+            </div>
+          )}
+
           <ProbablePitchers game={game} />
         </div>
 
-        <div className="game-insight-mini react-ai-lean">
-          <span className="game-insight-label">AI Lean</span>
-          <strong>Sin tendencia fuerte</strong>
-          <small>Sin llamadas adicionales en esta fase.</small>
+        <div className="game-card-companion">
+          <div className="game-insight-mini react-ai-lean">
+            <span className="game-insight-label">AI Lean</span>
+            <strong>Sin tendencia fuerte</strong>
+            <small>Sin llamadas adicionales en esta fase.</small>
+          </div>
+          <LiveSituation game={game} />
         </div>
 
         <Linescore game={game} />
@@ -583,6 +1063,29 @@ export default function ScoreboardView() {
             {formatGameTime(scoreboard?.lastUpdated)}
           </span>
         </div>
+
+        {status === 'success' ? (
+          <div className="visual-performance-strip scoreboard-performance-strip" aria-label="Distribucion visual del scoreboard">
+            <div className="performance-strip-lede">
+              <span>Slate density</span>
+              <strong>{groups.all.length}</strong>
+            </div>
+            <div className="scoreboard-density-rail" aria-hidden="true">
+              {getScoreboardDensity(groups).map((item) => (
+                <span
+                  className={`scoreboard-density-segment ${item.key}`}
+                  style={{ '--scoreboard-density': `${item.pct}%` }}
+                  key={item.key}
+                />
+              ))}
+            </div>
+            <div className="performance-strip-metrics">
+              {getScoreboardDensity(groups).map((item) => (
+                <span key={item.key}><b>{item.value}</b> {item.label}</span>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="scoreboard-tabs" role="tablist" aria-label="Secciones del scoreboard">
           {SCOREBOARD_TABS.map((tab) => {

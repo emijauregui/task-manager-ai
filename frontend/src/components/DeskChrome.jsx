@@ -18,8 +18,8 @@ export default function DeskChrome() {
     <header className="topbar desk-scorebar">
       <div className="desk-scorebar-track">
         <div className="desk-scorebar-item is-title">
-          <span className="desk-scorebar-label">Slate MLB</span>
-          <strong id="desk-scorebar-title">Daily Ticket AI Desk</strong>
+          <span className="desk-scorebar-label">Daily Ticket AI</span>
+          <strong id="desk-scorebar-title">MLB Analytics Control Room</strong>
         </div>
         <div className="desk-scorebar-item">
           <span className="desk-scorebar-label">Fecha</span>

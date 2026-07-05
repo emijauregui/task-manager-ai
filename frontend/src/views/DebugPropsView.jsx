@@ -36,6 +36,23 @@ export default function DebugPropsView() {
           <p>Esta vista ahora renderiza su propio contenido desde #debug-props. No muestra Dashboard.</p>
         </div>
 
+        <div className="visual-performance-strip debug-performance-strip" aria-label="Resumen visual del props lab">
+          <div className="performance-strip-lede">
+            <span>Props lab</span>
+            <strong>read-only</strong>
+          </div>
+          <div className="debug-lab-rail" aria-hidden="true">
+            <span className="is-ready" />
+            <span className="is-guarded" />
+            <span className="is-pending" />
+          </div>
+          <div className="performance-strip-metrics">
+            <span><b>0</b> live calls</span>
+            <span><b>3</b> stages</span>
+            <span><b>safe</b> guard</span>
+          </div>
+        </div>
+
         <div className="foundation-debug-grid">
           <div className="foundation-debug-item">
             <strong>Pipeline</strong>

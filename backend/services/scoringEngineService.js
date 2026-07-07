@@ -112,6 +112,8 @@ function getRiskLevel(candidate = {}) {
   }
 
   if (hasRisk(candidate, 'lineup_required')
+    || hasRisk(candidate, 'lineup_expected')
+    || hasRisk(candidate, 'pitcher_expected')
     || hasRisk(candidate, 'pitcher_unknown')
     || hasRisk(candidate, 'pitcher_k_line')
     || hasRisk(candidate, 'batter_hit_prop')
@@ -142,9 +144,11 @@ function buildPenaltyBreakdown(candidate = {}) {
   const volatilityPenalty = hasRisk(candidate, 'high_volatility_market') ? -18 : 0;
   const lowValuePenalty = hasRisk(candidate, 'low_value_odds') ? -20 : 0;
   const lineupPenalty = (hasRisk(candidate, 'lineup_confirmed') ? 5 : 0)
+    + (hasRisk(candidate, 'lineup_expected') ? -3 : 0)
     + (hasRisk(candidate, 'lineup_unknown') ? -15 : 0)
     + (hasRisk(candidate, 'player_not_starting') ? -60 : 0)
     + (hasRisk(candidate, 'pitcher_confirmed') ? 4 : 0)
+    + (hasRisk(candidate, 'pitcher_expected') ? -2 : 0)
     + (hasRisk(candidate, 'pitcher_unknown') ? -10 : 0);
 
   return {
@@ -178,8 +182,16 @@ function buildScoringNotes(candidate = {}, scored = {}) {
     notes.push('Batter lineup is not confirmed in cache.');
   }
 
+  if (hasRisk(candidate, 'lineup_expected')) {
+    notes.push('Batter appears in expected lineup; confirm before real ticket use.');
+  }
+
   if (hasRisk(candidate, 'player_not_starting')) {
     notes.push('Player is not in the confirmed lineup.');
+  }
+
+  if (hasRisk(candidate, 'pitcher_expected')) {
+    notes.push('Pitcher is expected but not fully confirmed.');
   }
 
   if (hasRisk(candidate, 'pitcher_unknown')) {

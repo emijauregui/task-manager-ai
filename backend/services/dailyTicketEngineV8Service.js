@@ -4,6 +4,7 @@ const mlbTicketHistoryService = require('./mlbTicketHistoryService');
 const oddsIngestionService = require('./oddsIngestionService');
 const oddsService = require('./oddsService');
 const pickCandidateGeneratorService = require('./pickCandidateGeneratorService');
+const rotowireLineupService = require('./rotowireLineupService');
 const scoringEngineService = require('./scoringEngineService');
 const ticketBuilderService = require('./ticketBuilderService');
 const { writeCache } = require('../utils/cache');
@@ -103,6 +104,18 @@ function compactLineupSummary(summary = {}) {
     byMarketType: summary.byMarketType || {},
     warnings: summary.warnings || [],
     warningCounts: summary.warningCounts || {},
+  };
+}
+
+function compactLineupProvider(provider = {}) {
+  return {
+    version: provider.version,
+    source: provider.source || '',
+    cacheStatus: provider.cacheStatus || '',
+    fetchedAt: provider.fetchedAt || '',
+    totalGames: provider.totalGames || 0,
+    byStatus: provider.byStatus || {},
+    warnings: provider.warnings || [],
   };
 }
 
@@ -430,6 +443,7 @@ function buildEngineV8Response(pipelineResult = {}, options = {}) {
           warnings: pipelineResult.ticketBuilderResult?.warnings || [],
         },
         lineupGate: compactLineupSummary(pipelineResult.lineupSummary),
+        lineupProvider: compactLineupProvider(pipelineResult.lineupProvider),
         engineStatus: {
           version: pipelineResult.engineStatus?.version,
           readiness: pipelineResult.engineStatus?.readiness || 'blocked',
@@ -698,6 +712,10 @@ async function generateDailyTicketEngineV8(options = {}) {
 async function runDailyTicketEngineV8(options = {}) {
   const applyTiming = options.applyTiming !== false;
   const guard = await oddsService.getGuardStatusDetailed();
+  const lineupProvider = await rotowireLineupService.getRotowireLineupContext({
+    date: options.date,
+    cacheOnly: options.lineupCacheOnly === true,
+  });
   const ingestion = await oddsIngestionService.getCachedOddsIngestion({
     date: options.date,
     includeNormalized: true,
@@ -708,6 +726,7 @@ async function runDailyTicketEngineV8(options = {}) {
     {
       applyTiming,
       timingMode: options.timingMode,
+      lineupContext: lineupProvider.context,
     }
   );
   const candidateSummary = pickCandidateGeneratorService.buildCandidateSummary(candidates, {
@@ -730,6 +749,7 @@ async function runDailyTicketEngineV8(options = {}) {
     guard,
     ingestionSummary: compactIngestion(ingestion),
     candidateSummary,
+    lineupProvider,
     lineupSummary,
     scoringSummary,
     ticketBuilderResult,

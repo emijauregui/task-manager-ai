@@ -15,6 +15,7 @@ const oddsIngestionService = require('./services/oddsIngestionService');
 const oddsService = require('./services/oddsService');
 const playerPropsDiagnosticsService = require('./services/playerPropsDiagnosticsService');
 const pickCandidateGeneratorService = require('./services/pickCandidateGeneratorService');
+const rotowireLineupService = require('./services/rotowireLineupService');
 const scoringEngineService = require('./services/scoringEngineService');
 const ticketBuilderService = require('./services/ticketBuilderService');
 
@@ -426,11 +427,36 @@ app.get('/api/daily-ticket/candidates', asyncRoute(async (req, res) => {
   });
 }));
 
+app.get('/api/daily-ticket/lineups/rotowire', asyncRoute(async (req, res) => {
+  const result = await rotowireLineupService.fetchRotowireDailyLineups({
+    date: req.query.date,
+    cacheOnly: parseBooleanQuery(req.query.cacheOnly),
+    force: parseBooleanQuery(req.query.force),
+  });
+  const summary = rotowireLineupService.buildRotowireLineupSummary(result.games || []);
+
+  return res.json({
+    version: result.version || rotowireLineupService.VERSION,
+    source: result.source || 'rotowire',
+    cacheOnly: result.cacheOnly === true,
+    cacheStatus: result.cacheStatus || 'unknown',
+    fetchedAt: result.fetchedAt || '',
+    totalGames: summary.totalGames,
+    byStatus: result.byStatus || summary.byStatus,
+    warnings: result.warnings || [],
+    games: result.games || [],
+  });
+}));
+
 app.get('/api/daily-ticket/lineup-gate', asyncRoute(async (req, res) => {
   const sampleLimit = Number(req.query.sampleLimit);
   const applyTiming = req.query.applyTiming === undefined
     ? true
     : parseBooleanQuery(req.query.applyTiming);
+  const lineupProvider = await rotowireLineupService.getRotowireLineupContext({
+    date: req.query.date,
+    cacheOnly: parseBooleanQuery(req.query.cacheOnly),
+  });
   const guard = await oddsService.getGuardStatusDetailed();
   const ingestion = await oddsIngestionService.getCachedOddsIngestion({
     date: req.query.date,
@@ -442,6 +468,7 @@ app.get('/api/daily-ticket/lineup-gate', asyncRoute(async (req, res) => {
     {
       applyTiming,
       timingMode: req.query.timingMode,
+      lineupContext: lineupProvider.context,
     }
   );
   const summary = lineupGateService.buildLineupGateSummary(candidates, {
@@ -464,7 +491,16 @@ app.get('/api/daily-ticket/lineup-gate', asyncRoute(async (req, res) => {
       applied: applyTiming,
       mode: req.query.timingMode || 'safe',
     },
-    source: 'no_lineup_cache_available',
+    source: lineupProvider.context?.source || 'no_lineup_cache_available',
+    lineupProvider: {
+      version: lineupProvider.version,
+      source: lineupProvider.source,
+      cacheStatus: lineupProvider.cacheStatus,
+      fetchedAt: lineupProvider.fetchedAt,
+      totalGames: lineupProvider.totalGames,
+      byStatus: lineupProvider.byStatus,
+      warnings: lineupProvider.warnings,
+    },
   });
 }));
 

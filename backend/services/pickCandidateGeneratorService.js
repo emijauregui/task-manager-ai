@@ -328,6 +328,14 @@ function generatePickCandidatesFromOdds(normalizedOdds = [], options = {}) {
       candidate.notes.push('Player prop needs lineup confirmation before ticket use.');
     }
 
+    if (candidate.riskTags.includes('lineup_expected')) {
+      candidate.notes.push('Player appears in expected lineup; confirm before real ticket use.');
+    }
+
+    if (candidate.riskTags.includes('pitcher_expected')) {
+      candidate.notes.push('Pitcher is expected but not fully confirmed.');
+    }
+
     if (candidate.riskTags.includes('pitcher_k_line')) {
       candidate.notes.push('Pitcher strikeout line needs matchup and lineup context.');
     }

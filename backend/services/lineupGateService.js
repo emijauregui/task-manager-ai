@@ -1,4 +1,4 @@
-const VERSION = 'v1';
+const VERSION = 'v2';
 
 const BATTER_PROP_MARKETS = new Set([
   'batter_hits',
@@ -45,6 +45,20 @@ function namesMatch(left, right) {
     return false;
   }
 
+  const leftTokens = normalizedLeft.split(' ');
+  const rightTokens = normalizedRight.split(' ');
+  const leftLast = leftTokens[leftTokens.length - 1];
+  const rightLast = rightTokens[rightTokens.length - 1];
+  if (leftLast && rightLast && leftLast === rightLast) {
+    const leftFirst = leftTokens[0] || '';
+    const rightFirst = rightTokens[0] || '';
+    const firstInitialMatches = leftFirst[0] && rightFirst[0] && leftFirst[0] === rightFirst[0];
+    const sharedMiddle = leftTokens.slice(1, -1).some((token) => rightTokens.slice(1, -1).includes(token));
+    if (firstInitialMatches || sharedMiddle) {
+      return true;
+    }
+  }
+
   return normalizedLeft.includes(normalizedRight) || normalizedRight.includes(normalizedLeft);
 }
 
@@ -63,6 +77,7 @@ function getContextPlayers(lineupContext = {}, key, candidate = {}) {
     ...asArray(lineupContext?.[key]),
     ...asArray(byEvent[eventId]),
     ...asArray(byTeam[teamName]),
+    ...asArray(byTeam[String(teamName || '').toLowerCase()]),
     ...asArray(global),
   ].filter(Boolean);
 }
@@ -108,10 +123,15 @@ function buildGate(status, overrides = {}) {
       reasons: ['lineup_confirmed'],
       warnings: [],
     },
+    lineup_expected: {
+      riskLevel: 'medium',
+      reasons: ['expected_lineup_match'],
+      warnings: ['lineup_expected_not_confirmed'],
+    },
     lineup_projected: {
       riskLevel: 'medium',
       reasons: ['projected_lineup_match'],
-      warnings: ['lineup_not_confirmed'],
+      warnings: ['lineup_expected_not_confirmed'],
     },
     lineup_unknown: {
       riskLevel: 'high',
@@ -127,6 +147,11 @@ function buildGate(status, overrides = {}) {
       riskLevel: 'low',
       reasons: ['pitcher_confirmed'],
       warnings: [],
+    },
+    pitcher_expected: {
+      riskLevel: 'medium',
+      reasons: ['pitcher_expected'],
+      warnings: ['pitcher_expected_not_confirmed'],
     },
     pitcher_unknown: {
       riskLevel: 'medium',
@@ -164,7 +189,10 @@ function determineLineupStatus(candidate = {}, lineupContext = {}) {
 
   if (isBatterProp(candidate)) {
     const confirmedBatters = getContextPlayers(lineupContext, 'confirmedBatters', candidate);
-    const projectedBatters = getContextPlayers(lineupContext, 'projectedBatters', candidate);
+    const expectedBatters = [
+      ...getContextPlayers(lineupContext, 'expectedBatters', candidate),
+      ...getContextPlayers(lineupContext, 'projectedBatters', candidate),
+    ];
 
     if (!playerName) {
       return buildGate('lineup_unknown', {
@@ -185,14 +213,20 @@ function determineLineupStatus(candidate = {}, lineupContext = {}) {
         });
     }
 
-    if (projectedBatters.length) {
-      const match = findMatchingPlayer(playerName, projectedBatters);
+    if (expectedBatters.length) {
+      const match = findMatchingPlayer(playerName, expectedBatters);
       if (match) {
-        return buildGate('lineup_projected', {
-          source: lineupContext.source || 'projected_lineup_cache',
+        return buildGate('lineup_expected', {
+          source: lineupContext.source || 'expected_lineup_cache',
           matchedPlayer: getMatchedPlayerName(match),
         });
       }
+
+      return buildGate('lineup_unknown', {
+        source: lineupContext.source || 'expected_lineup_cache',
+        warnings: ['player_name_not_matched'],
+        reasons: ['expected_lineup_without_clear_match'],
+      });
     }
 
     return buildGate('lineup_unknown', {
@@ -201,10 +235,13 @@ function determineLineupStatus(candidate = {}, lineupContext = {}) {
   }
 
   if (isPitcherProp(candidate)) {
-    const pitchers = [
+    const confirmedPitchers = [
       ...getContextPlayers(lineupContext, 'confirmedPitchers', candidate),
-      ...getContextPlayers(lineupContext, 'probablePitchers', candidate),
       ...getContextPlayers(lineupContext, 'currentPitchers', candidate),
+    ];
+    const expectedPitchers = [
+      ...getContextPlayers(lineupContext, 'expectedPitchers', candidate),
+      ...getContextPlayers(lineupContext, 'probablePitchers', candidate),
     ];
 
     if (!playerName) {
@@ -214,11 +251,21 @@ function determineLineupStatus(candidate = {}, lineupContext = {}) {
       });
     }
 
-    if (pitchers.length) {
-      const match = findMatchingPlayer(playerName, pitchers);
+    if (confirmedPitchers.length) {
+      const match = findMatchingPlayer(playerName, confirmedPitchers);
       if (match) {
         return buildGate('pitcher_confirmed', {
-          source: lineupContext.source || 'pitcher_cache',
+          source: lineupContext.source || 'confirmed_pitcher_cache',
+          matchedPlayer: getMatchedPlayerName(match),
+        });
+      }
+    }
+
+    if (expectedPitchers.length) {
+      const match = findMatchingPlayer(playerName, expectedPitchers);
+      if (match) {
+        return buildGate('pitcher_expected', {
+          source: lineupContext.source || 'expected_pitcher_cache',
           matchedPlayer: getMatchedPlayerName(match),
         });
       }

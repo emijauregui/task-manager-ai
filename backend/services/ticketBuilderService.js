@@ -102,7 +102,7 @@ function isEligibleForMode(candidate = {}, mode = 'safe') {
 
   if (mode === 'safe'
     && isBatterCandidate(candidate)
-    && (hasRisk(candidate, 'lineup_unknown') || hasRisk(candidate, 'lineup_projected'))) {
+    && hasRisk(candidate, 'lineup_unknown')) {
     return false;
   }
 
@@ -300,7 +300,9 @@ function evaluateTicketRisk(legs = [], mode = 'safe') {
 
   if (mode === 'emi'
     || tags.includes('lineup_required')
+    || tags.includes('lineup_expected')
     || tags.includes('lineup_projected')
+    || tags.includes('pitcher_expected')
     || tags.includes('pitcher_unknown')
     || tags.includes('pitcher_k_line')
     || tags.includes('batter_hit_prop')
@@ -367,8 +369,16 @@ function buildTicketForMode(scoredCandidates = [], mode = 'safe', options = {}) 
     warnings.push('lineup_not_confirmed');
   }
 
+  if (selected.some((leg) => leg.riskTags.includes('lineup_expected'))) {
+    warnings.push('expected_lineup_not_confirmed');
+  }
+
   if (selected.some((leg) => leg.riskTags.includes('lineup_projected'))) {
     warnings.push('projected_lineup_only');
+  }
+
+  if (selected.some((leg) => leg.riskTags.includes('pitcher_expected'))) {
+    warnings.push('pitcher_expected_not_confirmed');
   }
 
   if (selected.some((leg) => leg.riskTags.includes('pitcher_unknown'))) {

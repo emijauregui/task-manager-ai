@@ -8,6 +8,7 @@ const dailyTicketService = require('./services/dailyTicketService');
 const espnService = require('./services/espnService');
 const historicalPatternEngine = require('./services/historicalPatternEngine');
 const mlbTicketHistoryService = require('./services/mlbTicketHistoryService');
+const oddsIngestionService = require('./services/oddsIngestionService');
 const oddsService = require('./services/oddsService');
 const playerPropsDiagnosticsService = require('./services/playerPropsDiagnosticsService');
 
@@ -348,6 +349,24 @@ app.get('/api/daily-ticket/odds/guard', asyncRoute(async (req, res) => {
   });
 
   return res.json(status);
+}));
+
+app.get('/api/daily-ticket/odds/ingestion', asyncRoute(async (req, res) => {
+  const sampleLimit = Number(req.query.sampleLimit);
+  const guard = await oddsService.getGuardStatusDetailed();
+  const result = await oddsIngestionService.getCachedOddsIngestion({
+    date: req.query.date,
+    sampleLimit: Number.isFinite(sampleLimit) && sampleLimit > 0 ? sampleLimit : undefined,
+  });
+
+  return res.json({
+    ...result,
+    runtimeMode: guard.runtimeMode,
+    oddsLiveEnabled: guard.oddsLiveEnabled,
+    budgetGateVersion: guard.budgetGateVersion,
+    canUseLiveOdds: guard.canUseLiveOdds,
+    cacheOnly: true,
+  });
 }));
 
 app.post('/api/daily-ticket/odds/refresh', asyncRoute(async (req, res) => {

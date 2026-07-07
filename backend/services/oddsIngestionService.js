@@ -436,6 +436,7 @@ async function getCachedOddsIngestion(options = {}) {
 
   return {
     ...summary,
+    ...(options.includeNormalized === true ? { normalizedOdds: normalized } : {}),
     dateFilter: date || null,
     cacheAudit: {
       coreOddsFiles: coreFiles.length,

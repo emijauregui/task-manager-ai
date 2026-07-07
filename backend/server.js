@@ -11,6 +11,7 @@ const mlbTicketHistoryService = require('./services/mlbTicketHistoryService');
 const oddsIngestionService = require('./services/oddsIngestionService');
 const oddsService = require('./services/oddsService');
 const playerPropsDiagnosticsService = require('./services/playerPropsDiagnosticsService');
+const pickCandidateGeneratorService = require('./services/pickCandidateGeneratorService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -366,6 +367,57 @@ app.get('/api/daily-ticket/odds/ingestion', asyncRoute(async (req, res) => {
     budgetGateVersion: guard.budgetGateVersion,
     canUseLiveOdds: guard.canUseLiveOdds,
     cacheOnly: true,
+  });
+}));
+
+app.get('/api/daily-ticket/candidates', asyncRoute(async (req, res) => {
+  const sampleLimit = Number(req.query.sampleLimit);
+  const applyTiming = req.query.applyTiming === undefined
+    ? true
+    : parseBooleanQuery(req.query.applyTiming);
+  const guard = await oddsService.getGuardStatusDetailed();
+  const ingestion = await oddsIngestionService.getCachedOddsIngestion({
+    date: req.query.date,
+    includeNormalized: true,
+    sampleLimit: 1,
+  });
+  const candidates = pickCandidateGeneratorService.generatePickCandidatesFromOdds(
+    ingestion.normalizedOdds || [],
+    {
+      applyTiming,
+      timingMode: req.query.timingMode,
+    }
+  );
+  const summary = pickCandidateGeneratorService.buildCandidateSummary(candidates, {
+    sampleLimit: Number.isFinite(sampleLimit) && sampleLimit > 0 ? sampleLimit : 20,
+  });
+
+  return res.json({
+    ...summary,
+    runtimeMode: guard.runtimeMode,
+    oddsLiveEnabled: guard.oddsLiveEnabled,
+    budgetGateVersion: guard.budgetGateVersion,
+    canUseLiveOdds: guard.canUseLiveOdds,
+    ingestion: {
+      version: ingestion.version,
+      totalNormalized: ingestion.totalNormalized,
+      dateFilter: ingestion.dateFilter,
+      warnings: ingestion.warnings,
+      cacheAudit: ingestion.cacheAudit
+        ? {
+          coreOddsFiles: ingestion.cacheAudit.coreOddsFiles,
+          eventsFiles: ingestion.cacheAudit.eventsFiles,
+          eventMarketsFiles: ingestion.cacheAudit.eventMarketsFiles,
+          eventPropsFiles: ingestion.cacheAudit.eventPropsFiles,
+          normalizedFiles: ingestion.cacheAudit.normalizedFiles,
+        }
+        : null,
+    },
+    timing: {
+      applied: applyTiming,
+      mode: req.query.timingMode || 'safe',
+      version: pickCandidateGeneratorService.VERSION,
+    },
   });
 }));
 

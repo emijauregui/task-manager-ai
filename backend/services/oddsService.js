@@ -1,4 +1,9 @@
-const { listCacheFiles, readCache, writeCache } = require('../utils/cache');
+const {
+  getCacheFilePath,
+  listCacheFiles,
+  readCache,
+  writeCache,
+} = require('../utils/cache');
 const mlbStatsService = require('./mlbStatsService');
 
 const ODDS_BASE_URL = 'https://api.the-odds-api.com/v4';
@@ -28,6 +33,12 @@ const CONTROLLED_REFRESH_ALLOWED_MARKETS = new Set(['h2h', 'spreads', 'totals'])
 const CONTROLLED_REFRESH_ALLOWED_REGIONS = new Set(['us']);
 const DEFAULT_REFRESH_MARKETS = ['h2h', 'spreads'];
 const DEFAULT_REFRESH_REGION = 'us';
+const BUDGET_GATE_VERSION = 'v2';
+const BUDGET_LEDGER_PREFIX = 'odds-api-budget-ledger-';
+const DEFAULT_MAX_DAILY_ODDS_REQUESTS = 25;
+const DEFAULT_MAX_REQUESTS_PER_OPERATION = 10;
+const DEFAULT_UNKNOWN_MARKET_REQUEST_COST = 3;
+const MAX_LEDGER_ENTRIES = 500;
 
 class OddsApiError extends Error {
   constructor(code, message, options = {}) {
@@ -70,11 +81,496 @@ function getOddsRuntimeMode() {
   return isLiveEnabled() ? 'live_enabled' : 'cache_only';
 }
 
+function getPositiveIntegerConfig(envName, fallback) {
+  const parsed = Number(process.env[envName]);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return Math.trunc(parsed);
+}
+
+function getMaxDailyBudget() {
+  return getPositiveIntegerConfig('ODDS_API_MAX_DAILY_REQUESTS', DEFAULT_MAX_DAILY_ODDS_REQUESTS);
+}
+
+function getMaxRequestsPerOperation() {
+  return getPositiveIntegerConfig('ODDS_API_MAX_REQUESTS_PER_CALL', DEFAULT_MAX_REQUESTS_PER_OPERATION);
+}
+
+function getUnknownMarketCost() {
+  return getPositiveIntegerConfig('ODDS_API_UNKNOWN_MARKET_COST', DEFAULT_UNKNOWN_MARKET_REQUEST_COST);
+}
+
+function normalizeMarketsList(markets) {
+  if (Array.isArray(markets)) {
+    return Array.from(new Set(
+      markets.map((market) => String(market || '').trim()).filter(Boolean)
+    ));
+  }
+
+  if (typeof markets === 'string') {
+    return Array.from(new Set(
+      markets.split(',').map((market) => market.trim()).filter(Boolean)
+    ));
+  }
+
+  return [];
+}
+
+function normalizePositiveCount(value, fallback = 1) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return Math.trunc(parsed);
+}
+
+function inferBudgetEndpointType(pathname = '') {
+  const value = String(pathname || '');
+
+  if (value === '/sports/' || value === '/sports') {
+    return 'sports_list';
+  }
+
+  if (/\/events\/[^/]+\/odds$/.test(value)) {
+    return 'event_props';
+  }
+
+  if (/\/events\/[^/]+\/markets$/.test(value)) {
+    return 'event_markets';
+  }
+
+  if (/\/sports\/[^/]+\/events$/.test(value)) {
+    return 'events';
+  }
+
+  if (/\/sports\/[^/]+\/odds$/.test(value)) {
+    return 'sports_odds';
+  }
+
+  return 'unknown';
+}
+
+function getAllowedMarketsForEndpoint(endpointType) {
+  if (endpointType === 'sports_odds') {
+    return SUPPORTED_MARKETS;
+  }
+
+  if (endpointType === 'event_props') {
+    return new Set(EVENT_PLAYER_PROP_MARKETS);
+  }
+
+  return null;
+}
+
+function endpointRequiresMarkets(endpointType, allowMarketless = false) {
+  if (allowMarketless) {
+    return false;
+  }
+
+  return endpointType === 'sports_odds'
+    || endpointType === 'event_props'
+    || endpointType === 'market_group'
+    || endpointType === 'unknown';
+}
+
+function estimateOddsRequests(input = {}) {
+  const endpointType = input.endpointType || inferBudgetEndpointType(input.pathname);
+  const markets = normalizeMarketsList(input.markets);
+  const eventCount = normalizePositiveCount(input.eventCount, 1);
+  const unknownMarketCost = getUnknownMarketCost();
+  const allowedMarkets = getAllowedMarketsForEndpoint(endpointType);
+  const requiresMarkets = endpointRequiresMarkets(endpointType, input.allowMarketless === true);
+  const invalidMarkets = allowedMarkets
+    ? markets.filter((market) => !allowedMarkets.has(market))
+    : [];
+  const unknownMarkets = allowedMarkets === null
+    ? markets
+    : markets.filter((market) => !allowedMarkets.has(market));
+  const missingMarkets = requiresMarkets && markets.length === 0;
+  const canEstimate = !missingMarkets;
+  const perMarketCosts = markets.map((market) => (
+    allowedMarkets === null || allowedMarkets.has(market) ? 1 : unknownMarketCost
+  ));
+  const marketCostTotal = perMarketCosts.reduce((total, cost) => total + cost, 0);
+  const marketlessCost = endpointType === 'sports_list'
+    || endpointType === 'events'
+    || endpointType === 'event_markets'
+      ? eventCount
+      : eventCount * unknownMarketCost;
+  const estimatedRequests = missingMarkets
+    ? eventCount * unknownMarketCost
+    : markets.length > 0
+      ? eventCount * marketCostTotal
+      : marketlessCost;
+  const reasons = [];
+
+  if (missingMarkets) {
+    reasons.push('caller did not declare markets');
+  }
+
+  if (invalidMarkets.length > 0) {
+    reasons.push(`market not allowed: ${invalidMarkets.join(',')}`);
+  }
+
+  return {
+    budgetGateVersion: BUDGET_GATE_VERSION,
+    endpointType,
+    markets,
+    marketCount: markets.length,
+    eventCount,
+    estimatedRequests,
+    formula: markets.length > 0
+      ? `eventCount * marketCost = ${eventCount} * ${marketCostTotal}`
+      : `marketless endpoint cost = ${marketlessCost}`,
+    missingMarkets,
+    invalidMarkets,
+    unknownMarkets,
+    canEstimate,
+    reasons,
+  };
+}
+
+function getBudgetLedgerFilename(dateKey = getDateKeyInTimeZone(new Date())) {
+  return `${BUDGET_LEDGER_PREFIX}${dateKey}.json`;
+}
+
+function getBudgetLedgerPath(dateKey = getDateKeyInTimeZone(new Date())) {
+  return getCacheFilePath(getBudgetLedgerFilename(dateKey));
+}
+
+function toFiniteNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function summarizeBudgetEntries(entries = []) {
+  const summary = {
+    entries: entries.length,
+    liveUsageEntries: 0,
+    blockedEntries: 0,
+    plannedEntries: 0,
+    todayEstimatedUsage: 0,
+    todayActualUsage: 0,
+    todayBlockedEstimate: 0,
+    todayPlannedEstimate: 0,
+    lastEntry: entries[entries.length - 1] || null,
+  };
+
+  entries.forEach((entry) => {
+    const estimated = toFiniteNumber(entry.estimatedRequests, 0);
+    const actual = toFiniteNumber(entry.actualRequests, 0);
+
+    if (entry.kind === 'plan') {
+      summary.plannedEntries += 1;
+      summary.todayPlannedEstimate += estimated;
+      return;
+    }
+
+    if (entry.blocked === true) {
+      summary.blockedEntries += 1;
+      summary.todayBlockedEstimate += estimated;
+      return;
+    }
+
+    if (entry.kind === 'live_usage') {
+      summary.liveUsageEntries += 1;
+      summary.todayEstimatedUsage += estimated;
+      summary.todayActualUsage += actual;
+    }
+  });
+
+  return summary;
+}
+
+async function readBudgetLedgerSummary(dateKey = getDateKeyInTimeZone(new Date())) {
+  const filename = getBudgetLedgerFilename(dateKey);
+  const ledger = await readCache(filename, { allowStale: true });
+  const entries = Array.isArray(ledger.data?.entries) ? ledger.data.entries : [];
+
+  return {
+    filename,
+    path: getBudgetLedgerPath(dateKey),
+    exists: ledger.exists,
+    ...summarizeBudgetEntries(entries),
+  };
+}
+
+let budgetLedgerWriteQueue = Promise.resolve();
+
+function buildBudgetLedgerEntry(entry = {}) {
+  return {
+    timestamp: entry.timestamp || new Date().toISOString(),
+    budgetGateVersion: BUDGET_GATE_VERSION,
+    kind: entry.kind || 'gate_check',
+    caller: String(entry.caller || 'unknown'),
+    mode: String(entry.mode || getOddsRuntimeMode()),
+    endpointType: String(entry.endpointType || 'unknown'),
+    pathname: String(entry.pathname || ''),
+    markets: normalizeMarketsList(entry.markets),
+    eventCount: normalizePositiveCount(entry.eventCount, 1),
+    estimatedRequests: toFiniteNumber(entry.estimatedRequests, 0),
+    actualRequests: entry.actualRequests === null || entry.actualRequests === undefined
+      ? null
+      : toFiniteNumber(entry.actualRequests, null),
+    blocked: entry.blocked === true,
+    reason: String(entry.reason || ''),
+    remainingBefore: entry.remainingBefore === null || entry.remainingBefore === undefined
+      ? null
+      : toFiniteNumber(entry.remainingBefore, null),
+    remainingAfterEstimate: entry.remainingAfterEstimate === null || entry.remainingAfterEstimate === undefined
+      ? null
+      : toFiniteNumber(entry.remainingAfterEstimate, null),
+    quotaRemainingAfter: entry.quotaRemainingAfter === null || entry.quotaRemainingAfter === undefined
+      ? null
+      : toFiniteNumber(entry.quotaRemainingAfter, null),
+    quotaUsedAfter: entry.quotaUsedAfter === null || entry.quotaUsedAfter === undefined
+      ? null
+      : toFiniteNumber(entry.quotaUsedAfter, null),
+  };
+}
+
+async function persistBudgetLedgerEntry(entry) {
+  const dateKey = getDateKeyInTimeZone(new Date(entry.timestamp || Date.now()));
+  const filename = getBudgetLedgerFilename(dateKey);
+  const current = await readCache(filename, { allowStale: true });
+  const entries = Array.isArray(current.data?.entries) ? current.data.entries : [];
+  const nextEntries = [...entries, buildBudgetLedgerEntry(entry)].slice(-MAX_LEDGER_ENTRIES);
+  const data = {
+    date: dateKey,
+    budgetGateVersion: BUDGET_GATE_VERSION,
+    updatedAt: new Date().toISOString(),
+    entries: nextEntries,
+    summary: summarizeBudgetEntries(nextEntries),
+  };
+
+  await writeCache(filename, data);
+  return {
+    filename,
+    path: getBudgetLedgerPath(dateKey),
+    summary: data.summary,
+  };
+}
+
+async function recordBudgetLedgerEntry(entry) {
+  budgetLedgerWriteQueue = budgetLedgerWriteQueue
+    .catch(() => null)
+    .then(() => persistBudgetLedgerEntry(entry))
+    .catch((error) => {
+      logOddsEvent('BUDGET_LEDGER_WRITE_FAILED', {
+        message: error.message,
+      });
+      return null;
+    });
+
+  return budgetLedgerWriteQueue;
+}
+
+function evaluateOddsBudgetGate(input = {}, ledgerSummary = {}) {
+  const mode = input.mode || getOddsRuntimeMode();
+  const estimate = estimateOddsRequests(input);
+  const maxDailyBudget = getMaxDailyBudget();
+  const maxRequestsPerOperation = normalizePositiveCount(
+    input.allowedRequests,
+    getMaxRequestsPerOperation()
+  );
+  const dailyUsageBase = Math.max(
+    toFiniteNumber(ledgerSummary.todayActualUsage, 0),
+    toFiniteNumber(ledgerSummary.todayEstimatedUsage, 0)
+  );
+  const remainingBefore = Math.max(0, maxDailyBudget - dailyUsageBase);
+  const remainingAfterEstimate = Math.max(0, remainingBefore - estimate.estimatedRequests);
+  const reasons = [...estimate.reasons];
+  let errorCode = '';
+
+  if (mode !== 'dry_run' && !isLiveEnabled()) {
+    reasons.push('ODDS_API_LIVE_ENABLED is not explicitly true');
+    errorCode = 'ODDS_API_LIVE_DISABLED';
+  }
+
+  if (!estimate.canEstimate) {
+    errorCode = errorCode || 'ODDS_API_BUDGET_ESTIMATE_FAILED';
+  }
+
+  if (estimate.invalidMarkets.length > 0) {
+    errorCode = errorCode || 'ODDS_API_MARKET_NOT_ALLOWED';
+  }
+
+  if (estimate.estimatedRequests > maxRequestsPerOperation) {
+    reasons.push(`estimatedRequests exceeds per-operation limit: ${estimate.estimatedRequests} > ${maxRequestsPerOperation}`);
+    errorCode = errorCode || 'ODDS_API_BUDGET_OPERATION_LIMIT';
+  }
+
+  if (mode === 'live_enabled' && estimate.estimatedRequests > remainingBefore) {
+    reasons.push(`estimatedRequests exceeds remaining daily budget: ${estimate.estimatedRequests} > ${remainingBefore}`);
+    errorCode = errorCode || 'ODDS_API_BUDGET_DAILY_LIMIT';
+  }
+
+  const blocked = reasons.length > 0 && mode !== 'dry_run_preview';
+
+  return {
+    ...estimate,
+    caller: input.caller || 'unknown',
+    pathname: input.pathname || '',
+    mode,
+    maxDailyBudget,
+    maxRequestsPerOperation,
+    remainingBefore,
+    remainingAfterEstimate,
+    canUseLiveOdds: isLiveEnabled() && !blocked,
+    blocked,
+    reason: reasons.join('; ') || 'allowed',
+    errorCode: blocked ? (errorCode || 'ODDS_API_BUDGET_GATE_BLOCKED') : '',
+  };
+}
+
+function buildBudgetGateError(evaluation) {
+  const code = evaluation.errorCode || 'ODDS_API_BUDGET_GATE_BLOCKED';
+  const liveDisabled = code === 'ODDS_API_LIVE_DISABLED';
+  const message = liveDisabled
+    ? 'The Odds API live esta desactivada; no se hizo fallback live.'
+    : `The Odds API budget gate blocked this request: ${evaluation.reason}`;
+
+  return new OddsApiError(code, message, {
+    httpStatus: 503,
+    liveDisabled,
+    pathname: evaluation.pathname,
+  });
+}
+
+async function recordBudgetGateDecision(input = {}, options = {}) {
+  const dateKey = getDateKeyInTimeZone(new Date());
+  const ledgerSummary = await readBudgetLedgerSummary(dateKey);
+  const evaluation = evaluateOddsBudgetGate(input, ledgerSummary);
+  const kind = options.kind || 'gate_check';
+
+  if (options.updateGuardState === true) {
+    if (evaluation.blocked) {
+      recordLiveCallBlocked(evaluation.pathname, evaluation.reason, {
+        caller: evaluation.caller,
+        endpointType: evaluation.endpointType,
+        estimatedRequests: evaluation.estimatedRequests,
+      });
+    } else {
+      recordLiveCallAllowed(evaluation.pathname, {
+        caller: evaluation.caller,
+        endpointType: evaluation.endpointType,
+        estimatedRequests: evaluation.estimatedRequests,
+      });
+    }
+  }
+
+  if (options.persist !== false) {
+    await recordBudgetLedgerEntry({
+      ...evaluation,
+      kind,
+      actualRequests: null,
+    });
+  }
+
+  if (evaluation.blocked && options.throwOnBlocked === true) {
+    throw buildBudgetGateError(evaluation);
+  }
+
+  return evaluation;
+}
+
+async function recordBudgetActualUsage(evaluation = {}, quota = {}) {
+  await recordBudgetLedgerEntry({
+    ...evaluation,
+    kind: 'live_usage',
+    blocked: false,
+    reason: 'live call completed',
+    actualRequests: quota.requestsLast,
+    quotaRemainingAfter: quota.requestsRemaining,
+    quotaUsedAfter: quota.requestsUsed,
+  });
+}
+
+async function getGuardStatusDetailed(options = {}) {
+  const baseStatus = getGuardStatus();
+  const ledgerSummary = await readBudgetLedgerSummary();
+  const reasons = [];
+
+  if (!baseStatus.oddsLiveEnabled) {
+    reasons.push('ODDS_API_LIVE_ENABLED is not explicitly true');
+  }
+
+  if (!baseStatus.hasOddsApiKey) {
+    reasons.push('ODDS_API_KEY is not configured');
+  }
+
+  if (ledgerSummary.todayActualUsage >= getMaxDailyBudget()) {
+    reasons.push('daily budget exhausted');
+  }
+
+  const dryRunInput = options.dryRun && typeof options.dryRun === 'object'
+    ? {
+      mode: 'dry_run',
+      caller: 'guard_dry_run',
+      endpointType: options.dryRun.endpointType,
+      markets: options.dryRun.markets,
+      eventCount: options.dryRun.eventCount,
+      pathname: options.dryRun.pathname,
+      allowMarketless: options.dryRun.allowMarketless === true,
+      allowedRequests: options.dryRun.allowedRequests,
+    }
+    : null;
+
+  return {
+    ...baseStatus,
+    budgetGateVersion: BUDGET_GATE_VERSION,
+    maxDailyBudget: getMaxDailyBudget(),
+    maxRequestsPerOperation: getMaxRequestsPerOperation(),
+    todayEstimatedUsage: ledgerSummary.todayEstimatedUsage,
+    todayActualUsage: ledgerSummary.todayActualUsage,
+    todayBlockedEstimate: ledgerSummary.todayBlockedEstimate,
+    todayPlannedEstimate: ledgerSummary.todayPlannedEstimate,
+    canUseLiveOdds: baseStatus.oddsLiveEnabled
+      && baseStatus.hasOddsApiKey
+      && ledgerSummary.todayActualUsage < getMaxDailyBudget(),
+    reasons,
+    ledger: {
+      filename: ledgerSummary.filename,
+      path: ledgerSummary.path,
+      exists: ledgerSummary.exists,
+      entries: ledgerSummary.entries,
+      blockedEntries: ledgerSummary.blockedEntries,
+      plannedEntries: ledgerSummary.plannedEntries,
+      lastEntry: ledgerSummary.lastEntry,
+    },
+    dryRun: dryRunInput
+      ? evaluateOddsBudgetGate(dryRunInput, ledgerSummary)
+      : undefined,
+    dryRunExamples: {
+      coreMarkets: estimateOddsRequests({
+        endpointType: 'sports_odds',
+        markets: ['h2h', 'spreads', 'totals'],
+      }),
+      oneEventThreeProps: estimateOddsRequests({
+        endpointType: 'event_props',
+        eventCount: 1,
+        markets: ['batter_hits', 'batter_total_bases', 'pitcher_strikeouts'],
+      }),
+      threeEventsThreeProps: estimateOddsRequests({
+        endpointType: 'event_props',
+        eventCount: 3,
+        markets: ['batter_hits', 'batter_total_bases', 'pitcher_strikeouts'],
+      }),
+    },
+  };
+}
+
 function getGuardStatus() {
   return {
     oddsLiveEnabled: isLiveEnabled(),
     runtimeMode: getOddsRuntimeMode(),
     hasOddsApiKey: isConfigured(),
+    budgetGateVersion: BUDGET_GATE_VERSION,
+    maxDailyBudget: getMaxDailyBudget(),
+    maxRequestsPerOperation: getMaxRequestsPerOperation(),
     liveCallsBlocked: guardState.liveCallsBlocked,
     liveCallsAllowed: guardState.liveCallsAllowed,
     cacheHits: guardState.cacheHits,
@@ -210,7 +706,11 @@ function captureQuotaHeaders(pathname, headers = {}) {
     logOddsEvent('QUOTA_HEADERS_MISSING', {
       pathname,
     });
-    return;
+    return {
+      requestsRemaining,
+      requestsUsed,
+      requestsLast,
+    };
   }
 
   logOddsEvent('QUOTA_HEADERS_CAPTURED', {
@@ -219,6 +719,12 @@ function captureQuotaHeaders(pathname, headers = {}) {
     requestsUsed,
     requestsLast,
   });
+
+  return {
+    requestsRemaining,
+    requestsUsed,
+    requestsLast,
+  };
 }
 
 function isQuotaError(error) {
@@ -259,7 +765,7 @@ function normalizeCommaSeparatedList(value, fallback = []) {
 }
 
 function buildEstimatedCostHint(regions = [], markets = []) {
-  return `Costo esperado aproximado: regions * markets = ${regions.length} * ${markets.length}`;
+  return `Costo esperado aproximado: ${markets.length} request(s) reales por mercado.`;
 }
 
 function parseControlledRefreshOptions(options = {}) {
@@ -301,7 +807,7 @@ function getMlbOddsCacheFilename(targetDate = getDateKeyInTimeZone(new Date())) 
   return `odds-mlb-${targetDate}.json`;
 }
 
-async function fetchOddsJson(pathname, params = {}) {
+async function fetchOddsJson(pathname, params = {}, budgetOptions = {}) {
   if (!isConfigured()) {
     throw new OddsApiError('ODDS_API_NOT_CONFIGURED', 'ODDS_API_KEY is not configured.', {
       httpStatus: 503,
@@ -309,9 +815,20 @@ async function fetchOddsJson(pathname, params = {}) {
     });
   }
 
-  assertOddsLiveAllowed(pathname, {
-    regions: params.regions || null,
-    markets: params.markets || null,
+  const budgetDecision = await recordBudgetGateDecision({
+    caller: budgetOptions.caller || 'fetchOddsJson',
+    pathname,
+    endpointType: budgetOptions.endpointType || inferBudgetEndpointType(pathname),
+    markets: budgetOptions.markets ?? params.markets,
+    eventCount: budgetOptions.eventCount || 1,
+    allowMarketless: budgetOptions.allowMarketless === true,
+    allowedRequests: budgetOptions.allowedRequests,
+    mode: getOddsRuntimeMode(),
+  }, {
+    kind: 'live_gate',
+    persist: true,
+    throwOnBlocked: true,
+    updateGuardState: true,
   });
 
   const url = buildUrl(pathname, {
@@ -331,7 +848,8 @@ async function fetchOddsJson(pathname, params = {}) {
     requestsUsed: response.headers.get('x-requests-used'),
     requestsLast: response.headers.get('x-requests-last'),
   };
-  captureQuotaHeaders(pathname, headerSnapshot);
+  const quota = captureQuotaHeaders(pathname, headerSnapshot);
+  await recordBudgetActualUsage(budgetDecision, quota);
   const rawText = await response.text();
   let payload = null;
 
@@ -743,6 +1261,7 @@ async function readOrFetchCachedOdds(filename, fetcher, maxAgeMinutes, forceRefr
   const {
     cacheOnly = false,
     pathname = filename,
+    budgetGate = {},
   } = options;
 
   if (cacheOnly) {
@@ -767,6 +1286,19 @@ async function readOrFetchCachedOdds(filename, fetcher, maxAgeMinutes, forceRefr
       cacheOnly: true,
     });
     if (!isLiveEnabled()) {
+      await recordBudgetGateDecision({
+        caller: budgetGate.caller || 'readOrFetchCachedOdds',
+        pathname,
+        endpointType: budgetGate.endpointType || inferBudgetEndpointType(pathname),
+        markets: budgetGate.markets,
+        eventCount: budgetGate.eventCount || 1,
+        allowMarketless: budgetGate.allowMarketless === true,
+        mode: 'cache_only',
+      }, {
+        kind: 'cache_block',
+        persist: true,
+        throwOnBlocked: false,
+      });
       recordLiveCallBlocked(pathname, 'ODDS_API_LIVE_ENABLED is not explicitly true.', {
         filename,
         cacheOnly: true,
@@ -830,6 +1362,19 @@ async function readOrFetchCachedOdds(filename, fetcher, maxAgeMinutes, forceRefr
     recordCacheMiss(filename, {
       pathname,
       forceRefresh,
+    });
+    await recordBudgetGateDecision({
+      caller: budgetGate.caller || 'readOrFetchCachedOdds',
+      pathname,
+      endpointType: budgetGate.endpointType || inferBudgetEndpointType(pathname),
+      markets: budgetGate.markets,
+      eventCount: budgetGate.eventCount || 1,
+      allowMarketless: budgetGate.allowMarketless === true,
+      mode: 'cache_only',
+    }, {
+      kind: 'cache_block',
+      persist: true,
+      throwOnBlocked: false,
     });
     recordLiveCallBlocked(pathname, 'ODDS_API_LIVE_ENABLED is not explicitly true.', {
       filename,
@@ -910,7 +1455,11 @@ async function getHealth() {
     };
   }
 
-  const { data } = await fetchOddsJson('/sports/');
+  const { data } = await fetchOddsJson('/sports/', {}, {
+    caller: 'getHealth',
+    endpointType: 'sports_list',
+    allowMarketless: true,
+  });
   const sports = Array.isArray(data) ? data : [];
   const mlb = sports.find((sport) => sport.key === 'baseball_mlb');
 
@@ -980,6 +1529,7 @@ async function getMlbEventsByDate(targetDate = getDateKeyInTimeZone(new Date()),
     useCache = true,
     cacheOnly = false,
     timeZone = TARGET_TIME_ZONE,
+    caller = 'getMlbEventsByDate',
   } = options;
 
   const cacheFilename = `odds-events-mlb-${targetDate}.json`;
@@ -987,6 +1537,11 @@ async function getMlbEventsByDate(targetDate = getDateKeyInTimeZone(new Date()),
   const load = async () => {
     const { data, headers } = await fetchOddsJson('/sports/baseball_mlb/events', {
       dateFormat: 'iso',
+    }, {
+      caller,
+      endpointType: 'events',
+      eventCount: 1,
+      allowMarketless: true,
     });
     const events = Array.isArray(data)
       ? data.filter((event) => matchesTargetDate(event?.commence_time, targetDate, timeZone))
@@ -1010,6 +1565,12 @@ async function getMlbEventsByDate(targetDate = getDateKeyInTimeZone(new Date()),
   return readOrFetchCachedOdds(cacheFilename, load, EVENT_PROPS_CACHE_MINUTES, forceRefresh, {
     cacheOnly,
     pathname: '/sports/baseball_mlb/events',
+    budgetGate: {
+      caller,
+      endpointType: 'events',
+      eventCount: 1,
+      allowMarketless: true,
+    },
   });
 }
 
@@ -1019,12 +1580,18 @@ async function getMlbEventMarkets(eventId, options = {}) {
     useCache = true,
     cacheOnly = false,
     regions = 'us',
+    caller = 'getMlbEventMarkets',
   } = options;
 
   const cacheFilename = `odds-event-markets-${eventId}.json`;
   const load = async () => {
     const { data, headers } = await fetchOddsJson(`/sports/baseball_mlb/events/${eventId}/markets`, {
       regions,
+    }, {
+      caller,
+      endpointType: 'event_markets',
+      eventCount: 1,
+      allowMarketless: true,
     });
     return {
       fetchedAt: new Date().toISOString(),
@@ -1045,6 +1612,12 @@ async function getMlbEventMarkets(eventId, options = {}) {
   return readOrFetchCachedOdds(cacheFilename, load, EVENT_PROPS_CACHE_MINUTES, forceRefresh, {
     cacheOnly,
     pathname: `/sports/baseball_mlb/events/${eventId}/markets`,
+    budgetGate: {
+      caller,
+      endpointType: 'event_markets',
+      eventCount: 1,
+      allowMarketless: true,
+    },
   });
 }
 
@@ -1054,6 +1627,7 @@ async function getMlbEventPropsOdds(eventId, markets, options = {}) {
     useCache = true,
     cacheOnly = false,
     regions = 'us',
+    caller = 'getMlbEventPropsOdds',
   } = options;
   const normalizedMarkets = Array.from(new Set((Array.isArray(markets) ? markets : [])
     .map((market) => String(market || '').trim())
@@ -1067,6 +1641,11 @@ async function getMlbEventPropsOdds(eventId, markets, options = {}) {
       markets: normalizedMarkets.join(','),
       oddsFormat: 'decimal',
       dateFormat: 'iso',
+    }, {
+      caller,
+      endpointType: 'event_props',
+      markets: normalizedMarkets,
+      eventCount: 1,
     });
     return {
       fetchedAt: new Date().toISOString(),
@@ -1103,6 +1682,18 @@ async function getMlbEventPropsOdds(eventId, markets, options = {}) {
         cacheOnly: true,
       });
       if (!isLiveEnabled()) {
+        await recordBudgetGateDecision({
+          caller,
+          pathname,
+          endpointType: 'event_props',
+          markets: normalizedMarkets,
+          eventCount: 1,
+          mode: 'cache_only',
+        }, {
+          kind: 'cache_block',
+          persist: true,
+          throwOnBlocked: false,
+        });
         recordLiveCallBlocked(pathname, 'ODDS_API_LIVE_ENABLED is not explicitly true.', {
           filename: cacheFilename,
           cacheOnly: true,
@@ -1151,6 +1742,18 @@ async function getMlbEventPropsOdds(eventId, markets, options = {}) {
       pathname,
       forceRefresh,
     });
+    await recordBudgetGateDecision({
+      caller,
+      pathname,
+      endpointType: 'event_props',
+      markets: normalizedMarkets,
+      eventCount: 1,
+      mode: 'cache_only',
+    }, {
+      kind: 'cache_block',
+      persist: true,
+      throwOnBlocked: false,
+    });
     recordLiveCallBlocked(pathname, 'ODDS_API_LIVE_ENABLED is not explicitly true.', {
       filename: cacheFilename,
       forceRefresh,
@@ -1184,7 +1787,21 @@ async function getMlbPropsByDateViaEvents(targetDate = getDateKeyInTimeZone(new 
     limitEvents = 3,
     requestedMarkets = EVENT_PLAYER_PROP_MARKETS,
     regions = 'us',
+    caller = 'getMlbPropsByDateViaEvents',
   } = options;
+
+  await recordBudgetGateDecision({
+    caller,
+    pathname: '/sports/baseball_mlb/events/{eventId}/odds',
+    endpointType: 'event_props',
+    markets: requestedMarkets,
+    eventCount: limitEvents,
+    mode: getOddsRuntimeMode(),
+  }, {
+    kind: 'plan',
+    persist: true,
+    throwOnBlocked: false,
+  });
 
   let eventsPayload;
   try {
@@ -1192,6 +1809,7 @@ async function getMlbPropsByDateViaEvents(targetDate = getDateKeyInTimeZone(new 
       forceRefresh,
       useCache,
       cacheOnly,
+      caller: `${caller}:events`,
     });
   } catch (error) {
     if (!shouldFallbackToCacheOnError(error)) {
@@ -1242,6 +1860,7 @@ async function getMlbPropsByDateViaEvents(targetDate = getDateKeyInTimeZone(new 
         useCache,
         cacheOnly,
         regions,
+        caller: `${caller}:event_markets`,
       });
     } catch (error) {
       marketsByEvent.push({
@@ -1277,6 +1896,7 @@ async function getMlbPropsByDateViaEvents(targetDate = getDateKeyInTimeZone(new 
         useCache,
         cacheOnly,
         regions,
+        caller: `${caller}:event_props`,
       });
     } catch (error) {
       const current = marketsByEvent[marketsByEvent.length - 1];
@@ -1415,11 +2035,25 @@ async function getMlbOdds(options = {}) {
     forceRefresh = false,
     useCache = true,
     cacheOnly = false,
+    caller = 'getMlbOdds',
   } = options;
 
   const cacheFilename = getMlbOddsCacheFilename(targetDate);
 
   const warnings = [];
+
+  await recordBudgetGateDecision({
+    caller,
+    pathname: '/sports/baseball_mlb/odds',
+    endpointType: 'sports_odds',
+    markets,
+    eventCount: 1,
+    mode: getOddsRuntimeMode(),
+  }, {
+    kind: 'plan',
+    persist: true,
+    throwOnBlocked: false,
+  });
 
   const load = async () => {
     let fetched;
@@ -1430,6 +2064,11 @@ async function getMlbOdds(options = {}) {
         markets,
         oddsFormat: 'decimal',
         dateFormat: 'iso',
+      }, {
+        caller,
+        endpointType: 'sports_odds',
+        markets,
+        eventCount: 1,
       });
     } catch (error) {
       const requestedMarkets = String(markets || '')
@@ -1445,6 +2084,11 @@ async function getMlbOdds(options = {}) {
           markets: CORE_MARKETS.join(','),
           oddsFormat: 'decimal',
           dateFormat: 'iso',
+        }, {
+          caller: `${caller}:fallback_core_markets`,
+          endpointType: 'sports_odds',
+          markets: CORE_MARKETS,
+          eventCount: 1,
         });
       } else {
         throw error;
@@ -1472,6 +2116,12 @@ async function getMlbOdds(options = {}) {
     ? await readOrFetchCachedOdds(cacheFilename, load, DEFAULT_CACHE_MINUTES, forceRefresh, {
       cacheOnly,
       pathname: '/sports/baseball_mlb/odds',
+      budgetGate: {
+        caller,
+        endpointType: 'sports_odds',
+        markets,
+        eventCount: 1,
+      },
     })
     : {
       ...(await load()),
@@ -1661,6 +2311,9 @@ async function getCacheStatus() {
 
 module.exports = {
   assertOddsLiveAllowed,
+  estimateOddsRequests,
+  evaluateOddsBudgetGate,
+  getGuardStatusDetailed,
   getGuardStatus,
   getMlbOddsCacheFilename,
   getOddsRuntimeMode,

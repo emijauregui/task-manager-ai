@@ -332,7 +332,22 @@ app.get('/api/odds/cache/status', asyncRoute(async (req, res) => {
 }));
 
 app.get('/api/daily-ticket/odds/guard', asyncRoute(async (req, res) => {
-  return res.json(oddsService.getGuardStatus());
+  const dryRunRequested = parseBooleanQuery(req.query.dryRun)
+    || Boolean(req.query.endpointType || req.query.markets || req.query.eventCount);
+  const eventCount = Number(req.query.eventCount);
+  const allowedRequests = Number(req.query.allowedRequests);
+  const status = await oddsService.getGuardStatusDetailed({
+    dryRun: dryRunRequested
+      ? {
+        endpointType: req.query.endpointType,
+        markets: req.query.markets,
+        eventCount: Number.isFinite(eventCount) && eventCount > 0 ? eventCount : undefined,
+        allowedRequests: Number.isFinite(allowedRequests) && allowedRequests > 0 ? allowedRequests : undefined,
+      }
+      : null,
+  });
+
+  return res.json(status);
 }));
 
 app.post('/api/daily-ticket/odds/refresh', asyncRoute(async (req, res) => {

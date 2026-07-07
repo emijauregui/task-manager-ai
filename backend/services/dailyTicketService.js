@@ -2728,12 +2728,14 @@ async function getBettableCandidatesForDate(dateKey, options = {}) {
         useCache,
         cacheOnly,
         targetDate: dateKey,
+        caller: 'daily_ticket_generate:sports_odds',
       }),
       oddsService.getMlbPropsByDateViaEvents(dateKey, {
         forceRefresh: force,
         useCache,
         cacheOnly,
         limitEvents: limitPropEvents,
+        caller: 'daily_ticket_generate:event_props',
       }),
     ]);
   } catch (error) {

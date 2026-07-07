@@ -434,6 +434,7 @@ async function loadPropsFeed(targetDate, options) {
       useCache: true,
       cacheOnly: options.useLive !== true,
       limitEvents: options.limitEvents,
+      caller: options.caller || 'player_props_diagnostics',
     });
 
     return { payload, error: null };
@@ -478,6 +479,7 @@ async function getPlayerPropsDiagnostics(options = {}) {
   const propsFeedResult = await loadPropsFeed(targetDate, {
     useLive,
     limitEvents,
+    caller: 'player_props_diagnostics:summary',
   });
 
   if (!propsFeedResult.payload) {
@@ -685,6 +687,7 @@ async function getPlayerPropsByGame(eventId, options = {}) {
   const result = await loadPropsFeed(targetDate, {
     useLive,
     limitEvents,
+    caller: 'player_props_diagnostics:game',
   });
 
   if (!result.payload) {
@@ -725,6 +728,7 @@ async function getPlayerPropsByPlayer(playerName, options = {}) {
   const result = await loadPropsFeed(targetDate, {
     useLive,
     limitEvents,
+    caller: 'player_props_diagnostics:player',
   });
 
   if (!result.payload) {

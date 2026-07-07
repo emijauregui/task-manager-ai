@@ -1,199 +1,220 @@
-# Daily Ticket AI Backend Handoff v1
+# Daily Ticket AI Backend Handoff v2
 
 Fecha: 2026-07-06
 
-Este documento resume el estado real del backend de Daily Ticket AI despues de las fases recientes. Su objetivo es permitir continuar el desarrollo del motor v8 sin depender del contexto del chat.
-
-## 1. Estado actual del repo
+Este documento es el handoff principal del backend de Daily Ticket AI. Resume el estado real del motor diagnostico actual y las reglas para continuar hacia Daily Ticket Engine v8 sin depender del contexto del chat.
 
 Repo: `C:\dev\task-manager-ai`
 
-Estado observado al crear este handoff:
+## Current Backend Engine State
 
-```text
-git status --short --untracked-files=all
-# limpio
+El backend ya tiene un pipeline diagnostico cache-only con estas etapas:
+
+1. Odds Guard
+2. Odds Ingestion
+3. Pick Candidate Generator
+4. Scoring Engine
+5. Ticket Builder
+6. Engine Pipeline Status
+
+El pipeline esta disenado para auditar datos, candidatos, scoring y construccion diagnostica de tickets. No debe publicar picks reales cuando el estado esta bloqueado por odds stale, timing vencido o falta de candidatos confiables.
+
+Modo operativo actual esperado:
+
+- `runtimeMode: "cache_only"`
+- `oddsLiveEnabled: false`
+- `budgetGateVersion: "v2"`
+
+The Odds API live no debe activarse sin aprobacion explicita del usuario. Cualquier fase live futura debe pasar por Budget Gate v2.
+
+## Backend Diagnostic Endpoints
+
+### `GET /api/daily-ticket/odds/guard`
+
+- Confirma `runtimeMode`, `oddsLiveEnabled`, `budgetGateVersion` y capacidad de usar live odds.
+- No llama Odds API live.
+- Tambien soporta dry-runs de estimacion de costo por endpoint/mercado/evento.
+
+### `GET /api/daily-ticket/odds/ingestion`
+
+- Normaliza odds desde cache local.
+- Devuelve `totalNormalized`, `byMarket`, `byBookmaker`, `freshness`, warnings y samples.
+- No hace refresh.
+- No llama Odds API live.
+
+### `GET /api/daily-ticket/candidates`
+
+- Genera candidatos cache-only desde odds normalizadas.
+- Devuelve candidatos activos/rechazados, `riskTags`, freshness y resumen por tipo de mercado.
+- Aplica Timing Filter v2 por default.
+- No genera tickets.
+
+### `GET /api/daily-ticket/scoring`
+
+- Scorea candidatos.
+- Devuelve `confidenceTier`, `valueTier`, `riskLevel`, `scoringBreakdown`, warnings y samples.
+- No genera tickets.
+
+### `GET /api/daily-ticket/ticket-builder`
+
+- Construye tickets diagnosticos por modo: `safe`, `emi`, `free_bet`.
+- Puede devolver `no_ticket` si no hay candidatos confiables.
+- No inventa picks.
+- No llama generate real.
+
+### `GET /api/daily-ticket/engine/status`
+
+- Endpoint unificado del pipeline.
+- Junta Odds Guard, Odds Ingestion, Candidates, Scoring y Ticket Builder.
+- Devuelve `readiness`, `overallStatus`, `blockers`, `warnings` y `nextRecommendedPhase`.
+
+### `GET /api/mlb/scoreboard`
+
+- Scoreboard MLB con ESPN como fuente principal.
+- Enriquecimiento live con MLB StatsAPI cuando aplica.
+- Puede exponer bases, balls, strikes, outs, runners e inning/half.
+- MLB StatsAPI no consume presupuesto de The Odds API.
+
+## New Backend Services
+
+### `backend/services/oddsIngestionService.js`
+
+- Normaliza odds desde cache.
+- Soporta `h2h`, `spreads`, `totals` y player props:
+  - `pitcher_strikeouts`
+  - `batter_hits`
+  - `batter_total_bases`
+  - `batter_hits_runs_rbis`
+  - `batter_rbis`
+  - `batter_runs_scored`
+  - `batter_home_runs`
+- Marca freshness:
+  - `fresh`: last update <= 30 min
+  - `stale`: last update > 30 min
+  - `unknown`: sin timestamp valido
+
+### `backend/services/pickCandidateGeneratorService.js`
+
+- Convierte odds normalizadas en candidatos.
+- Clasifica mercados:
+  - `h2h -> team_moneyline`
+  - `spreads -> team_spread`
+  - `totals -> game_total`
+  - `pitcher_strikeouts -> pitcher_prop`
+  - `batter_* -> batter_prop`
+- Agrega `riskTags`.
+- Calcula implied probability desde decimal odds.
+- Aplica Timing Filter v2 por default.
+- Rechaza solo casos basicos: sin eventId, sin marketKey, precio invalido o mercado no soportado.
+
+### `backend/services/scoringEngineService.js`
+
+- Asigna score `0-100`.
+- Asigna `confidenceTier`, `valueTier` y `riskLevel`.
+- Aplica penalties por stale odds, unknown freshness, missing data, low value odds, volatility, pitcher K lines, batter props, lineup required y timing blocked.
+- No infiere edge real; solo puntua calidad/riesgo diagnostico.
+
+### `backend/services/ticketBuilderService.js`
+
+- Construye tickets diagnosticos por modo:
+  - `safe`
+  - `emi`
+  - `free_bet`
+- Devuelve `ticket_candidate` o `no_ticket`.
+- Detecta correlacion basica:
+  - mismo evento
+  - mismo equipo
+  - mismo jugador
+  - moneyline + player prop mismo equipo
+  - total + batter props mismo juego
+- No inventa picks si el pool no cumple.
+
+### `backend/services/enginePipelineStatusService.js`
+
+- Orquesta el pipeline completo en modo cache-only.
+- Devuelve readiness:
+  - `blocked`
+  - `diagnostic_ready`
+  - `ready`
+- Resume blockers y warnings.
+- Sirve como panel tecnico backend para revisar salud del motor.
+
+### `backend/services/eventTimingFilterService.js`
+
+- Bloquea juegos live, started, final, postponed, cancelled, rain delay, cutoff expired y missing start time en safe mode.
+- Timezone por default: `America/Mazatlan`.
+- Modos:
+  - `safe`: cutoff 20 min
+  - `emi`: cutoff 10 min
+  - `free_bet`: cutoff 5 min
+
+## Current Known Runtime Result
+
+Ultimo estado validado del pipeline diagnostico:
+
+```json
+{
+  "oddsLiveEnabled": false,
+  "runtimeMode": "cache_only",
+  "budgetGateVersion": "v2",
+  "totalNormalized": 7140,
+  "freshness": {
+    "fresh": 0,
+    "stale": 7140,
+    "unknown": 0
+  },
+  "totalCandidates": 7140,
+  "activeCandidates": 1,
+  "rejectedCandidates": 7139,
+  "totalScored": 7140,
+  "ticketBuilder": {
+    "safe": "no_ticket",
+    "emi": "no_ticket",
+    "free_bet": "no_ticket"
+  },
+  "engineReadiness": "blocked"
+}
 ```
 
-La rama actual ya contiene commits recientes para frontend polish, scoreboard live situation, Budget Gate v2, dataset manual y Event Timing Filter v2.
+Blockers actuales:
 
-## 2. Ultimos commits importantes
+- `cache_only_mode`
+- `odds_live_disabled`
+- `all_odds_stale`
+- `no_fresh_odds`
+- `timing_gate_blocked_games`
+- `no_safe_ticket`
+- `ticket_builder_no_ticket`
+- `not_enough_candidates`
+- `all_candidates_low_score`
 
-```text
-3ffc0e8 feat(backend): add event timing filter v2 [skip netlify]
-0280a29 docs(tickets): add manual calibration samples v1 [skip netlify]
-608261d feat(backend): add Odds API budget gate v2 [skip netlify]
-a990c49 feat(scoreboard): enrich and render live game situation [skip netlify]
-4454f0d style(frontend): finalize app shell history and scoreboard polish [skip netlify]
-d1dd550 fix(frontend): polish Daily Ticket visual QA leftovers [skip netlify]
-cb36b21 style(frontend): finalize Daily Ticket premium visual system [skip netlify]
-e356add fix(backend): alias fallback ticket for today lookup [skip netlify]
-```
+Esto es correcto y esperado con odds viejas en cache-only. El motor no debe inventar picks ni sugerir apuestas reales cuando `engine/status` esta blocked.
 
-## 3. Rutas principales
+## Budget Gate v2
 
-- `backend/services/oddsService.js`
-  - Odds API cache-first service.
-  - Budget Gate v2.
-  - Per-market request estimation.
-  - Local ledger for estimated/actual usage.
-  - Guard status helpers.
+Archivo: `backend/services/oddsService.js`
 
-- `backend/services/dailyTicketService.js`
-  - Main Daily Ticket generation pipeline.
-  - Candidate enrichment.
-  - Draftea rules, market mix, confidence, historical context.
-  - Event Timing Filter v2 integration.
-  - Cache aliasing for fallback-to-tomorrow tickets.
+Estado:
 
-- `backend/services/eventTimingFilterService.js`
-  - Central timing gate for live/started/final/postponed/rain delay/cutoff logic.
-  - Modes: `safe`, `emi`, `free_bet`.
-  - Timezone: `America/Mazatlan`.
-
-- `backend/services/espnService.js`
-  - ESPN scoreboard cache.
-  - ESPN summary enrichment.
-  - MLB StatsAPI live situation enrichment.
-  - Mapping ESPN event id to MLB StatsAPI `gamePk`.
-
-- `docs/ticket-calibration/manual-ticket-samples-v1.md`
-  - Manual calibration dataset from real user tickets.
-  - Calibration only, not automated training.
-
-## 4. Que esta cerrado
-
-- Frontend premium polish for Daily Ticket, History, Scoreboard and shell.
-- Scoreboard live situation UI with real B/S/O, bases and innings when backend data exists.
-- MLB StatsAPI live situation enrichment for scoreboard.
-- Odds API Budget Gate v2.
-- Manual Ticket Calibration Dataset v1.
-- Event Timing Filter v2 integrated into Daily Ticket candidate selection.
-- Fallback ticket aliasing so a tomorrow-cache fallback can also satisfy `/today`.
-
-## 5. Que NO se debe tocar sin una fase explicita
-
-- `.env` and `backend/.env`.
-- `package.json` and `package-lock.json`.
-- Frontend code during backend-only phases.
-- Scoreboard UI when working on Daily Ticket engine.
-- ESPN/StatsAPI enrichment unless the task is explicitly scoreboard/backend data.
-- Odds API live mode.
-- Generate endpoints automatically during validation.
-
-## 6. Reglas duras
-
-- No `git add .`.
-- No commits unless the user explicitly asks.
-- No `.env` edits.
-- No package file edits.
-- No Odds API live unless explicitly approved in a future phase.
-- No automatic Daily Ticket generate.
-- No odds refresh.
-- Prefer cache-first validation.
-- Keep `ODDS_API_LIVE_ENABLED=false` unless the user explicitly starts a live-odds phase.
-
-## 7. Estado del Budget Gate v2
-
-File: `backend/services/oddsService.js`
-
-Current behavior:
-
-- Counts real Odds API cost by market, not by logical function call.
-- Examples:
-  - `h2h,spreads,totals` => 3 estimated requests.
-  - `1 event x 3 prop markets` => 3 estimated requests.
-  - `3 events x 3 prop markets` => 9 estimated requests.
-- Supports endpoint types:
-  - `sports_odds`
-  - `event_props`
-  - `events`
-  - `event_markets`
-  - `sports_list`
-  - fallback `unknown`
-- Fails closed when:
-  - live odds are disabled.
-  - markets are missing for market-based endpoints.
-  - markets are not allowed.
-  - estimated operation cost exceeds limit.
-  - daily budget is exhausted.
-- Writes local ledger:
+- Cuenta costo real por mercado.
+- Falla cerrado si live odds no estan habilitadas explicitamente.
+- Falla cerrado si faltan markets, si hay markets invalidos, si el costo estimado supera el limite o si el presupuesto diario esta agotado.
+- Mantiene ledger local:
   - `backend/cache/odds-api-budget-ledger-YYYY-MM-DD.json`
-- Does not store API keys or secrets.
-- Diagnostic endpoint:
+- Endpoint:
   - `GET /api/daily-ticket/odds/guard`
 
-Important: dry-run estimation is safe and should not call Odds API.
+Dry-runs del guard son seguros y no llaman Odds API live.
 
-## 8. Estado del Timing Filter v2
+## Scoreboard Enrichment
 
-File: `backend/services/eventTimingFilterService.js`
+Archivo: `backend/services/espnService.js`
 
-Exports:
+Estado:
 
-- `getCurrentServerTimeContext()`
-- `evaluateGameTiming()`
-- `filterGamesByTiming()`
-- `buildTimingGateSummary()`
-
-Default mode in Daily Ticket generate: `safe`.
-
-Cutoffs:
-
-- `safe`: 20 minutes before first pitch.
-- `emi`: 10 minutes before first pitch.
-- `free_bet`: 5 minutes before first pitch, with warnings and only higher-risk tolerance when explicitly allowed.
-
-Blocks:
-
-- `game_live`
-- `game_started`
-- `game_final`
-- `game_postponed`
-- `game_cancelled`
-- `rain_delay`
-- `cutoff_expired`
-- `missing_start_time` in safe mode
-- `unreliable_clock`
-
-Adds metadata through Daily Ticket diagnostics:
-
-- `diagnostics.timingGateSummary`
-- `diagnostics.rejectedByTiming`
-- `ticket.meta.timingGate`
-
-Current source fields used:
-
-- From Odds/candidates:
-  - `eventId`
-  - `startTime`
-  - `homeTeam`
-  - `awayTeam`
-  - `game`
-  - `market`
-  - `pick`
-
-- From ESPN:
-  - `gameId`
-  - `status`
-  - `statusType`
-  - `statusDescription`
-  - `isLive`
-  - `isFinal`
-  - `isScheduled`
-  - `isPostponed`
-  - `inning`
-  - `inningHalf`
-
-## 9. Estado del Scoreboard enrichment
-
-File: `backend/services/espnService.js`
-
-Current behavior:
-
-- Primary scoreboard source is ESPN cache/live API.
-- ESPN summary enrichment adds metadata when available.
-- MLB StatsAPI live feed enrichment adds live situation for live games:
+- ESPN es la fuente principal del scoreboard.
+- ESPN summary agrega metadata de venue/weather/status cuando existe.
+- MLB StatsAPI live feed enriquece situacion en vivo:
   - `balls`
   - `strikes`
   - `outs`
@@ -203,118 +224,84 @@ Current behavior:
   - `onThird`
   - `runners`
   - `situation.source = "mlb_statsapi_live"`
-- ESPN event id is mapped to MLB `gamePk` through MLB schedule matching by home/away teams and start time.
-- Live enrichment is capped and cached.
-- `enrichLiveDetails=false` keeps enrichment off.
+- Mapping ESPN event id -> MLB `gamePk` se hace por schedule, equipos y start time.
+- `enrichLiveDetails=false` apaga enrichment.
 
-Do not confuse StatsAPI enrichment with The Odds API. StatsAPI does not consume Odds API budget.
+No confundir MLB StatsAPI con The Odds API.
 
-## 10. Lecciones de tickets reales
+## Manual Ticket Calibration Dataset v1
 
-Source:
+Archivos:
 
 - `docs/ticket-calibration/manual-ticket-samples-v1.md`
-- `backend/data/manual-ticket-samples-v1.json` exists locally but may be ignored by git because `backend/data/*.json` is ignored.
+- `docs/ticket-calibration/manual-ticket-samples-v1.json`
 
-Derived lessons:
+Lecciones documentadas:
 
-- Ticket Seguro must reject in-progress games.
-- Ticket Seguro should penalize same-game correlation.
-- Estilo Emi may allow positive correlation with explicit warning.
-- Free Bet may allow higher correlation/upside.
-- Odds contribution below `1.10` should be rejected or heavily penalized unless there is a special reason.
-- Pitcher strikeout props near 0.5 margins require matchup, lineup and context confidence.
-- Hits and total bases `1.0+` require lineup confirmation.
-- Void/salvado/cancelado must reduce multiplier and must not count as loss.
-- Manual dataset is calibration only, not automated model training yet.
+- Ticket Seguro debe rechazar juegos in-progress.
+- Ticket Seguro debe penalizar same-game correlation.
+- Estilo Emi puede aceptar correlacion positiva con warning explicito.
+- Free Bet puede aceptar mas correlacion/upside.
+- Odds menores a `1.10` deben rechazarse o penalizarse fuerte.
+- Pitcher strikeout props cerca de 0.5 margen requieren contexto de matchup, lineup y workload.
+- Hits/TB `1.0+` requieren lineup confirmation.
+- Void/salvado/cancelado debe reducir multiplier, no contar como loss.
 
-## 11. Roadmap siguiente
+El dataset es calibracion manual, no training automation.
 
-Recommended next backend sequence:
+## Roadmap Siguiente
 
-1. Odds Ingestion v2
-   - Normalize all usable odds payloads into a stable internal format.
-   - Keep Budget Gate v2 as the only live gate.
+1. Live Sync Guard v1
+   - Detectar desfase ESPN status vs MLB StatsAPI situation.
 
-2. Pick Candidate Generator v2
-   - Create a candidate layer independent of ticket construction.
-   - Include game markets, player props, confidence inputs and timing metadata.
+2. Lineup Gate v1
+   - Estados: `lineup_confirmed`, `projected`, `unknown`, `player_not_starting`.
 
-3. Scoring Engine v2
-   - Score by confidence, value, timing safety, volatility, odds contribution and market type.
-   - Penalize weak low-odds legs and thin edge props.
+3. Correlation Guard v2
+   - Correlacion mas fina por juego/equipo/jugador/mercado.
 
-4. Ticket Builder v2
-   - Build safe, emi and free_bet tickets from candidate pools.
-   - Avoid direct model dependence for structural constraints.
+4. Scoring Engine v2.1
+   - Usar lineup, matchup, freshness real y contexto de mercado.
 
-5. Correlation Guard
-   - Penalize or block dangerous same-game combinations.
-   - Allow positive correlation in emi/free_bet only with explicit warning.
+5. Ticket Builder v2.1
+   - Construir tickets solo con candidates frescos y timing ok.
 
-6. Lineup Gate
-   - Require player lineup/probable starter confirmation for player props.
-   - Treat unknown lineup as risk or block depending on mode.
+6. Explanation Engine v2
+   - Razones cortas/largas, `riskFactors`, `dataNotes`.
 
-7. Explanation Engine v2
-   - Generate short user-facing explanations from structured evidence.
-   - Avoid raw API details.
+7. Shadow Mode v2
+   - Simular tickets y medir hit rate/ROI sin publicar picks reales.
 
-8. Settlement v2
-   - Standardize won/lost/void/salvado/cancelado handling.
-   - Track reduced multipliers.
+8. Daily Ticket Engine v8
+   - Integrar pipeline completo al generate real.
 
-9. Shadow Mode v2
-   - Run candidate/ticket generation without user-facing publication.
-   - Log decisions and compare against manual dataset.
-
-10. Daily Ticket Engine v8
-   - Integrate ingestion, scoring, guards, builder, explanations and settlement into a safer full engine.
-
-## 12. Comandos para levantar proyecto
+## Comandos Para Levantar Proyecto
 
 Backend:
 
 ```bash
-cd backend
+cd /c/dev/task-manager-ai/backend
 npm run dev
 ```
 
 Frontend:
 
 ```bash
-cd frontend
+cd /c/dev/task-manager-ai/frontend
 npm run dev -- --force
 ```
 
-From repo root, scripts also exist:
+## Comandos De Validacion
 
-```bash
-npm run dev-backend
-npm run dev -- --force
-```
-
-## 13. Comandos de validacion
-
-Odds guard:
+Endpoints diagnosticos:
 
 ```bash
 curl -s http://localhost:3000/api/daily-ticket/odds/guard
-```
-
-Expected safe state:
-
-```json
-{
-  "oddsLiveEnabled": false,
-  "runtimeMode": "cache_only",
-  "budgetGateVersion": "v2"
-}
-```
-
-Scoreboard:
-
-```bash
+curl -s http://localhost:3000/api/daily-ticket/odds/ingestion
+curl -s http://localhost:3000/api/daily-ticket/candidates
+curl -s http://localhost:3000/api/daily-ticket/scoring
+curl -s http://localhost:3000/api/daily-ticket/ticket-builder
+curl -s http://localhost:3000/api/daily-ticket/engine/status
 curl -s http://localhost:3000/api/mlb/scoreboard
 ```
 
@@ -322,9 +309,14 @@ Syntax checks:
 
 ```bash
 node --check backend/services/oddsService.js
-node --check backend/services/dailyTicketService.js
+node --check backend/services/oddsIngestionService.js
+node --check backend/services/pickCandidateGeneratorService.js
+node --check backend/services/scoringEngineService.js
+node --check backend/services/ticketBuilderService.js
+node --check backend/services/enginePipelineStatusService.js
 node --check backend/services/eventTimingFilterService.js
 node --check backend/services/espnService.js
+node --check backend/services/dailyTicketService.js
 node --check backend/server.js
 git diff --check
 git status --short
@@ -342,13 +334,27 @@ Expected estimates:
 - `h2h,spreads,totals` => 3
 - `3 events x 3 props` => 9
 
-## 14. Riesgos pendientes
+## Reglas Duras Permanentes
 
-- The Daily Ticket engine still needs a cleaner v8 separation between ingestion, candidate generation, scoring and final ticket building.
-- Player prop quality depends on lineup/probable starter confidence and should not be treated as safe without a stronger Lineup Gate.
-- Same-game correlation is not yet a standalone guard with mode-specific policies.
-- Very low odds legs can inflate perceived confidence while adding little value; Scoring Engine v2 should penalize this.
-- Event timing is safer now, but any future live-odds phase must test cache/live boundaries carefully.
-- Manual calibration samples are small and should guide rules, not act as statistical proof.
-- `backend/data/*.json` is ignored by git; if a JSON dataset must be versioned, adjust strategy deliberately instead of forcing `git add`.
-- Do not run live Odds API validation without explicit user approval and a declared budget.
+- No usar `git add .`.
+- No tocar `.env`.
+- No tocar `backend/.env`.
+- No tocar `package.json`.
+- No tocar `package-lock.json`.
+- No activar Odds API live sin aprobacion explicita.
+- No ejecutar odds refresh sin aprobacion explicita.
+- No ejecutar generate automatico.
+- No inventar picks si `engine/status` dice `blocked`.
+- Si odds estan stale, no sugerir picks reales.
+- Todo live odds debe pasar por Budget Gate v2.
+- Mantener fases backend-only lejos de frontend salvo instruccion explicita.
+
+## Riesgos Pendientes
+
+- El estado actual esta bloqueado por cache stale y timing; eso no es bug, es proteccion.
+- Lineup Gate todavia no existe y es obligatorio antes de confiar en player props.
+- Correlation Guard aun es basico; necesita version dedicada.
+- Scoring Engine v2 no usa edge real ni matchup profundo.
+- Ticket Builder v2 es diagnostico; no debe alimentar tickets reales todavia.
+- Shadow Mode debe medir picks simulados antes de integrar a generate real.
+- Cualquier refresh live debe ser una fase explicita con presupuesto declarado.

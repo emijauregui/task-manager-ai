@@ -5,6 +5,7 @@ const express = require('express');
 
 const bedrockService = require('./services/bedrockService');
 const dailyTicketService = require('./services/dailyTicketService');
+const enginePipelineStatusService = require('./services/enginePipelineStatusService');
 const espnService = require('./services/espnService');
 const historicalPatternEngine = require('./services/historicalPatternEngine');
 const mlbTicketHistoryService = require('./services/mlbTicketHistoryService');
@@ -518,6 +519,19 @@ app.get('/api/daily-ticket/ticket-builder', asyncRoute(async (req, res) => {
       mode: req.query.timingMode || 'safe',
     },
   });
+}));
+
+app.get('/api/daily-ticket/engine/status', asyncRoute(async (req, res) => {
+  const applyTiming = req.query.applyTiming === undefined
+    ? true
+    : parseBooleanQuery(req.query.applyTiming);
+  const status = await enginePipelineStatusService.buildEnginePipelineStatus({
+    date: req.query.date,
+    applyTiming,
+    timingMode: req.query.timingMode,
+  });
+
+  return res.json(status);
 }));
 
 app.post('/api/daily-ticket/odds/refresh', asyncRoute(async (req, res) => {

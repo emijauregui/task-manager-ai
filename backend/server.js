@@ -591,6 +591,34 @@ app.get('/api/daily-ticket/engine/v8', asyncRoute(async (req, res) => {
   return res.json(result);
 }));
 
+app.get('/api/daily-ticket/engine/v8/preflight', asyncRoute(async (req, res) => {
+  const applyTiming = req.query.applyTiming === undefined
+    ? true
+    : parseBooleanQuery(req.query.applyTiming);
+  const result = await dailyTicketEngineV8Service.buildEngineV8Preflight({
+    date: req.query.date,
+    applyTiming,
+    timingMode: req.query.timingMode,
+  });
+
+  return res.json(result);
+}));
+
+app.post('/api/daily-ticket/engine/v8/generate', asyncRoute(async (req, res) => {
+  const payload = req.body && typeof req.body === 'object' ? req.body : {};
+  const result = await dailyTicketEngineV8Service.generateDailyTicketEngineV8({
+    mode: payload.mode,
+    dryRun: payload.dryRun,
+    persist: payload.persist,
+    confirmWrite: payload.confirmWrite,
+    allowLiveOdds: payload.allowLiveOdds,
+    maxRequests: payload.maxRequests,
+    targetDate: payload.targetDate,
+  });
+
+  return res.json(result);
+}));
+
 app.post('/api/daily-ticket/odds/refresh', asyncRoute(async (req, res) => {
   const payload = req.body && typeof req.body === 'object' ? req.body : {};
   const result = await oddsService.refreshMlbOdds({

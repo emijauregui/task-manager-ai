@@ -1,0 +1,321 @@
+{
+  "datasetId": "manual-ticket-samples-v1",
+  "version": 1,
+  "createdAt": "2026-07-06",
+  "source": "user_manual_draftea_tickets",
+  "purpose": "calibrate_ticket_engine_v8",
+  "automationStatus": "calibration_only_no_model_training_yet",
+  "tickets": [
+    {
+      "id": "T1",
+      "sport": "MLB",
+      "status": "live_or_unresolved",
+      "stake": 100,
+      "odds": 3.35,
+      "potentialPayout": 335,
+      "createdAtText": "06/Jul (15:23)",
+      "game": "Padres vs Diamondbacks",
+      "scoreAtCapture": {
+        "Padres": 0,
+        "Diamondbacks": 6
+      },
+      "legs": [
+        {
+          "label": "Spread SD +1.5",
+          "marketType": "spread",
+          "selection": "SD +1.5"
+        },
+        {
+          "label": "Total Runs Over 6.5",
+          "marketType": "total_runs",
+          "selection": "Over 6.5"
+        },
+        {
+          "label": "Walker Buehler strikeouts Over 3.5",
+          "marketType": "pitcher_strikeouts",
+          "player": "Walker Buehler",
+          "selection": "Over 3.5"
+        }
+      ],
+      "notes": [
+        "Ticket live/in-progress.",
+        "Useful for Event Timing Filter and live-risk guard.",
+        "Do not use as settled result unless final result is provided."
+      ],
+      "calibrationTags": [
+        "event_timing_filter",
+        "live_risk_guard",
+        "unresolved_result"
+      ]
+    },
+    {
+      "id": "T2",
+      "sport": "MLB",
+      "status": "lost",
+      "stake": 65,
+      "odds": 3.07,
+      "potentialPayout": 199.55,
+      "createdAtText": "03/Jul (23:28)",
+      "game": "Braves 14, Mets 3",
+      "legs": [
+        {
+          "label": "Mets +2.5 spread",
+          "marketType": "spread",
+          "selection": "Mets +2.5",
+          "status": "lost"
+        },
+        {
+          "label": "Francisco Lindor total bases 1.0+",
+          "marketType": "total_bases",
+          "player": "Francisco Lindor",
+          "selection": "1.0+",
+          "status": "won",
+          "result": 2.0
+        },
+        {
+          "label": "Sean Manaea strikeouts over 4.5",
+          "marketType": "pitcher_strikeouts",
+          "player": "Sean Manaea",
+          "selection": "Over 4.5",
+          "status": "lost",
+          "result": 4.0
+        }
+      ],
+      "notes": [
+        "Same-game exposure.",
+        "Spread was crushed by blowout.",
+        "Pitcher K missed by 0.5."
+      ],
+      "calibrationTags": [
+        "same_game_exposure",
+        "blowout_spread_risk",
+        "k_line_half_margin"
+      ]
+    },
+    {
+      "id": "T3",
+      "sport": "MLB",
+      "status": "lost",
+      "stake": 58,
+      "odds": 3.44,
+      "potentialPayout": 199.52,
+      "createdAtText": "03/Jul (16:36)",
+      "legs": [
+        {
+          "label": "Jarren Duran hits 1.0+",
+          "marketType": "hits",
+          "player": "Jarren Duran",
+          "selection": "1.0+",
+          "status": "lost",
+          "result": 0.0,
+          "odds": 1.56
+        },
+        {
+          "label": "Brice Turang hits 1.0+",
+          "marketType": "hits",
+          "player": "Brice Turang",
+          "selection": "1.0+",
+          "status": "won",
+          "result": 3.0,
+          "odds": 1.33
+        },
+        {
+          "label": "Luis Castillo strikeouts over 4.5",
+          "marketType": "pitcher_strikeouts",
+          "player": "Luis Castillo",
+          "selection": "Over 4.5",
+          "status": "lost",
+          "result": 4.0,
+          "odds": 1.66
+        }
+      ],
+      "notes": [
+        "Multi-game player props.",
+        "Two misses, one by 0.5.",
+        "Useful for player prop volatility and K-line caution."
+      ],
+      "calibrationTags": [
+        "multi_game_player_props",
+        "player_prop_volatility",
+        "k_line_half_margin"
+      ]
+    },
+    {
+      "id": "T4",
+      "sport": "MLB",
+      "status": "won",
+      "stake": 100,
+      "odds": 1.71,
+      "payout": 171,
+      "createdAtText": "02/Jul (18:33)",
+      "legs": [
+        {
+          "label": "Mariners moneyline",
+          "marketType": "moneyline",
+          "selection": "Mariners",
+          "status": "won"
+        },
+        {
+          "label": "Julio Rodriguez total bases 1.0+",
+          "marketType": "total_bases",
+          "player": "Julio Rodriguez",
+          "selection": "1.0+",
+          "status": "void_salvado"
+        },
+        {
+          "label": "Freddie Freeman total bases 1.0+",
+          "marketType": "total_bases",
+          "player": "Freddie Freeman",
+          "selection": "1.0+",
+          "status": "won",
+          "result": 1.0
+        }
+      ],
+      "notes": [
+        "Reduced multiplier / void handling.",
+        "Conservative active legs."
+      ],
+      "calibrationTags": [
+        "void_handling",
+        "reduced_multiplier",
+        "conservative_active_legs"
+      ]
+    },
+    {
+      "id": "T5",
+      "sport": "NFL",
+      "status": "won",
+      "stake": 50,
+      "odds": 3.99,
+      "payout": 199.50,
+      "createdAtText": "29/Dec (23:37)",
+      "game": "49ers 34, Lions 40",
+      "legs": [
+        {
+          "label": "Lions moneyline",
+          "marketType": "moneyline",
+          "selection": "Lions",
+          "status": "won",
+          "odds": 1.56
+        },
+        {
+          "label": "Jake Bates field goals made over 1.5",
+          "marketType": "field_goals_made",
+          "player": "Jake Bates",
+          "selection": "Over 1.5",
+          "status": "won",
+          "result": 2.0,
+          "odds": 1.83
+        },
+        {
+          "label": "Jahmyr Gibbs rush + receiving touchdowns over 0.5",
+          "marketType": "rush_receiving_touchdowns",
+          "player": "Jahmyr Gibbs",
+          "selection": "Over 0.5",
+          "status": "won",
+          "result": 1.0,
+          "odds": 1.40
+        }
+      ],
+      "notes": [
+        "Positive same-team correlation.",
+        "Useful for aggressive/free-bet mode, not MLB core."
+      ],
+      "calibrationTags": [
+        "positive_same_team_correlation",
+        "free_bet_mode",
+        "non_mlb_reference"
+      ]
+    },
+    {
+      "id": "T6",
+      "sport": "mixed",
+      "status": "won",
+      "stake": 100,
+      "odds": 1.62,
+      "payout": 162,
+      "createdAtText": "23/Jun (00:23)",
+      "legs": [
+        {
+          "label": "Tennis winner J. Fearnley",
+          "marketType": "tennis_winner",
+          "selection": "J. Fearnley",
+          "status": "canceled"
+        },
+        {
+          "label": "Marlins moneyline",
+          "marketType": "moneyline",
+          "selection": "Marlins",
+          "status": "won",
+          "odds": 1.62
+        }
+      ],
+      "notes": [
+        "Cancelado/void leg.",
+        "Reduced active legs settlement."
+      ],
+      "calibrationTags": [
+        "void_handling",
+        "reduced_active_legs",
+        "mixed_sport_reference"
+      ]
+    },
+    {
+      "id": "T7",
+      "sport": "NFL",
+      "status": "won",
+      "stake": 50,
+      "odds": 3.22,
+      "payout": 161,
+      "createdAtText": "03/Jan (22:19)",
+      "game": "Ravens 35, Browns 10",
+      "legs": [
+        {
+          "label": "Ravens moneyline",
+          "marketType": "moneyline",
+          "selection": "Ravens",
+          "status": "won",
+          "odds": 1.02
+        },
+        {
+          "label": "Derrick Henry rush yards over 89.5",
+          "marketType": "rush_yards",
+          "player": "Derrick Henry",
+          "selection": "Over 89.5",
+          "status": "won",
+          "result": 138.0,
+          "odds": 1.88
+        },
+        {
+          "label": "Lamar Jackson pass TDs over 1.5",
+          "marketType": "pass_touchdowns",
+          "player": "Lamar Jackson",
+          "selection": "Over 1.5",
+          "status": "won",
+          "result": 2.0,
+          "odds": 1.68
+        }
+      ],
+      "notes": [
+        "Same-game correlation.",
+        "Very low odds leg 1.02 adds little value and should be penalized in future engine."
+      ],
+      "calibrationTags": [
+        "same_game_correlation",
+        "very_low_odds_leg",
+        "non_mlb_reference"
+      ]
+    }
+  ],
+  "derivedEngineLessons": [
+    "Ticket Seguro must reject in-progress games.",
+    "Ticket Seguro should penalize same-game correlation.",
+    "Estilo Emi may allow positive correlation with explicit warning.",
+    "Free Bet may allow higher correlation/upside.",
+    "Reject or heavily penalize odds contribution below 1.10 unless there is a special reason.",
+    "Pitcher strikeout props near 0.5 margins require matchup/lineup/context confidence.",
+    "Hits and total bases 1.0+ require lineup confirmation.",
+    "Void/salvado/cancelado must reduce multiplier, not count as loss.",
+    "Manual dataset is for calibration only, not model training automation yet."
+  ]
+}

@@ -1,4 +1,5 @@
 const { getCompactDateKey, getDateKey, readCache, writeCache } = require('../utils/cache');
+const liveSyncGuardService = require('./liveSyncGuardService');
 
 const DEFAULT_CACHE_MINUTES = Number(process.env.ESPN_CACHE_MINUTES || 60);
 const ESPN_SUMMARY_CACHE_MINUTES = Number(process.env.ESPN_SUMMARY_CACHE_MINUTES || 2);
@@ -1387,6 +1388,7 @@ function buildScoreboardDayPayload(scoreboard = {}) {
     source: scoreboard?.source || 'unavailable',
     lastUpdated: scoreboard?.lastUpdated || scoreboard?.fetchedAt || null,
     message: scoreboard?.message || '',
+    liveSyncSummary: scoreboard?.liveSyncSummary || null,
   };
 }
 
@@ -1412,6 +1414,14 @@ async function getMlbScoreboardBundle(options = {}) {
   if (enrichLiveDetails) {
     today = await enrichLiveGamesWithSummary(today);
     today = await enrichLiveGamesWithMlbStatsApi(today, { dateKey });
+    today = {
+      ...today,
+      games: liveSyncGuardService.applyLiveSyncGuard(today.games),
+    };
+    today = {
+      ...today,
+      liveSyncSummary: liveSyncGuardService.buildLiveSyncSummary(today.games),
+    };
   }
 
   const tomorrowDateKey = getNextDateKey(dateKey);
@@ -1453,6 +1463,16 @@ async function getMlbScoreboardBundle(options = {}) {
     statsApiEnrichment: today.statsApiEnrichment || {
       attempted: 0,
       source: enrichLiveDetails ? 'not_needed' : 'disabled',
+    },
+    liveSyncSummary: today.liveSyncSummary || {
+      version: liveSyncGuardService.VERSION,
+      evaluated: 0,
+      ok: 0,
+      warnings: 0,
+      mismatches: 0,
+      unknown: 0,
+      staleStatsApi: 0,
+      reasons: {},
     },
     message: today.message || '',
   };

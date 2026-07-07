@@ -4,6 +4,7 @@ const cors = require('cors');
 const express = require('express');
 
 const bedrockService = require('./services/bedrockService');
+const dailyTicketEngineV8Service = require('./services/dailyTicketEngineV8Service');
 const dailyTicketService = require('./services/dailyTicketService');
 const enginePipelineStatusService = require('./services/enginePipelineStatusService');
 const espnService = require('./services/espnService');
@@ -575,6 +576,19 @@ app.get('/api/daily-ticket/engine/status', asyncRoute(async (req, res) => {
   });
 
   return res.json(status);
+}));
+
+app.get('/api/daily-ticket/engine/v8', asyncRoute(async (req, res) => {
+  const applyTiming = req.query.applyTiming === undefined
+    ? true
+    : parseBooleanQuery(req.query.applyTiming);
+  const result = await dailyTicketEngineV8Service.runDailyTicketEngineV8({
+    date: req.query.date,
+    applyTiming,
+    timingMode: req.query.timingMode,
+  });
+
+  return res.json(result);
 }));
 
 app.post('/api/daily-ticket/odds/refresh', asyncRoute(async (req, res) => {

@@ -1,6 +1,7 @@
 const bedrockService = require('./bedrockService');
 const drafteaRulesService = require('./drafteaRulesService');
 const espnService = require('./espnService');
+const eventTimingFilterService = require('./eventTimingFilterService');
 const footballService = require('./footballService');
 const historicalPatternEngine = require('./historicalPatternEngine');
 const marketMixService = require('./marketMixService');
@@ -172,14 +173,28 @@ function buildEmptyPropsPipeline() {
   };
 }
 
-function buildNoCandidatesResponse() {
+function buildNoCandidatesResponse(options = {}) {
+  const timingGateSummaries = Array.isArray(options.timingGateSummaries)
+    ? options.timingGateSummaries.filter(Boolean)
+    : [];
+  const timingBlockedGames = timingGateSummaries.reduce((total, summary) => (
+    total + Number(summary?.blockedGames || 0)
+  ), 0);
+  const timingAllowedGames = timingGateSummaries.reduce((total, summary) => (
+    total + Number(summary?.allowedGames || 0)
+  ), 0);
+  const timingGateBlockedAll = timingBlockedGames > 0 && timingAllowedGames === 0;
+
   return {
     success: false,
     source: 'no_candidates',
     errorCode: 'NO_BETTABLE_CANDIDATES',
-    message: 'No upcoming games with valid odds are available right now.',
+    message: timingGateBlockedAll
+      ? 'Timing Gate v2 blocked games that were live, started, unsafe, or too close to first pitch.'
+      : 'No upcoming games with valid odds are available right now.',
     stage: 'filter',
     ticket: null,
+    timingGate: timingGateSummaries,
     dashboardHint: "Try again before tomorrow's games or use force after new odds are available.",
   };
 }
@@ -588,6 +603,15 @@ function enrichCandidates(candidates, scoreboard) {
       candidateId: candidate.candidateId || buildStableCandidateId(candidate, index + 1),
       status: gameInfo?.status || '',
       espnStatus: gameInfo?.status || 'unmatched',
+      gameId: gameInfo?.gameId || gameInfo?.id || candidate.gameId || candidate.eventId || '',
+      statusType: gameInfo?.statusType || candidate.statusType || '',
+      statusDescription: gameInfo?.statusDescription || candidate.statusDescription || '',
+      isLive: gameInfo?.isLive === true,
+      isFinal: gameInfo?.isFinal === true,
+      isScheduled: gameInfo?.isScheduled === true,
+      isPostponed: gameInfo?.isPostponed === true,
+      inning: gameInfo?.inning || '',
+      inningHalf: gameInfo?.inningHalf || '',
       espnMatched: Boolean(gameInfo),
       statusSource: gameInfo ? 'espn' : 'odds_only',
       statusPassReason: gameInfo
@@ -765,6 +789,7 @@ function buildRejectedSample(candidate, rejectedAt, reason) {
     espnStatus: candidate.espnStatus || '',
     statusSource: candidate.statusSource || 'unknown',
     statusPassReason: candidate.statusPassReason || '',
+    timingGate: candidate.timingGate || null,
     market: candidate.market,
     pick: candidate.pick,
     oddsDecimal: candidate.oddsDecimal,
@@ -782,6 +807,8 @@ function buildAcceptedSample(candidate) {
     statusPassReason: candidate.statusPassReason || '',
     candidateType: candidate.candidateType || 'game_market',
     voidRisk: candidate.voidRisk || 'low',
+    timingRiskLevel: candidate.timingGate?.riskLevel || 'unknown',
+    timingWarnings: candidate.timingGate?.warnings || [],
   };
 }
 
@@ -864,6 +891,123 @@ function filterByStartTime(candidates, diagnostics, now = new Date()) {
   });
 }
 
+const TIMING_STATUS_REASONS = new Set([
+  'game_live',
+  'game_final',
+  'game_postponed',
+  'game_cancelled',
+  'rain_delay',
+  'unknown_status',
+]);
+
+const TIMING_TIME_REASONS = new Set([
+  'game_started',
+  'cutoff_expired',
+  'missing_start_time',
+  'unreliable_clock',
+]);
+
+function getPrimaryTimingRejectedAt(reasons = []) {
+  if (reasons.some((reason) => TIMING_STATUS_REASONS.has(reason))) {
+    return 'status';
+  }
+
+  if (reasons.some((reason) => TIMING_TIME_REASONS.has(reason))) {
+    return 'time';
+  }
+
+  return 'timing';
+}
+
+function getTimingModeFromContext(context = {}) {
+  const normalized = String(context.mode || context.ticketMode || 'safe').trim().toLowerCase();
+  return ['safe', 'emi', 'free_bet'].includes(normalized) ? normalized : 'safe';
+}
+
+function buildTimingGameKey(result = {}) {
+  return [
+    result.gameId || '',
+    normalizeKey(result.game || ''),
+    result.startTime || '',
+  ].join('|');
+}
+
+function summarizeUniqueTimingResults(results = [], context = {}) {
+  const byGame = new Map();
+  results.forEach((result) => {
+    const key = buildTimingGameKey(result);
+    const current = byGame.get(key);
+    if (!current || current.allowed === true && result.allowed !== true) {
+      byGame.set(key, result);
+    }
+  });
+
+  return eventTimingFilterService.buildTimingGateSummary(Array.from(byGame.values()), {
+    mode: getTimingModeFromContext(context),
+    timeZone: TARGET_TIME_ZONE,
+    now: context.serverTimeContext?.now || '',
+  });
+}
+
+function filterByEventTiming(candidates, diagnostics, now = new Date(), context = {}) {
+  const mode = getTimingModeFromContext(context);
+  const serverTimeContext = eventTimingFilterService.getCurrentServerTimeContext({
+    now,
+    timeZone: TARGET_TIME_ZONE,
+  });
+  const timingResults = [];
+  const allowedCandidates = [];
+  const statusRejectedKeys = new Set();
+
+  candidates.forEach((candidate) => {
+    const timingGate = eventTimingFilterService.evaluateGameTiming(candidate, {
+      mode,
+      timeZone: TARGET_TIME_ZONE,
+      serverTimeContext,
+      allowHighRiskTiming: context.allowHighRiskTiming === true,
+    });
+
+    timingResults.push(timingGate);
+    candidate.timingGate = timingGate;
+    candidate.timingWarnings = timingGate.warnings;
+    candidate.timingRiskLevel = timingGate.riskLevel;
+
+    if (timingGate.allowed) {
+      candidate.statusPassReason = timingGate.warnings.length
+        ? `Timing Gate v2 allowed with warnings: ${timingGate.warnings.join(', ')}`
+        : 'Timing Gate v2 allowed pre-game candidate.';
+      allowedCandidates.push(candidate);
+      return;
+    }
+
+    const rejectedAt = getPrimaryTimingRejectedAt(timingGate.reasons);
+    const rejectedReason = `Timing Gate v2 blocked: ${timingGate.reasons.join(', ')}`;
+    diagnostics.rejections.push(buildRejectedSample(candidate, rejectedAt, rejectedReason));
+
+    if (rejectedAt === 'status') {
+      diagnostics.rejectedStatus += 1;
+      statusRejectedKeys.add(candidate.candidateId || `${candidate.game}|${candidate.pick}|${candidate.market}`);
+      if (timingGate.reasons.some((reason) => ['game_final', 'game_live', 'game_postponed', 'game_cancelled', 'rain_delay'].includes(reason))) {
+        diagnostics.rejectedByFinalStatusCount += 1;
+      }
+      return;
+    }
+
+    diagnostics.rejectedTime += 1;
+  });
+
+  diagnostics.afterStatusFilter = candidates.length - statusRejectedKeys.size;
+  diagnostics.afterTimeFilter = allowedCandidates.length;
+  diagnostics.timingGateSummary = summarizeUniqueTimingResults(timingResults, {
+    ...context,
+    serverTimeContext,
+  });
+  diagnostics.rejectedByTiming = diagnostics.timingGateSummary.rejectedByTiming;
+  diagnostics.statusPassReason = 'Timing Gate v2 blocks live, started, final, postponed, cancelled, rain delay, missing/unsafe start times and expired cutoffs.';
+
+  return allowedCandidates;
+}
+
 function filterByOdds(candidates, diagnostics) {
   return candidates.filter((candidate) => {
     if (!Number.isFinite(candidate.oddsDecimal)) {
@@ -914,6 +1058,8 @@ function selectBettableCandidates(candidates, now = new Date(), context = {}) {
     statusPassReason: 'Candidates pass status by default unless a clear ESPN match reports a blocked live/final state.',
     acceptedSamples: [],
     rejections: [],
+    rejectedByTiming: [],
+    timingGateSummary: null,
   };
 
   logGenerateStage('CANDIDATES_BEFORE_FILTER', {
@@ -921,30 +1067,29 @@ function selectBettableCandidates(candidates, now = new Date(), context = {}) {
     count: candidates.length,
   });
 
-  const statusFiltered = filterByGameStatus(candidates, diagnostics);
-  diagnostics.afterStatusFilter = statusFiltered.length;
+  const timingFiltered = filterByEventTiming(candidates, diagnostics, now, context);
   logGenerateStage('CANDIDATES_AFTER_STATUS_FILTER', {
     targetDate: context.targetDate,
-    count: statusFiltered.length,
+    count: diagnostics.afterStatusFilter,
+    timingGateVersion: eventTimingFilterService.VERSION,
   });
   logGenerateStage('REJECTED_STATUS', {
     targetDate: context.targetDate,
     count: diagnostics.rejectedStatus,
   });
 
-  const timeFiltered = filterByStartTime(statusFiltered, diagnostics, now);
-  diagnostics.afterTimeFilter = timeFiltered.length;
   logGenerateStage('CANDIDATES_AFTER_TIME_FILTER', {
     targetDate: context.targetDate,
-    count: timeFiltered.length,
-    lockMinutesBeforeStart: LOCK_MINUTES_BEFORE_START,
+    count: diagnostics.afterTimeFilter,
+    cutoffMinutes: diagnostics.timingGateSummary?.cutoffMinutes,
+    timingGateVersion: eventTimingFilterService.VERSION,
   });
   logGenerateStage('REJECTED_TIME', {
     targetDate: context.targetDate,
     count: diagnostics.rejectedTime,
   });
 
-  const oddsFiltered = filterByOdds(timeFiltered, diagnostics);
+  const oddsFiltered = filterByOdds(timingFiltered, diagnostics);
   diagnostics.afterOddsFilter = oddsFiltered.length;
   logGenerateStage('CANDIDATES_AFTER_ODDS_FILTER', {
     targetDate: context.targetDate,
@@ -2986,6 +3131,8 @@ async function getBettableCandidatesForDate(dateKey, options = {}) {
         unmatchedEspnCount: selection.diagnostics.unmatchedEspnCount,
         rejectedByFinalStatusCount: selection.diagnostics.rejectedByFinalStatusCount,
         statusPassReason: selection.diagnostics.statusPassReason,
+        timingGateSummary: selection.diagnostics.timingGateSummary,
+        rejectedByTiming: selection.diagnostics.rejectedByTiming,
         sampleAccepted: selection.diagnostics.acceptedSamples,
         sampleRejected: selection.diagnostics.rejections.slice(0, 8),
         playerProps: {
@@ -3174,7 +3321,12 @@ async function generateDailyTicket(options = {}) {
         logGenerateStage('NO_BETTABLE_CANDIDATES', {
           checkedDates: [todayDateKey, tomorrowDateKey],
         });
-        return buildNoCandidatesResponse();
+        return buildNoCandidatesResponse({
+          timingGateSummaries: [
+            todayResult.diagnostics?.timingGateSummary,
+            tomorrowResult.diagnostics?.timingGateSummary,
+          ],
+        });
       }
 
       logGenerateStage('TOMORROW_CANDIDATES_FOUND', {
@@ -3330,6 +3482,7 @@ async function generateDailyTicket(options = {}) {
           oddsSource: oddsPayload.source,
           oddsQuotaReached: oddsPayload.quotaReached === true,
           scoreboardSource: scoreboard.source,
+          timingGate: diagnostics?.timingGateSummary || null,
           bedrockStopReason: bedrockResponse?.stopReason || '',
           fallbackReason: error.errorCode || 'BEDROCK_JSON_PARSE_FAILED',
           rebuiltFromEmptyAiOutput,
@@ -3430,6 +3583,7 @@ async function generateDailyTicket(options = {}) {
         oddsSource: oddsPayload.source,
         oddsQuotaReached: oddsPayload.quotaReached === true,
         scoreboardSource: scoreboard.source,
+        timingGate: diagnostics?.timingGateSummary || null,
         rebuiltFromEmptyAiOutput,
         emptyAiTicketsDetected,
         playerPropsPipeline: { ...propsPipeline },

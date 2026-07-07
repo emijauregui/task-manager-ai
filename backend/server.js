@@ -8,6 +8,7 @@ const dailyTicketService = require('./services/dailyTicketService');
 const enginePipelineStatusService = require('./services/enginePipelineStatusService');
 const espnService = require('./services/espnService');
 const historicalPatternEngine = require('./services/historicalPatternEngine');
+const lineupGateService = require('./services/lineupGateService');
 const mlbTicketHistoryService = require('./services/mlbTicketHistoryService');
 const oddsIngestionService = require('./services/oddsIngestionService');
 const oddsService = require('./services/oddsService');
@@ -421,6 +422,48 @@ app.get('/api/daily-ticket/candidates', asyncRoute(async (req, res) => {
       mode: req.query.timingMode || 'safe',
       version: pickCandidateGeneratorService.VERSION,
     },
+  });
+}));
+
+app.get('/api/daily-ticket/lineup-gate', asyncRoute(async (req, res) => {
+  const sampleLimit = Number(req.query.sampleLimit);
+  const applyTiming = req.query.applyTiming === undefined
+    ? true
+    : parseBooleanQuery(req.query.applyTiming);
+  const guard = await oddsService.getGuardStatusDetailed();
+  const ingestion = await oddsIngestionService.getCachedOddsIngestion({
+    date: req.query.date,
+    includeNormalized: true,
+    sampleLimit: 1,
+  });
+  const candidates = pickCandidateGeneratorService.generatePickCandidatesFromOdds(
+    ingestion.normalizedOdds || [],
+    {
+      applyTiming,
+      timingMode: req.query.timingMode,
+    }
+  );
+  const summary = lineupGateService.buildLineupGateSummary(candidates, {
+    sampleLimit: Number.isFinite(sampleLimit) && sampleLimit > 0 ? sampleLimit : 20,
+  });
+
+  return res.json({
+    ...summary,
+    runtimeMode: guard.runtimeMode,
+    oddsLiveEnabled: guard.oddsLiveEnabled,
+    budgetGateVersion: guard.budgetGateVersion,
+    canUseLiveOdds: guard.canUseLiveOdds,
+    ingestion: {
+      version: ingestion.version,
+      totalNormalized: ingestion.totalNormalized,
+      dateFilter: ingestion.dateFilter,
+      warnings: ingestion.warnings,
+    },
+    timing: {
+      applied: applyTiming,
+      mode: req.query.timingMode || 'safe',
+    },
+    source: 'no_lineup_cache_available',
   });
 }));
 

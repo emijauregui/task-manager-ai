@@ -58,6 +58,10 @@ function isTimingBlocked(candidate = {}) {
       && candidate.rejectionReasons.some((reason) => String(reason).startsWith('timing_')));
 }
 
+function isBatterCandidate(candidate = {}) {
+  return candidate.marketType === 'batter_prop' || String(candidate.marketKey || '').startsWith('batter_');
+}
+
 function getBaseRejectionReasons(candidates = [], eligible = [], config = {}) {
   const reasons = [];
   const safeCandidates = Array.isArray(candidates) ? candidates : [];
@@ -89,6 +93,16 @@ function isEligibleForMode(candidate = {}, mode = 'safe') {
   }
 
   if (isTimingBlocked(candidate)) {
+    return false;
+  }
+
+  if (hasRisk(candidate, 'player_not_starting')) {
+    return false;
+  }
+
+  if (mode === 'safe'
+    && isBatterCandidate(candidate)
+    && (hasRisk(candidate, 'lineup_unknown') || hasRisk(candidate, 'lineup_projected'))) {
     return false;
   }
 
@@ -212,6 +226,8 @@ function toTicketLeg(candidate = {}) {
     score: candidate.score ?? 0,
     confidenceTier: candidate.confidenceTier || 'F',
     riskTags: Array.isArray(candidate.riskTags) ? candidate.riskTags : [],
+    lineupStatus: candidate.lineupGate?.status || '',
+    lineupGate: candidate.lineupGate || null,
   };
 }
 
@@ -269,16 +285,23 @@ function evaluateTicketRisk(legs = [], mode = 'safe') {
     return 'blocked';
   }
 
+  if (tags.includes('player_not_starting')) {
+    return 'blocked';
+  }
+
   if (mode === 'free_bet'
     || tags.includes('high_volatility_market')
     || tags.includes('low_value_odds')
     || tags.includes('stale_odds')
+    || tags.includes('lineup_unknown')
     || correlation.correlationScore >= 3) {
     return 'high';
   }
 
   if (mode === 'emi'
     || tags.includes('lineup_required')
+    || tags.includes('lineup_projected')
+    || tags.includes('pitcher_unknown')
     || tags.includes('pitcher_k_line')
     || tags.includes('batter_hit_prop')
     || tags.includes('total_bases_prop')
@@ -338,6 +361,18 @@ function buildTicketForMode(scoredCandidates = [], mode = 'safe', options = {}) 
 
   if (selected.some((leg) => leg.riskTags.includes('lineup_required'))) {
     warnings.push('lineup_required');
+  }
+
+  if (selected.some((leg) => leg.riskTags.includes('lineup_unknown'))) {
+    warnings.push('lineup_not_confirmed');
+  }
+
+  if (selected.some((leg) => leg.riskTags.includes('lineup_projected'))) {
+    warnings.push('projected_lineup_only');
+  }
+
+  if (selected.some((leg) => leg.riskTags.includes('pitcher_unknown'))) {
+    warnings.push('pitcher_not_confirmed');
   }
 
   const totalDecimalOdds = calculateTotalOdds(selected);

@@ -23,7 +23,7 @@ function hasRisk(candidate = {}, tag) {
 }
 
 function getConfidenceTier(score, candidate = {}) {
-  if (hasRisk(candidate, 'timing_blocked')) {
+  if (hasRisk(candidate, 'timing_blocked') || hasRisk(candidate, 'player_not_starting')) {
     return 'F';
   }
 
@@ -96,9 +96,14 @@ function getRiskLevel(candidate = {}) {
     return 'blocked';
   }
 
+  if (hasRisk(candidate, 'player_not_starting')) {
+    return 'blocked';
+  }
+
   if (hasRisk(candidate, 'stale_odds')
     || hasRisk(candidate, 'unknown_freshness')
     || hasRisk(candidate, 'high_volatility_market')
+    || hasRisk(candidate, 'lineup_unknown')
     || hasRisk(candidate, 'missing_line')
     || hasRisk(candidate, 'missing_price')
     || hasRisk(candidate, 'missing_bookmaker')
@@ -107,6 +112,7 @@ function getRiskLevel(candidate = {}) {
   }
 
   if (hasRisk(candidate, 'lineup_required')
+    || hasRisk(candidate, 'pitcher_unknown')
     || hasRisk(candidate, 'pitcher_k_line')
     || hasRisk(candidate, 'batter_hit_prop')
     || hasRisk(candidate, 'total_bases_prop')
@@ -135,6 +141,11 @@ function buildPenaltyBreakdown(candidate = {}) {
   const timingPenalty = hasRisk(candidate, 'timing_blocked') ? -60 : 0;
   const volatilityPenalty = hasRisk(candidate, 'high_volatility_market') ? -18 : 0;
   const lowValuePenalty = hasRisk(candidate, 'low_value_odds') ? -20 : 0;
+  const lineupPenalty = (hasRisk(candidate, 'lineup_confirmed') ? 5 : 0)
+    + (hasRisk(candidate, 'lineup_unknown') ? -15 : 0)
+    + (hasRisk(candidate, 'player_not_starting') ? -60 : 0)
+    + (hasRisk(candidate, 'pitcher_confirmed') ? 4 : 0)
+    + (hasRisk(candidate, 'pitcher_unknown') ? -10 : 0);
 
   return {
     priceScore: getPriceScore(candidate),
@@ -144,6 +155,7 @@ function buildPenaltyBreakdown(candidate = {}) {
     timingPenalty,
     volatilityPenalty,
     lowValuePenalty,
+    lineupPenalty,
   };
 }
 
@@ -160,6 +172,18 @@ function buildScoringNotes(candidate = {}, scored = {}) {
 
   if (hasRisk(candidate, 'lineup_required')) {
     notes.push('Lineup confirmation required before ticket use.');
+  }
+
+  if (hasRisk(candidate, 'lineup_unknown')) {
+    notes.push('Batter lineup is not confirmed in cache.');
+  }
+
+  if (hasRisk(candidate, 'player_not_starting')) {
+    notes.push('Player is not in the confirmed lineup.');
+  }
+
+  if (hasRisk(candidate, 'pitcher_unknown')) {
+    notes.push('Pitcher confirmation is unavailable in cache.');
   }
 
   if (hasRisk(candidate, 'pitcher_k_line')) {
@@ -181,6 +205,7 @@ function buildScoringWarnings(candidate = {}) {
   return [
     ...(Array.isArray(candidate.rejectionReasons) ? candidate.rejectionReasons : []),
     ...(Array.isArray(candidate.dataQuality?.warnings) ? candidate.dataQuality.warnings : []),
+    ...(Array.isArray(candidate.lineupGate?.warnings) ? candidate.lineupGate.warnings : []),
   ].filter(Boolean);
 }
 
@@ -196,7 +221,8 @@ function scoreCandidate(candidate = {}, options = {}) {
     + penalties.marketRiskPenalty
     + penalties.timingPenalty
     + penalties.volatilityPenalty
-    + penalties.lowValuePenalty;
+    + penalties.lowValuePenalty
+    + penalties.lineupPenalty;
   let finalScore = clampScore(rawScore);
 
   if (candidate.candidateStatus === 'rejected') {
@@ -204,6 +230,10 @@ function scoreCandidate(candidate = {}, options = {}) {
   }
 
   if (hasRisk(candidate, 'timing_blocked')) {
+    finalScore = Math.min(finalScore, 10);
+  }
+
+  if (hasRisk(candidate, 'player_not_starting')) {
     finalScore = Math.min(finalScore, 10);
   }
 
@@ -224,6 +254,7 @@ function scoreCandidate(candidate = {}, options = {}) {
       timingPenalty: penalties.timingPenalty,
       volatilityPenalty: penalties.volatilityPenalty,
       lowValuePenalty: penalties.lowValuePenalty,
+      lineupPenalty: penalties.lineupPenalty,
       finalScore,
     },
     scoringNotes: [],

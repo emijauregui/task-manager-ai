@@ -1,4 +1,5 @@
 const eventTimingFilterService = require('./eventTimingFilterService');
+const lineupGateService = require('./lineupGateService');
 
 const VERSION = 'v2';
 const SOURCE = 'odds_ingestion_cache';
@@ -204,10 +205,6 @@ function buildCandidateRiskTags(candidate = {}) {
     tags.push('moneyline_market');
   }
 
-  if (BATTER_PROP_MARKETS.has(marketKey)) {
-    tags.push('lineup_required');
-  }
-
   dataQualityWarnings.forEach((warning) => {
     if (warning === 'missing_line'
       || warning === 'missing_price'
@@ -220,6 +217,26 @@ function buildCandidateRiskTags(candidate = {}) {
   });
 
   return uniqueStrings(tags);
+}
+
+function applyLineupGate(candidate = {}, options = {}) {
+  const lineupGate = lineupGateService.evaluateLineupForCandidate(candidate, {
+    lineupContext: options.lineupContext || {},
+  });
+  const lineupRiskTag = lineupGate.status === 'not_applicable'
+    ? 'lineup_not_applicable'
+    : lineupGate.status;
+
+  candidate.lineupGate = lineupGate;
+  candidate.riskTags = uniqueStrings([
+    ...candidate.riskTags,
+    lineupRiskTag,
+    ...(lineupGate.status === 'lineup_unknown' || lineupGate.status === 'lineup_projected'
+      ? ['lineup_required']
+      : []),
+  ]);
+
+  return candidate;
 }
 
 function applySoftRejections(candidate = {}) {
@@ -301,6 +318,7 @@ function generatePickCandidatesFromOdds(normalizedOdds = [], options = {}) {
     candidate.riskTags = buildCandidateRiskTags(candidate);
     applySoftRejections(candidate);
     evaluateCandidateTiming(candidate, options);
+    applyLineupGate(candidate, options);
 
     if (candidate.riskTags.includes('stale_odds')) {
       candidate.notes.push('Cache odds are stale; candidate is diagnostic only.');
